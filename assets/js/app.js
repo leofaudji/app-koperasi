@@ -185,6 +185,25 @@ const App = {
         this.renderMenu();
         if (!location.hash || location.hash === '#/') location.hash = '#/dashboard';
         else this.handleRoute();
+
+        // Auto-populate sidebar version badge from CHANGELOG.md
+        this._loadAppVersion();
+    },
+
+    async _loadAppVersion() {
+        try {
+            const script = document.querySelector('script[src*="assets/js/app.js"]');
+            let root = '/';
+            if (script?.src) root = new URL(script.src).pathname.split('assets/js/app.js')[0];
+            const res = await fetch(root + 'CHANGELOG.md?v=' + Date.now());
+            if (!res.ok) return;
+            const text = await res.text();
+            const match = text.match(/^##\s+\[([^\]]+)\]/m);
+            if (match) {
+                const el = document.getElementById('sidebar-version');
+                if (el) el.textContent = match[1];
+            }
+        } catch { /* silently fail */ }
     },
 
     toggleSidebar() {
@@ -197,6 +216,10 @@ const App = {
     // ===== Render Sidebar Menu (Cloudflare-style) =====
     renderMenu() {
         const nav = document.getElementById('sidebar-menu');
+        // Clear search input on menu re-render
+        const searchEl = document.getElementById('sidebar-search');
+        if (searchEl) searchEl.value = '';
+
         const renderItem = (m) => {
             if (m.children && m.children.length) {
                 const id = 'sub_' + m.id;
@@ -223,6 +246,55 @@ const App = {
             }
             return renderItem(m);
         }).join('');
+
+        // Build flat list of all leaf items for search
+        this._flatMenuItems = [];
+        const collectLeaves = (items) => {
+            (items || []).forEach(m => {
+                if (m.is_header) { collectLeaves(m.children); return; }
+                if (m.children) { collectLeaves(m.children); return; }
+                if (m.url) this._flatMenuItems.push({ nama: m.nama, url: m.url, icon: m.icon || 'ri-circle-line' });
+            });
+        };
+        collectLeaves(this.menus);
+    },
+
+    filterMenu(query) {
+        const nav = document.getElementById('sidebar-menu');
+        const q = (query || '').trim().toLowerCase();
+
+        if (!q) {
+            // Restore full menu
+            this.renderMenu();
+            this.setActiveMenu(this.currentRoute);
+            return;
+        }
+
+        const matches = (this._flatMenuItems || []).filter(m => m.nama.toLowerCase().includes(q));
+
+        if (matches.length === 0) {
+            nav.innerHTML = `
+            <div class="px-4 py-8 text-center">
+                <i class="ri-search-line text-3xl text-gray-200"></i>
+                <p class="mt-2 text-xs text-gray-400">Tidak ditemukan</p>
+            </div>`;
+            return;
+        }
+
+        const highlight = (text) => {
+            const idx = text.toLowerCase().indexOf(q);
+            if (idx === -1) return text;
+            return text.slice(0, idx) + '<mark class="bg-yellow-100 text-yellow-800 rounded px-0.5">' + text.slice(idx, idx + q.length) + '</mark>' + text.slice(idx + q.length);
+        };
+
+        nav.innerHTML = `<div class="px-2 pt-1 pb-2">
+            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2 mb-1">${matches.length} hasil</p>
+            ${matches.map(m => `
+            <a href="${m.url}" class="menu-item" data-url="${m.url}">
+                <i class="${m.icon} menu-icon"></i>
+                <span>${highlight(m.nama)}</span>
+            </a>`).join('')}
+        </div>`;
     },
 
     toggleSubmenu(id) {

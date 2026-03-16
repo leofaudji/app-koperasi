@@ -301,6 +301,13 @@
                 "perm": "rat.view"
             },
             {
+                "id": 50,
+                "nama": "Changelog",
+                "icon": "ri-git-repository-line",
+                "url": "#/changelog",
+                "perm": "dashboard.view"
+            },
+            {
                 "id": 19,
                 "nama": "Pengaturan",
                 "icon": "ri-settings-3-line",
