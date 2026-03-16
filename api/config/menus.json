@@ -1,0 +1,333 @@
+[
+    {
+        "nama": "NAVIGASI",
+        "is_header": 1,
+        "children": [
+            {
+                "id": 1,
+                "nama": "Dashboard",
+                "icon": "ri-dashboard-line",
+                "url": "#/dashboard",
+                "perm": "dashboard.view"
+            }
+        ]
+    },
+    {
+        "nama": "MASTER DATA",
+        "is_header": 1,
+        "children": [
+            {
+                "id": 3,
+                "nama": "Data Anggota",
+                "icon": "ri-group-line",
+                "url": "#/anggota",
+                "perm": "anggota.view"
+            },
+            {
+                "id": 2,
+                "nama": "Master Data",
+                "icon": "ri-database-2-line",
+                "children": [
+                    {
+                        "id": 4,
+                        "nama": "Jenis Simpanan",
+                        "icon": "ri-wallet-3-line",
+                        "url": "#/jenis-simpanan",
+                        "perm": "simpanan.setting"
+                    },
+                    {
+                        "id": 5,
+                        "nama": "Kode Transaksi",
+                        "icon": "ri-exchange-line",
+                        "url": "#/kode-transaksi",
+                        "perm": "simpanan.setting"
+                    },
+                    {
+                        "id": 6,
+                        "nama": "Jenis Pinjaman",
+                        "icon": "ri-hand-coin-line",
+                        "url": "#/jenis-pinjaman",
+                        "perm": "pinjaman.setting"
+                    },
+                    {
+                        "id": 61,
+                        "nama": "Jenis Biaya Pinjaman",
+                        "icon": "ri-coins-line",
+                        "url": "#/biaya-pinjaman",
+                        "perm": "pinjaman.setting"
+                    },
+                    {
+                        "id": 18,
+                        "nama": "Chart of Account",
+                        "icon": "ri-list-settings-line",
+                        "url": "#/akun",
+                        "perm": "keuangan.akun"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nama": "TRANSAKSI",
+        "is_header": 1,
+        "children": [
+            {
+                "id": 7,
+                "nama": "Simpanan",
+                "icon": "ri-wallet-line",
+                "children": [
+                    {
+                        "id": 29,
+                        "nama": "Daftar Rekening",
+                        "icon": "ri-bank-card-line",
+                        "url": "#/rekening-simpanan",
+                        "perm": "simpanan.view"
+                    },
+                    {
+                        "id": 8,
+                        "nama": "Transaksi Simpanan",
+                        "icon": "ri-exchange-funds-line",
+                        "url": "#/simpanan",
+                        "perm": "simpanan.create"
+                    },
+                    {
+                        "id": 9,
+                        "nama": "Mutasi Simpanan",
+                        "icon": "ri-file-list-3-line",
+                        "url": "#/mutasi-simpanan",
+                        "perm": "simpanan.view"
+                    }
+                ]
+            },
+            {
+                "id": 10,
+                "nama": "Pinjaman",
+                "icon": "ri-hand-coin-line",
+                "children": [
+                    {
+                        "id": 11,
+                        "nama": "Daftar Pinjaman",
+                        "icon": "ri-file-text-line",
+                        "url": "#/pinjaman",
+                        "perm": "pinjaman.view"
+                    },
+                    {
+                        "id": 12,
+                        "nama": "Pembayaran Angsuran",
+                        "icon": "ri-money-dollar-circle-line",
+                        "url": "#/angsuran",
+                        "perm": "angsuran.create"
+                    },
+                    {
+                        "id": 34,
+                        "nama": "Manajemen Agunan",
+                        "icon": "ri-shield-check-line",
+                        "url": "#/agunan",
+                        "perm": "agunan.view"
+                    }
+                ]
+            },
+            {
+                "id": 43,
+                "nama": "Jurnal Keuangan",
+                "icon": "ri-book-open-line",
+                "url": "#/jurnal",
+                "perm": "keuangan.jurnal"
+            }
+        ]
+    },
+    {
+        "nama": "LAPORAN",
+        "is_header": 1,
+        "children": [
+            {
+                "id": 70,
+                "nama": "Simpanan",
+                "icon": "ri-wallet-2-line",
+                "children": [
+                    {
+                        "id": 28,
+                        "nama": "Laporan Saldo",
+                        "icon": "ri-file-list-2-line",
+                        "url": "#/laporan-simpanan",
+                        "perm": "laporan.simpanan_saldo"
+                    },
+                    {
+                        "id": 36,
+                        "nama": "Buku Simpanan",
+                        "icon": "ri-book-open-line",
+                        "url": "#/buku-simpanan",
+                        "perm": "simpanan.view"
+                    }
+                ]
+            },
+            {
+                "id": 240,
+                "nama": "Pinjaman",
+                "icon": "ri-pie-chart-line",
+                "children": [
+                    {
+                        "id": 26,
+                        "nama": "Laporan Saldo",
+                        "icon": "ri-file-list-3-line",
+                        "url": "#/laporan-pinjaman",
+                        "perm": "laporan.pinjaman_saldo"
+                    },
+                    {
+                        "id": 27,
+                        "nama": "Laporan Baki Debet",
+                        "icon": "ri-file-history-line",
+                        "url": "#/laporan-baki-debet",
+                        "perm": "laporan.pinjaman_baki_debet"
+                    },
+                    {
+                        "id": 28,
+                        "nama": "Kolektibilitas (NPL)",
+                        "icon": "ri-pie-chart-2-line",
+                        "url": "#/laporan-kolektibilitas",
+                        "perm": "laporan.pinjaman_baki_debet"
+                    },
+                    {
+                        "id": 31,
+                        "nama": "Jasa Pinjaman",
+                        "icon": "ri-money-dollar-circle-line",
+                        "url": "#/laporan-jasa-anggota",
+                        "perm": "laporan.pinjaman_saldo"
+                    },
+                    {
+                        "id": 33,
+                        "nama": "Mutasi Angsuran",
+                        "icon": "ri-history-line",
+                        "url": "#/laporan-mutasi-angsuran",
+                        "perm": "laporan.pinjaman_saldo"
+                    },
+                    {
+                        "id": 32,
+                        "nama": "Daftar Agunan",
+                        "icon": "ri-shield-line",
+                        "url": "#/laporan-agunan",
+                        "perm": "pinjaman.view"
+                    },
+                    {
+                        "id": 38,
+                        "nama": "Kartu Angsuran",
+                        "icon": "ri-coupon-3-line",
+                        "url": "#/kartu-angsuran",
+                        "perm": "pinjaman.view"
+                    }
+                ]
+            },
+            {
+                "id": 13,
+                "nama": "Keuangan",
+                "icon": "ri-line-chart-line",
+                "children": [
+                    {
+                        "id": 15,
+                        "nama": "Buku Besar",
+                        "icon": "ri-book-2-line",
+                        "url": "#/buku-besar",
+                        "perm": "keuangan.buku_besar"
+                    },
+                    {
+                        "id": 16,
+                        "nama": "Neraca",
+                        "icon": "ri-scales-3-line",
+                        "url": "#/neraca",
+                        "perm": "keuangan.neraca"
+                    },
+                    {
+                        "id": 17,
+                        "nama": "Laba Rugi",
+                        "icon": "ri-funds-line",
+                        "url": "#/laba-rugi",
+                        "perm": "keuangan.laba_rugi"
+                    },
+                    {
+                        "id": 39,
+                        "nama": "Tingkat Kesehatan",
+                        "icon": "ri-heart-pulse-line",
+                        "url": "#/kesehatan-koperasi",
+                        "perm": "keuangan.laba_rugi"
+                    },
+                    {
+                        "id": 46,
+                        "nama": "Audit Saldo",
+                        "icon": "ri-shield-check-line",
+                        "url": "#/audit",
+                        "perm": "keuangan.neraca"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nama": "SISTEM",
+        "is_header": 1,
+        "children": [
+            {
+                "id": 45,
+                "nama": "Pengumuman",
+                "icon": "ri-notification-3-line",
+                "url": "#/pengumuman",
+                "perm": "pengumuman.view"
+            },
+            {
+                "id": 34,
+                "nama": "Pembagian SHU",
+                "icon": "ri-p2p-line",
+                "url": "#/shu",
+                "perm": "keuangan.laba_rugi"
+            },
+            {
+                "id": 41,
+                "nama": "Proses Akhir Tahun",
+                "icon": "ri-calendar-check-line",
+                "url": "#/akhir-tahun",
+                "perm": "keuangan.laba_rugi"
+            },
+            {
+                "id": 40,
+                "nama": "Pengundian RAT",
+                "icon": "ri-gift-line",
+                "url": "#/pengundian-rat",
+                "perm": "dashboard.view"
+            },
+            {
+                "id": 44,
+                "nama": "Manajemen RAT",
+                "icon": "ri-slideshow-view",
+                "url": "#/rat",
+                "perm": "rat.view"
+            },
+            {
+                "id": 19,
+                "nama": "Pengaturan",
+                "icon": "ri-settings-3-line",
+                "children": [
+                    {
+                        "id": 20,
+                        "nama": "Manajemen User",
+                        "icon": "ri-user-settings-line",
+                        "url": "#/users",
+                        "perm": "user.view"
+                    },
+                    {
+                        "id": 21,
+                        "nama": "Manajemen Role",
+                        "icon": "ri-shield-user-line",
+                        "url": "#/roles",
+                        "perm": "role.view"
+                    },
+                    {
+                        "id": 22,
+                        "nama": "Aplikasi",
+                        "icon": "ri-computer-line",
+                        "url": "#/pengaturan",
+                        "perm": "settings.edit"
+                    }
+                ]
+            }
+        ]
+    }
+]

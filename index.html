@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Koperasi Simpan Pinjam</title>
+    <meta name="description" content="Aplikasi Koperasi Simpan Pinjam - Sistem Manajemen Keuangan Terpadu">
+    <link rel="icon" type="image/png" href="assets/images/favicon.png">
+
+    <!-- TailwindCSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' },
+                        accent: { 50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#5eead4', 400: '#2dd4bf', 500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a' }
+                    },
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'] }
+                }
+            }
+        };
+
+        window.THEMES = {
+            indigo: { name: 'Indigo', shade: '#4f46e5', p: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' } },
+            violet: { name: 'Violet', shade: '#7c3aed', p: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95' } },
+            blue: { name: 'Biru', shade: '#2563eb', p: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' } },
+            cyan: { name: 'Cyan', shade: '#0891b2', p: { 50: '#ecfeff', 100: '#cffafe', 200: '#a5f3fc', 300: '#67e8f9', 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2', 700: '#0e7490', 800: '#155e75', 900: '#164e63' } },
+            emerald: { name: 'Hijau', shade: '#059669', p: { 50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b' } },
+            orange: { name: 'Oranye', shade: '#ea580c', p: { 50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa', 300: '#fdba74', 400: '#fb923c', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12' } },
+            rose: { name: 'Merah', shade: '#e11d48', p: { 50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 300: '#fda4af', 400: '#fb7185', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c', 800: '#9f1239', 900: '#881337' } },
+            slate: { name: 'Abu-abu', shade: '#475569', p: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a' } },
+        };
+
+        window.applyTheme = function (key) {
+            const t = window.THEMES[key];
+            if (!t) return;
+            const p = t.p, c = t.shade;
+            document.querySelectorAll('style[data-theme]').forEach(el => el.remove());
+            const s = document.createElement('style');
+            s.setAttribute('data-theme', key);
+            s.textContent = [
+                '.bg-primary-50{background-color:' + p[50] + '!important}',
+                '.bg-primary-100{background-color:' + p[100] + '!important}',
+                '.bg-primary-200{background-color:' + p[200] + '!important}',
+                '.bg-primary-500{background-color:' + p[500] + '!important}',
+                '.bg-primary-600{background-color:' + p[600] + '!important}',
+                '.bg-primary-700{background-color:' + p[700] + '!important}',
+                '.hover\\:bg-primary-600:hover{background-color:' + p[600] + '!important}',
+                '.hover\\:bg-primary-700:hover{background-color:' + p[700] + '!important}',
+                '.text-primary-400{color:' + p[400] + '!important}',
+                '.text-primary-500{color:' + p[500] + '!important}',
+                '.text-primary-600{color:' + p[600] + '!important}',
+                '.text-primary-700{color:' + p[700] + '!important}',
+                '.border-primary-100{border-color:' + p[100] + '!important}',
+                '.border-primary-200{border-color:' + p[200] + '!important}',
+                '.border-primary-400{border-color:' + p[400] + '!important}',
+                '.menu-item.active{background:' + c + '12!important;color:' + c + '!important}',
+                '.menu-item.active::before{background:' + c + '!important}',
+                '.menu-item:hover .menu-icon{color:' + c + '!important}',
+                '.submenu.open{border-left-color:' + c + '30!important}',
+                '.submenu-item:hover::before{background:' + c + '80!important}',
+                '.submenu-item.active{color:' + c + '!important;background:' + c + '0f!important;border-left-color:' + c + '!important}',
+                '.submenu-item.active::before{background:' + c + '!important}',
+                '.flatpickr-day.selected,.flatpickr-day.selected:hover{background:' + c + '!important;border-color:' + c + '!important}',
+                '.flatpickr-day.today{border-color:' + c + '!important}'
+            ].join(' ');
+            document.head.appendChild(s);
+            localStorage.setItem('app_theme', key);
+            window.__activeTheme = key;
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const saved = localStorage.getItem('app_theme');
+            if (saved && window.THEMES[saved]) window.applyTheme(saved);
+        });
+    </script>
+
+    <!-- Remix Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- Google Font: Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- jsPDF & AutoTable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- Flatpickr (Date Picker DD-MM-YYYY) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+
+    <link rel="stylesheet" href="assets/css/app.css">
+</head>
+
+<body class="bg-gray-50 font-sans antialiased">
+
+    <!-- Login Page -->
+    <div id="login-page" class="hidden min-h-screen bg-white flex overflow-hidden font-sans">
+        <!-- Left Side: Branding & Visuals (Desktop Only) -->
+        <div
+            class="hidden lg:flex lg:w-[45%] bg-slate-900 relative overflow-hidden flex-col justify-between p-16 text-white">
+            <!-- Background Decorations -->
+            <div class="absolute inset-0 opacity-20">
+                <svg class="h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path d="M0 100 C 20 0 50 0 100 100 Z" fill="url(#grad_login)" />
+                    <defs>
+                        <linearGradient id="grad_login" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#6366f1;stop-opacity:0" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <div
+                class="absolute top-0 right-0 w-[800px] h-[800px] bg-primary-600/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2">
+            </div>
+            <div
+                class="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/3">
+            </div>
+
+            <!-- Top Brand -->
+            <div class="relative z-10 flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30">
+                    <i class="ri-bank-line text-2xl"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tight">KoperasiApp</span>
+            </div>
+
+            <!-- Central Content -->
+            <div class="relative z-10 my-auto">
+                <h1 class="text-5xl font-bold tracking-tight leading-tight mb-6">
+                    Solusi Pencatatan<br />
+                    <span class="text-primary-400">Modern & Akuntabel</span>
+                </h1>
+                <p class="text-slate-400 text-lg leading-relaxed max-w-sm mb-8">
+                    Manajemen simpan pinjam terpadu, transparan, dan akuntabel untuk kesejahteraan bersama.
+                </p>
+
+                <div class="flex gap-4">
+                    <div
+                        class="px-4 py-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-full bg-primary-500/20 flex items-center justify-center text-primary-400">
+                            <i class="ri-user-heart-line text-sm"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Total Anggota
+                            </div>
+                            <div id="login-total-anggota" class="text-sm font-bold">Terpercaya</div>
+                        </div>
+                    </div>
+                    <div
+                        class="px-4 py-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <i class="ri-shield-check-line text-sm"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Status Sistem
+                            </div>
+                            <div class="text-sm font-bold text-emerald-400">Online</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Copyright -->
+            <div class="relative z-10 text-xs text-slate-500 font-medium">
+                <span>&copy; 2026 <a href="https://crudworks.com" target="_blank"
+                        class="hover:text-primary-400 transition-colors font-bold">CRUDWorks.com</a> - Allright
+                    Reserved. </span>
+            </div>
+        </div>
+
+        <!-- Right Side: Login Form -->
+        <div class="w-full lg:w-[55%] flex flex-col items-center justify-center p-8 md:p-12 pb-24 relative">
+            <div class="w-full max-w-sm animate-fadeIn">
+                <div class="mb-10 text-center lg:text-left">
+                    <div
+                        class="lg:hidden w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-primary-500/30">
+                        <i class="ri-bank-line text-3xl text-white"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold text-slate-900 tracking-tight mb-2">Selamat Datang 👋</h2>
+                    <p class="text-slate-500">Masuk ke dashboard admin koperasi.</p>
+                </div>
+
+                <form id="login-form" class="space-y-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-slate-700 ml-1">Username</label>
+                        <div class="relative group">
+                            <input type="text" id="login-username"
+                                class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all text-slate-900 placeholder:text-slate-400 font-medium"
+                                placeholder="Masukkan username" required>
+                            <div
+                                class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none group-focus-within:text-primary-500 transition-colors">
+                                <i class="ri-user-3-line text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center ml-1">
+                            <label class="block text-sm font-semibold text-slate-700">Password</label>
+                            <a href="#"
+                                class="text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors">Lupa
+                                Password?</a>
+                        </div>
+                        <div class="relative group">
+                            <input type="password" id="login-password"
+                                class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all text-slate-900 placeholder:text-slate-400 font-medium"
+                                placeholder="••••••••" required>
+                            <div
+                                class="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none group-focus-within:text-primary-500 transition-colors">
+                                <i class="ri-lock-2-line text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button id="login-btn"
+                            class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-lg shadow-slate-900/20 hover:bg-slate-800 hover:shadow-slate-900/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group"
+                            type="submit">
+                            <span id="login-btn-text">Masuk Dashboard</span>
+                            <i id="login-btn-loader" class="ri-loader-4-line animate-spin hidden"></i>
+                            <i class="ri-arrow-right-line group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                    </div>
+
+                    <div id="login-error"
+                        class="hidden bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-2xl text-sm flex items-center gap-2">
+                        <i class="ri-error-warning-line"></i>
+                        <span></span>
+                    </div>
+
+                </form>
+
+            </div>
+
+            <!-- Bottom Center Logo -->
+            <div
+                class="absolute bottom-11 left-0 right-0 flex justify-center opacity-60 hover:opacity-100 transition-opacity">
+                <a href="https://crudworks.com" target="_blank">
+                    <img src="assets/images/logo.png" alt="Logo"
+                        class="h-4 w-auto grayscale hover:grayscale-0 transition-all">
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Layout -->
+    <div id="app-layout" class="hidden min-h-screen flex">
+        <!-- Sidebar Overlay (mobile) -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 hidden lg:hidden"
+            onclick="App.toggleSidebar()"></div>
+
+        <!-- Sidebar: Cloudflare-inspired -->
+        <aside id="sidebar"
+            class="fixed lg:sticky top-0 left-0 z-50 h-screen w-[220px] bg-white border-r border-gray-200 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col shadow-xl lg:shadow-none">
+            <!-- Logo -->
+            <div class="flex items-center gap-2.5 px-4 h-14 border-b border-gray-100 flex-shrink-0">
+                <div
+                    class="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
+                    <i class="ri-bank-line text-white text-sm"></i>
+                </div>
+                <div class="leading-none">
+                    <h1 class="text-gray-900 font-bold text-[0.8125rem] tracking-tight">Koperasi</h1>
+                    <p class="text-gray-400 text-[0.6rem] font-medium mt-0.5">Simpan Pinjam</p>
+                </div>
+            </div>
+
+            <!-- Menu -->
+            <nav id="sidebar-menu" class="flex-1 overflow-y-auto py-2 scrollbar-thin">
+                <!-- Dynamically rendered from API -->
+            </nav>
+
+            <!-- User Info -->
+            <div class="px-4 py-3 border-t border-gray-100 flex-shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-bold text-xs"
+                        id="user-avatar">A</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-gray-800 text-xs font-semibold truncate" id="user-name">Admin</p>
+                        <p class="text-gray-400 text-[0.6rem] font-medium" id="user-role">Administrator</p>
+                    </div>
+                    <button onclick="App.logout()"
+                        class="p-1.5 hover:bg-gray-100 rounded-md transition text-gray-400 hover:text-red-500"
+                        title="Logout">
+                        <i class="ri-logout-box-r-line text-base"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col min-w-0">
+            <!-- Topbar -->
+            <header
+                class="sticky top-0 z-30 h-16 bg-white/80 backdrop-blur-xl border-b border-gray-200/80 flex items-center justify-between px-4 lg:px-6 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <button onclick="App.toggleSidebar()" class="lg:hidden p-2 hover:bg-gray-100 rounded-xl transition">
+                        <i class="ri-menu-line text-xl text-gray-600"></i>
+                    </button>
+                    <div>
+                        <h2 id="page-title" class="text-lg font-semibold text-gray-800">Dashboard</h2>
+                        <p id="page-subtitle" class="text-xs text-gray-400 hidden"></p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-400 hidden sm:block" id="current-date"></span>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div id="app-content" class="flex-1 p-4 lg:p-6 overflow-auto">
+                <!-- Dynamically loaded pages -->
+            </div>
+
+            <!-- Footer -->
+            <footer
+                class="py-4 px-6 border-t border-gray-200 bg-white/50 text-center text-xs text-gray-500 font-medium">
+                &copy; 2026 <a href="https://crudworks.com" target="_blank"
+                    class="text-primary-600 hover:text-primary-700 font-bold transition-colors">CRUDWorks.com</a> -
+                Allright Reserved.
+            </footer>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2"></div>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="fixed inset-0 z-[90] hidden">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="App.closeModal()"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div id="modal-content"
+                class="bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-auto w-full max-w-2xl transform transition-all">
+                <!-- Modal content injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/app.js?v=1.1"></script>
+    <!-- Splash Screen Overlay -->
+    <div id="splash-screen"
+        class="fixed inset-0 bg-primary-600 z-[200] flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-500">
+        <div class="relative">
+            <div class="w-24 h-24 bg-white/10 rounded-[2rem] flex items-center justify-center animate-pulse">
+                <i class="ri-bank-line text-5xl text-white"></i>
+            </div>
+            <div class="absolute inset-0 border-4 border-white/20 rounded-[2rem] animate-ping duration-1000"></div>
+        </div>
+        <h2 class="text-white text-2xl font-black mt-8 tracking-tighter">Menyiapkan Dashboard...</h2>
+        <div class="mt-4 flex space-x-1">
+            <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+            <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+            <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce"></div>
+        </div>
+    </div>
+</body>
+
+</html>

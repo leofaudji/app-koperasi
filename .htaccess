@@ -1,0 +1,26 @@
+RewriteEngine On
+
+# 0. Force trailing slash for the main directory to ensure relative assets load correctly
+RewriteCond %{REQUEST_URI} !/$
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^(.*)$ $1/ [L,R=301]
+
+# 1. Force trailing slash for portal to fix relative paths
+RewriteRule ^portal$ portal/ [L,R=301]
+
+# 2. API Routes
+RewriteRule ^api/(.*)$ api/index.php?route=$1 [QSA,L]
+
+# 3. Portal Routes
+# Match portal/ or portal/index.html and serve via portal/index.php
+RewriteRule ^portal/$ portal/index.php [L]
+RewriteRule ^portal/index\.html$ portal/index.php [L]
+
+# 4. Root/Index Handler
+RewriteRule ^$ index.php [L]
+RewriteRule ^index\.html$ index.php [L]
+
+# 5. SPA Fallback for Dashboard (Admin)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(?!api/|portal/|assets/|uploads/).*$ index.php [L]

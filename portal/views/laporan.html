@@ -1,0 +1,103 @@
+<!-- Header Sticky -->
+<div class="px-6 pt-6 pb-4 bg-[#f8fafc] sticky top-0 z-30">
+    <div class="flex items-center gap-3 mb-1">
+        <button onclick="Portal.tab('home')"
+            class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors">
+            <i class="bi bi-arrow-left"></i>
+        </button>
+        <h1 class="text-xl font-bold text-gray-900">Laporan Genggaman</h1>
+    </div>
+    <p class="text-xs text-gray-500 pl-11">Ringkasan aset dan kewajiban finansial Anda</p>
+</div>
+
+<div class="px-6 pb-24 space-y-6">
+
+    <!-- Loading / Error States -->
+    <div id="p-lap-loading" class="flex justify-center py-10">
+        <i class="ri-loader-4-line text-4xl animate-spin text-blue-500"></i>
+    </div>
+    <div id="p-lap-error"
+        class="hidden text-center py-10 text-red-500 text-sm bg-red-50 rounded-2xl border border-red-100">
+        Gagal memuat laporan. Silakan coba lagi.
+    </div>
+
+    <!-- Main Report Content -->
+    <div id="p-lap-content" class="hidden space-y-6">
+
+        <!-- Last Sync -->
+        <div class="flex justify-between items-center text-[10px] text-gray-400 font-medium px-1">
+            <span>Posisi per: <span id="p-lap-time" class="text-gray-600">Terakhir Dimuat</span></span>
+            <span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1"><i
+                    class="bi bi-shield-check"></i> Real-time</span>
+        </div>
+
+        <!-- Card Aset (Simpanan + SHU) -->
+        <div
+            class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white shadow-lg shadow-emerald-500/20 relative overflow-hidden">
+            <div
+                class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white rounded-full mix-blend-overlay opacity-10 blur-2xl">
+            </div>
+            <div class="relative z-10 flex justify-between items-start mb-4">
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider font-medium opacity-80 mb-1">Total Aset Saya</p>
+                    <h2 class="text-3xl font-black drop-shadow-sm" id="p-lap-aset">Rp 0</h2>
+                </div>
+                <div
+                    class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
+                    <i class="bi bi-safe2 text-xl shadow-sm"></i>
+                </div>
+            </div>
+            <div class="relative z-10 space-y-2 mt-4 pt-4 border-t border-white/20">
+                <div class="flex justify-between items-center text-xs">
+                    <span class="opacity-80">Semua Simpanan</span>
+                    <span class="font-bold tracking-wide" id="p-lap-simpanan">Rp 0</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                    <span class="opacity-80">Estimasi SHU</span>
+                    <span class="font-bold tracking-wide" id="p-lap-shu">Rp 0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Kewajiban (Pinjaman Aktif) -->
+        <div class="bg-white rounded-3xl p-6 border border-rose-100 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-full mix-blend-multiply opacity-50 blur-xl">
+            </div>
+            <div class="relative z-10 flex justify-between items-start mb-2">
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">Total Kewajiban</p>
+                    <h2 class="text-2xl font-black text-rose-600" id="p-lap-kewajiban">Rp 0</h2>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center shrink-0">
+                    <i class="bi bi-credit-card-2-front"></i>
+                </div>
+            </div>
+            <p class="text-[10px] text-gray-400 relative z-10">*Sisa pokok & bunga pinjaman yang belum lunas</p>
+        </div>
+
+        <!-- Health Ratio -->
+        <div class="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+            <h3 class="font-bold text-xs text-gray-800 mb-3 flex items-center gap-2"><i
+                    class="bi bi-activity text-blue-500"></i> Rasio Kesehatan Keuangan</h3>
+
+            <div class="w-full bg-gray-100 rounded-full h-3 mb-2 flex overflow-hidden">
+                <div id="p-lap-bar-aset" class="bg-emerald-500 h-3 transition-all duration-1000" style="width: 50%">
+                </div>
+                <div id="p-lap-bar-kewajiban" class="bg-rose-500 h-3 transition-all duration-1000" style="width: 50%">
+                </div>
+            </div>
+
+            <div class="flex justify-between text-[10px] font-bold">
+                <span class="text-emerald-600" id="p-lap-pct-aset">Aset 50%</span>
+                <span class="text-rose-600" id="p-lap-pct-kewajiban">Kewajiban 50%</span>
+            </div>
+        </div>
+
+        <!-- Export Button -->
+        <button onclick="alert('Fitur Unduh PDF Laporan belum tersedia untuk saat ini.')"
+            class="w-full bg-white border-2 border-blue-100 hover:bg-blue-50 hover:border-blue-200 text-blue-700 py-4 rounded-2xl font-bold shadow-sm active:scale-[0.98] transition-all flex justify-center items-center gap-2 mt-4 text-sm">
+            <i class="bi bi-file-earmark-pdf"></i> Unduh Rekapitulasi (PDF)
+        </button>
+
+    </div>
+</div>

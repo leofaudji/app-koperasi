@@ -1,0 +1,63 @@
+<!-- Header Fixed -->
+<div
+    class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 pt-6 pb-4 bg-[#f8fafc]/95 backdrop-blur-md z-30 shadow-sm border-b border-gray-100">
+    <div class="flex items-center gap-3 mb-4 pr-12">
+        <div
+            class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-emerald-500/30 shadow-md shrink-0">
+            <i class="bi bi-piggy-bank text-white text-lg"></i>
+        </div>
+        <div>
+            <h1 class="text-xl font-bold text-gray-900 leading-tight">Simpanan Saya</h1>
+            <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider mt-0.5">Saldo per produk simpanan
+            </p>
+        </div>
+    </div>
+    <!-- Summary Card Integrated -->
+    <div
+        class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-500/20">
+        <p class="text-[10px] text-emerald-100 uppercase tracking-wider mb-1">Total Saldo Simpanan</p>
+        <p class="text-2xl font-bold font-mono" id="simp-total-saldo">Rp —</p>
+        <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-white/20">
+            <div>
+                <p class="text-[9px] text-emerald-100 uppercase tracking-widest mb-0.5">Produk Aktif</p>
+                <p class="text-xs font-semibold" id="simp-produk-count">— Produk</p>
+            </div>
+            <div class="text-right">
+                <p class="text-[9px] text-emerald-100 uppercase tracking-widest mb-0.5">Data per</p>
+                <p class="text-xs font-semibold" id="simp-update-time">—</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Spacer for fixed header -->
+<div class="h-[240px]"></div>
+
+<!-- Produk Simpanan (container) -->
+<div class="px-6 pb-24 space-y-3 mt-2" id="p-content-simpanan"></div>
+
+<!-- Mutasi Modal (bottom sheet) -->
+<div id="simp-mutasi-modal" class="modal-sheet-wrapper fixed inset-0 z-50 flex flex-col">
+    <div class="modal-sheet-overlay absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onclick="Portal.closeModal('simp-mutasi-modal')"></div>
+    <div class="flex-1 pointer-events-none"></div>
+    <div
+        class="modal-sheet-panel bg-white rounded-t-3xl max-h-[85vh] flex flex-col max-w-[480px] mx-auto w-full shadow-2xl relative">
+        <div
+            class="px-6 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-3xl">
+            <div>
+                <div class="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mb-3"></div>
+                <p id="simp-mut-judul" class="font-bold text-gray-900 text-base"></p>
+                <p id="simp-mut-saldo" class="text-sm text-emerald-600 font-semibold mt-0.5"></p>
+            </div>
+            <button onclick="Portal.closeModal('simp-mutasi-modal')"
+                class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+                <i class="bi bi-x-lg text-sm"></i>
+            </button>
+        </div>
+        <div id="simp-mut-list" class="overflow-y-auto px-6 py-4 space-y-3 flex-1">
+            <div class="text-center text-gray-400 text-sm py-8"><i
+                    class="bi bi-hourglass-split animate-pulse text-2xl block mb-2"></i>Memuat mutasi...</div>
+        </div>
+    </div>
+</div>

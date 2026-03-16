@@ -1,0 +1,94 @@
+Array
+(
+    [0] => Array
+        (
+            [setting_key] => app_name
+            [setting_label] => Nama Aplikasi
+            [setting_group] => umum
+        )
+
+    [1] => Array
+        (
+            [setting_key] => app_tagline
+            [setting_label] => Tagline
+            [setting_group] => umum
+        )
+
+    [2] => Array
+        (
+            [setting_key] => ketua_koperasi
+            [setting_label] => Nama Ketua Koperasi
+            [setting_group] => umum
+        )
+
+    [3] => Array
+        (
+            [setting_key] => tahun_berdiri
+            [setting_label] => Tahun Berdiri
+            [setting_group] => umum
+        )
+
+    [4] => Array
+        (
+            [setting_key] => alamat
+            [setting_label] => Alamat Kantor
+            [setting_group] => umum
+        )
+
+    [5] => Array
+        (
+            [setting_key] => telepon
+            [setting_label] => Telepon
+            [setting_group] => umum
+        )
+
+    [6] => Array
+        (
+            [setting_key] => email
+            [setting_label] => Email
+            [setting_group] => umum
+        )
+
+    [7] => Array
+        (
+            [setting_key] => pwa_name
+            [setting_label] => Nama PWA (Mobile)
+            [setting_group] => pwa
+        )
+
+    [8] => Array
+        (
+            [setting_key] => pwa_short_name
+            [setting_label] => Nama Pendek PWA
+            [setting_group] => pwa
+        )
+
+    [9] => Array
+        (
+            [setting_key] => pwa_description
+            [setting_label] => Deskripsi PWA
+            [setting_group] => pwa
+        )
+
+    [10] => Array
+        (
+            [setting_key] => pwa_theme_color
+            [setting_label] => Warna Tema PWA
+            [setting_group] => pwa
+        )
+
+    [11] => Array
+        (
+            [setting_key] => logo_url
+            [setting_label] => URL Logo Utama
+            [setting_group] => tampilan
+        )
+
+    [12] => Array
+        (
+            [setting_key] => favicon_url
+            [setting_label] => URL Favicon
+            [setting_group] => tampilan
+        )
+
+)
