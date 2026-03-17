@@ -3,10 +3,10 @@ RewriteEngine On
 # 0. Force trailing slash for the main directory to ensure relative assets load correctly
 RewriteCond %{REQUEST_URI} !/$
 RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^(.*)$ $1/ [L,R=301]
+RewriteRule ^(.*)$ %{REQUEST_URI}/ [L,R=301]
 
 # 1. Force trailing slash for portal to fix relative paths
-RewriteRule ^portal$ portal/ [L,R=301]
+RewriteRule ^portal$ %{REQUEST_URI}/ [L,R=301]
 
 # 2. API Routes
 RewriteRule ^api/(.*)$ api/index.php?route=$1 [QSA,L]
