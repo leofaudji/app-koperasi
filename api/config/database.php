@@ -3,13 +3,19 @@ class Database {
     private static $instance = null;
     private $pdo;
 
-    private $host = 'localhost';
-    private $dbname = 'db_koperasi';
-    private $username = 'root';
-    private $password = '';
-    private $charset = 'utf8mb4';
+    private $host;
+    private $dbname;
+    private $username;
+    private $password;
+    private $charset;
 
     private function __construct() {
+        $this->host = getenv('DB_HOST') ?: 'localhost';
+        $this->dbname = getenv('DB_NAME') ?: 'db_koperasi';
+        $this->username = getenv('DB_USER') ?: 'root';
+        $this->password = getenv('DB_PASS') ?: '';
+        $this->charset = getenv('DB_CHARSET') ?: 'utf8mb4';
+
         try {
             $dsn = "mysql:host={$this->host};dbname={$this->dbname};charset={$this->charset}";
             $this->pdo = new PDO($dsn, $this->username, $this->password, [
