@@ -201,7 +201,7 @@ const App = {
             const match = text.match(/^##\s+\[([^\]]+)\]/m);
             if (match) {
                 const el = document.getElementById('sidebar-version');
-                if (el) el.textContent = match[1];
+                if (el) el.textContent = match[1].replace(/^v/, '');
             }
         } catch { /* silently fail */ }
     },
