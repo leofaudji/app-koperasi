@@ -36,7 +36,7 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: #9ca3af;
-    padding: 1rem 1rem 0.35rem;
+    padding: 0.6rem 1rem 0.2rem;
 }
 
 /* Menu items */
@@ -44,8 +44,8 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.42rem 0.75rem;
-    margin: 1px 0.4rem;
+    padding: 0.35rem 1rem;
+    margin: 0 0.4rem;
     border-radius: 0.4rem;
     font-size: 0.8rem;
     font-weight: 500;
@@ -110,8 +110,8 @@
     border-left: 2px solid #e5e7eb;
     margin-left: 1.5rem;
     margin-right: 0.35rem;
-    margin-bottom: 2px;
-    padding: 2px 0;
+    margin-bottom: 0;
+    padding: 0;
 }
 
 /* Submenu item */
@@ -119,8 +119,8 @@
     display: flex;
     align-items: center;
     gap: 0;
-    padding: 0.34rem 0.65rem 0.34rem 0.85rem;
-    margin: 1px 0;
+    padding: 0.35rem 0.65rem 0.35rem 0.85rem;
+    margin: 0;
     border-radius: 0 0.4rem 0.4rem 0;
     font-size: 0.775rem;
     font-weight: 500;

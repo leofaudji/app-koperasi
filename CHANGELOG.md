@@ -6,7 +6,7 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
-## [v1.5.0] - 2026-03-16
+## [v1.5.1] - 2026-03-23
 
 ### ✨ Ditambahkan
 - Halaman **Changelog** dengan tampilan version control yang interaktif
