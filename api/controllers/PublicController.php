@@ -14,13 +14,19 @@ switch ($method) {
         if ($id === 'anggota') {
             // Basic security check via secret key
             $secret = $_GET['secret'] ?? $_SERVER['HTTP_X_API_KEY'] ?? '';
-            $expectedSecret = $_ENV['API_IMPORT_SECRET'] ?? 'koperasi-toko-secret';
+            $expectedSecret = $_ENV['API_IMPORT_SECRET'] ?? 'secret123';
 
             if ($secret !== $expectedSecret) {
                 errorResponse('Unauthorized. Invalid API Secret.', 401);
             }
 
             $members = $db->fetchAll("SELECT id, no_anggota, nama, nik, alamat, telepon, email, status FROM anggota WHERE status = 'aktif' ORDER BY no_anggota");
+            
+            // Support for raw output if needed by some import tools
+            if (isset($_GET['output']) && $_GET['output'] === 'raw') {
+                jsonResponse($members);
+            }
+
             successResponse($members, 'Data anggota berhasil diambil untuk import.');
         }
         break;
