@@ -9,6 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
+    version: '1.0.0', // Default version, will be updated from CHANGELOG.md
     API_BASE: (() => {
         // Best way: find the root based on where this script is loaded from
         const script = document.currentScript || document.querySelector('script[src*="assets/js/app.js"]');
@@ -187,7 +188,7 @@ const App = {
         else this.handleRoute();
 
         // Auto-populate sidebar version badge from CHANGELOG.md
-        this._loadAppVersion();
+        await this._loadAppVersion();
     },
 
     async _loadAppVersion() {
@@ -200,8 +201,9 @@ const App = {
             const text = await res.text();
             const match = text.match(/^##\s+\[([^\]]+)\]/m);
             if (match) {
+                this.version = match[1].replace(/^v/, ''); // Set version without 'v' prefix
                 const el = document.getElementById('sidebar-version');
-                if (el) el.textContent = match[1].replace(/^v/, '');
+                if (el) el.textContent = this.version;
             }
         } catch { /* silently fail */ }
     },
@@ -329,7 +331,7 @@ const App = {
 
         try {
             const basePath = this.API_BASE.substring(0, this.API_BASE.length - 3);
-            const mod = await import(`${basePath}assets/js/pages/${page}.js?v=${new Date().getTime()}`);
+            const mod = await import(`${basePath}assets/js/pages/${page}.js?v=${this.version}`);
             if (mod.default && typeof mod.default.render === 'function') {
                 await mod.default.render(content, param);
             }
