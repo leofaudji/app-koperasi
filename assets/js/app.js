@@ -179,7 +179,7 @@ const App = {
         document.getElementById('login-password').value = '';
     },
 
-    showApp() {
+    async showApp() {
         document.getElementById('login-page').classList.add('hidden');
         document.getElementById('app-layout').classList.remove('hidden');
         document.getElementById('app-layout').classList.add('flex');
