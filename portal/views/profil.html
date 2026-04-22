@@ -1,161 +1,236 @@
-<div class="px-6 pt-6 pb-4 bg-[#f8fafc] sticky top-0 z-30">
-    <h1 class="text-xl font-bold text-gray-900 mb-1">Profil Anda</h1>
-    <p class="text-xs text-gray-500">Pengaturan akun dan keamanan</p>
+<!-- Header Section -->
+<div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 transition-all duration-300">
+    <div class="bg-white/80 backdrop-blur-xl px-6 pt-6 pb-6 border-b border-gray-100/50">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100">
+                    <i class="bi bi-person-badge text-indigo-600 text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black text-gray-900 tracking-tight leading-tight">Profil Anda</h1>
+                    <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Pengaturan & Keamanan</p>
+                </div>
+            </div>
+            <button onclick="Portal.tab('home')"
+                class="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                <i class="bi bi-house-fill text-sm"></i>
+            </button>
+        </div>
+    </div>
 </div>
+
+<!-- Spacer for fixed header -->
+<div class="h-[100px]"></div>
 <div class="px-6 pb-6 space-y-6">
     <!-- Digital Member Card (Flippable) -->
     <div class="flip-card">
-        <div class="flip-card-inner h-[210px]">
-            <!-- Front Side -->
+        <div class="flip-card-inner h-[215px]">
+            <!-- Front Side: obsidian Dark Premium -->
             <div class="flip-card-front">
                 <div
-                    class="relative h-full overflow-hidden rounded-3xl p-6 shadow-xl bg-gradient-to-br from-indigo-700 via-blue-600 to-cyan-500 text-white text-left">
-                    <!-- Background Ornaments -->
+                    class="relative h-full overflow-hidden rounded-[2rem] p-7 shadow-2xl shadow-indigo-900/20 bg-[#050505] text-white text-left group">
+                    <!-- Premium Obsidian Mesh Gradient -->
                     <div
-                        class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white rounded-full mix-blend-overlay opacity-10 blur-2xl">
+                        class="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-emerald-900/20 to-black opacity-90 transition-all duration-1000 group-hover:hue-rotate-15">
+                    </div>
+
+                    <!-- Decorative Light Streaks -->
+                    <div
+                        class="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px]">
                     </div>
                     <div
-                        class="absolute bottom-0 left-0 -mb-4 -ml-4 w-24 h-24 bg-blue-300 rounded-full mix-blend-overlay opacity-20 blur-xl">
+                        class="absolute bottom-0 left-0 -mb-20 -ml-20 w-48 h-48 bg-emerald-500/5 rounded-full blur-[60px]">
+                    </div>
+
+                    <!-- Surface Texture -->
+                    <div class="absolute inset-0 opacity-[0.05] pointer-events-none"
+                        style="background-image: repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 0, transparent 50%); background-size: 10px 10px;">
                     </div>
 
                     <div class="relative z-10 flex justify-between items-start mb-6">
                         <div>
-                            <h3 class="font-bold text-sm tracking-widest uppercase opacity-90 drop-shadow-sm">Member
-                                Koperasi</h3>
-                            <p class="text-[9px] opacity-75 mt-0.5" id="p-tgl-gabung">Bersama Sejak 2026</p>
+                            <p id="p-card-app-name"
+                                class="text-[9px] font-black text-amber-200/50 uppercase tracking-[0.3em]">Portal
+                                Anggota Koperasi</p>
+                            <h3 class="font-bold text-[11px] mt-0.5 text-white/40 tracking-widest">ID CARD</h3>
                         </div>
                         <div
-                            class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center shrink-0 shadow-inner">
-                            <i class="bi bi-wallet2 text-xl shadow-sm"></i>
+                            class="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-200/20 to-amber-500/10 backdrop-blur-xl border border-white/5 flex items-center justify-center shadow-2xl">
+                            <i class="bi bi-wallet2 text-amber-400/80 text-lg"></i>
                         </div>
                     </div>
 
-                    <div class="relative z-10 mb-6">
+                    <div class="relative z-10 mb-8 flex items-center gap-5">
+                        <!-- Premium Gold Chip -->
                         <div
-                            class="w-12 h-8 rounded-md bg-gradient-to-r from-yellow-200 to-yellow-500 opacity-80 mb-2 border border-yellow-300/50 shadow-sm flex items-center justify-center">
-                            <div class="w-8 h-4 border border-yellow-700/20 rounded-sm"></div>
+                            class="w-12 h-9 rounded-lg bg-gradient-to-br from-amber-200 via-yellow-500 to-amber-700 p-[1.5px] shadow-lg relative">
+                            <div
+                                class="w-full h-full bg-black/40 rounded-[inherit] flex flex-wrap p-1.5 gap-1 overflow-hidden">
+                                <div class="w-1/2 h-[1px] bg-amber-200/30"></div>
+                                <div class="w-1/3 h-[1px] bg-amber-200/30"></div>
+                                <div class="w-full h-[1px] bg-amber-200/30"></div>
+                                <div class="w-2/3 h-[1px] bg-amber-200/30"></div>
+                            </div>
+                            <div class="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent"></div>
                         </div>
-                        <p class="font-mono text-xl tracking-[0.2em] font-medium drop-shadow-md truncate"
+                        <p class="font-mono text-xl tracking-[0.25em] font-black text-white/95 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
                             id="p-no-profil">AGT-0000</p>
                     </div>
 
-                    <div class="relative z-10 flex justify-between items-end">
-                        <div class="flex-1 mr-4">
-                            <p class="text-[9px] uppercase tracking-wider opacity-70 mb-0.5">Nama Anggota</p>
-                            <p class="font-bold text-base uppercase drop-shadow-sm truncate" id="p-nama-profil">
-                                Nama Lengkap</p>
+                    <div class="relative z-10 flex justify-between items-center mt-auto">
+                        <div class="flex-1 mr-4 overflow-hidden">
+                            <p class="font-black text-[11px] leading-tight uppercase tracking-[0.15em] text-white/90"
+                                id="p-nama-profil">Nama Lengkap</p>
+                            <div class="flex items-center gap-2 mt-2">
+                                <span
+                                    class="w-1 h-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+                                <p class="text-[8px] font-bold text-white/30 uppercase tracking-[0.2em]"
+                                    id="p-tgl-gabung">2026</p>
+                            </div>
                         </div>
-                        <img id="p-avatar-profil" src="" alt="Avatar"
-                            class="w-12 h-12 rounded-full border-2 border-white/50 shadow-lg">
+                        <div class="relative shrink-0 mb-1">
+                            <div class="absolute inset-0 bg-amber-400/20 rounded-full blur-md animate-pulse"></div>
+                            <img id="p-avatar-profil" src="" alt="Avatar"
+                                class="w-12 h-12 rounded-full border border-white/10 shadow-2xl relative z-10 p-0.5 bg-black/40 backdrop-blur-md">
+                        </div>
                     </div>
 
-                    <!-- Flip Toggle Front -->
-                    <div class="btn-flip" onclick="Portal.flipCard()" title="Lihat Kode QR">
-                        <i class="bi bi-qr-code text-white"></i>
+                    <!-- Premium Flip Toggle -->
+                    <div class="btn-flip bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-2xl border border-white/10 hover:border-amber-400/30 transition-all duration-300 shadow-2xl group/btn"
+                        onclick="Portal.flipCard()">
+                        <i class="bi bi-qr-code text-white/80 group-hover/btn:text-amber-300"></i>
                     </div>
                 </div>
             </div>
 
-            <!-- Back Side -->
-            <div class="flip-card-back">
-                <div class="nfc-indicator"></div>
-                <div class="p-6 w-full h-full flex flex-col items-center justify-center relative">
-                    <p class="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em] mb-4">Absensi & Verifikasi
-                    </p>
+            <!-- Back Side: Obsidian Premium with Terms -->
+            <div class="flip-card-back overflow-hidden rounded-[2rem] bg-[#0a0a0a] border border-white/5 flex flex-col p-6 shadow-2xl relative group">
+                <!-- Golden Accent Border Top -->
+                <div class="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-transparent via-amber-500/40 to-transparent"></div>
+                
+                <div class="text-center mb-4">
+                    <p class="text-[9px] font-black text-amber-200/40 uppercase tracking-[0.3em]">Syarat & Ketentuan</p>
+                </div>
 
-                    <!-- QR Code Container -->
-                    <div id="p-qrcode"
-                        class="p-3 bg-white rounded-2xl shadow-inner mb-4 flex items-center justify-center min-w-[160px] min-h-[160px]">
-                        <!-- QRCode.js will render here -->
+                <!-- Terms List -->
+                <div class="flex-1 space-y-2 mb-4 px-2">
+                    <div class="flex gap-2 text-left">
+                        <span class="text-amber-500 text-[8px] mt-0.5">•</span>
+                        <p class="text-[7px] leading-relaxed text-white/50 tracking-wide font-medium">Kartu ini adalah identitas digital resmi anggota koperasi dan tidak dapat dipindahtangankan.</p>
+                    </div>
+                    <div class="flex gap-2 text-left">
+                        <span class="text-amber-500 text-[8px] mt-0.5">•</span>
+                        <p class="text-[7px] leading-relaxed text-white/50 tracking-wide font-medium">Gunakan QR Code di bawah untuk verifikasi transaksi dan absensi di kantor koperasi.</p>
+                    </div>
+                    <div class="flex gap-2 text-left">
+                        <span class="text-amber-500 text-[8px] mt-0.5">•</span>
+                        <p class="text-[7px] leading-relaxed text-white/50 tracking-wide font-medium">Segala bentuk penyalahgunaan akun akan dikenakan sanksi sesuai dengan AD/ART koperasi.</p>
+                    </div>
+                    <div class="flex gap-2 text-left">
+                        <span class="text-amber-500 text-[8px] mt-0.5">•</span>
+                        <p class="text-[7px] leading-relaxed text-white/50 tracking-wide font-medium">Keamanan data login sepenuhnya menjadi tanggung jawab masing-masing anggota.</p>
+                    </div>
+                </div>
+
+                <!-- Footer: QR & NFC -->
+                <div class="flex items-center justify-between mt-auto bg-white/5 p-3 rounded-3xl border border-white/5">
+                    <div id="p-qrcode" class="p-2.5 bg-white rounded-2xl shadow-2xl flex items-center justify-center min-w-[100px] min-h-[100px]">
+                        <!-- QRCode.js will render here (Scale 110px) -->
                     </div>
 
-                    <p class="text-[10px] text-gray-400 font-medium mb-1">Scan QR atau Tempel NFC</p>
-
-                    <!-- NFC Mockup Strip -->
-                    <div onclick="Portal.simulateNFC()"
-                        class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-full flex items-center gap-2 cursor-pointer active:scale-95 transition-transform hover:bg-slate-700">
-                        <i class="bi bi-phone-vibrate text-blue-400"></i>
-                        <span class="text-[10px] font-bold text-gray-300">ACTIVATE NFC CHIP</span>
+                    <div class="flex-1 flex flex-col items-center gap-3 ml-4">
+                        <div onclick="Portal.simulateNFC()" class="w-full py-2.5 bg-zinc-800 border border-white/5 rounded-xl flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all hover:bg-zinc-700 shadow-xl">
+                            <i class="bi bi-phone-vibrate text-amber-400 text-xs animate-bounce"></i>
+                            <span class="text-[8px] font-black text-white/80 uppercase tracking-widest">NFC Verif</span>
+                        </div>
+                        <div class="bg-amber-400/5 px-2 py-1 rounded-md border border-amber-400/10">
+                            <p class="text-[6px] text-amber-200/40 uppercase font-black tracking-tighter">SECURED BY PWA</p>
+                        </div>
                     </div>
+                </div>
 
-                    <!-- Flip Toggle Back -->
-                    <div class="btn-flip" onclick="Portal.flipCard()" title="Kembali ke Depan">
-                        <i class="bi bi-person-badge text-white"></i>
-                    </div>
+                <div class="btn-flip bg-white/5 border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center" onclick="Portal.flipCard()">
+                    <i class="bi bi-arrow-left text-white/40"></i>
                 </div>
             </div>
         </div>
     </div>
-    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-50 mb-2">
-            <h3 class="text-sm font-bold text-gray-800"><i class="bi bi-shield-lock text-blue-500 mr-2"></i>Keamanan
-                Akun</h3>
-        </div>
-        <form id="p-form-password" class="p-5 pt-2 space-y-4">
-            <div id="p-pwd-alert" class="hidden text-xs px-3 py-2 rounded-xl mb-3 border"></div>
+</div>
+</div>
+</div>
+</div>
 
-            <div class="space-y-1.5">
-                <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">Password
-                    Lama</label>
-                <div class="relative">
-                    <i class="bi bi-key-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    <input type="password" id="p-old-pwd" required
-                        class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 pl-10 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
-                        placeholder="Masukkan password saat ini">
-                </div>
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">Password
-                    Baru</label>
-                <div class="relative">
-                    <i class="bi bi-lock-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    <input type="password" id="p-new-pwd" required minlength="6"
-                        class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 pl-10 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
-                        placeholder="Minimal 6 karakter">
-                </div>
-            </div>
-
-            <div class="space-y-1.5">
-                <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">Ulangi
-                    Password Baru</label>
-                <div class="relative">
-                    <i class="bi bi-check-circle-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    <input type="password" id="p-new-pwd-confirm" required minlength="6"
-                        class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 pl-10 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
-                        placeholder="Ketik ulang password baru">
-                </div>
-            </div>
-
-            <button type="submit" id="p-btn-pwd"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2 py-3 rounded-xl font-bold shadow-md shadow-blue-500/20 active:scale-[0.98] transition-all flex justify-center items-center gap-2 text-sm">
-                <i class="bi bi-save"></i> Simpan Password
-            </button>
-        </form>
+<div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-50 mb-2">
+        <h3 class="text-sm font-bold text-gray-800"><i class="bi bi-shield-lock text-blue-500 mr-2"></i>Keamanan
+            Akun</h3>
     </div>
+    <form id="p-form-password" class="p-5 pt-2 space-y-4">
+        <div id="p-pwd-alert" class="hidden text-xs px-3 py-2 rounded-xl mb-3 border"></div>
 
-    <!-- Menu Fungsional -->
-    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-6">
-        <div class="px-5 py-4 border-b border-gray-50 mb-2">
-            <h3 class="text-sm font-bold text-gray-800"><i class="bi bi-grid-fill text-indigo-500 mr-2"></i>Lainnya</h3>
+        <div class="space-y-1.5">
+            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">Password
+                Lama</label>
+            <div class="relative">
+                <i class="bi bi-key-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="password" id="p-old-pwd" required
+                    class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 pl-10 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
+                    placeholder="Masukkan password saat ini">
+            </div>
         </div>
-        <div class="flex flex-col">
-            <button onclick="Swal.fire({
+
+        <div class="space-y-1.5">
+            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">Password
+                Baru</label>
+            <div class="relative">
+                <i class="bi bi-lock-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="password" id="p-new-pwd" required minlength="6"
+                    class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 pl-10 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
+                    placeholder="Minimal 6 karakter">
+            </div>
+        </div>
+
+        <div class="space-y-1.5">
+            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">Ulangi
+                Password Baru</label>
+            <div class="relative">
+                <i class="bi bi-check-circle-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="password" id="p-new-pwd-confirm" required minlength="6"
+                    class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 pl-10 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
+                    placeholder="Ketik ulang password baru">
+            </div>
+        </div>
+
+        <button type="submit" id="p-btn-pwd"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2 py-3 rounded-xl font-bold shadow-md shadow-blue-500/20 active:scale-[0.98] transition-all flex justify-center items-center gap-2 text-sm">
+            <i class="bi bi-save"></i> Simpan Password
+        </button>
+    </form>
+</div>
+
+<!-- Menu Fungsional -->
+<div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+    <div class="px-5 py-4 border-b border-gray-50 mb-2">
+        <h3 class="text-sm font-bold text-gray-800"><i class="bi bi-grid-fill text-indigo-500 mr-2"></i>Lainnya</h3>
+    </div>
+    <div class="flex flex-col">
+        <button onclick="Swal.fire({
                 title: 'Pusat Bantuan',
                 html: '<div class=\'text-left space-y-3\'><p class=\'text-sm\'>Ada pertanyaan atau kendala? Hubungi tim support kami melalui:</p><div class=\'flex flex-col gap-2\'><a href=\'https://wa.me/6281234567890\' target=\'_blank\' class=\'flex items-center gap-3 p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100\'><i class=\'bi bi-whatsapp text-xl\'></i><div><p class=\'font-bold text-xs\'>WhatsApp Support</p><p class=\'text-[10px]\'>Respon cepat (08:00 - 17:00)</p></div></a><div class=\'flex items-center gap-3 p-3 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100\'><i class=\'bi bi-envelope text-xl\'></i><div><p class=\'font-bold text-xs\'>Email Helpdesk</p><p class=\'text-[10px]\'>support@koperasi.id</p></div></div></div></div>',
                 showConfirmButton: false,
                 showCloseButton: true,
                 customClass: { popup: 'rounded-3xl' }
             })"
-                class="px-5 py-4 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-50/50">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><i
-                            class="bi bi-headset"></i></div>
-                    <span class="text-sm font-medium text-gray-700">Pusat Bantuan</span>
-                </div>
-                <i class="bi bi-chevron-right text-gray-300 text-xs"></i>
-            </button>
-            <button onclick="Swal.fire({
+            class="px-5 py-4 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-50/50">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><i
+                        class="bi bi-headset"></i></div>
+                <span class="text-sm font-medium text-gray-700">Pusat Bantuan</span>
+            </div>
+            <i class="bi bi-chevron-right text-gray-300 text-xs"></i>
+        </button>
+        <button onclick="Swal.fire({
                 title: 'Syarat & Ketentuan',
                 html: '<div class=\'text-left text-xs text-gray-600 max-h-[300px] overflow-y-auto space-y-4 pr-2\'>' +
                       '<p><strong>1. Keanggotaan:</strong> Setiap anggota wajib menaati AD/ART Koperasi dan memelihara kerahasiaan kredensial login portal.</p>' +
@@ -167,35 +242,35 @@
                 confirmButtonColor: '#2563eb',
                 customClass: { popup: 'rounded-3xl', confirmButton: 'rounded-xl w-full py-3 font-bold' }
             })"
-                class="px-5 py-4 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-50/50">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><i
-                            class="bi bi-file-earmark-text"></i></div>
-                    <span class="text-sm font-medium text-gray-700">Syarat & Ketentuan</span>
-                </div>
-                <i class="bi bi-chevron-right text-gray-300 text-xs"></i>
-            </button>
-            <button onclick="Swal.fire({
+            class="px-5 py-4 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-50/50">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><i
+                        class="bi bi-file-earmark-text"></i></div>
+                <span class="text-sm font-medium text-gray-700">Syarat & Ketentuan</span>
+            </div>
+            <i class="bi bi-chevron-right text-gray-300 text-xs"></i>
+        </button>
+        <button onclick="Swal.fire({
                 title: 'Tentang Aplikasi',
                 html: '<div class=\'flex flex-col items-center py-4\'><div class=\'w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center mb-4\'><i class=\'bi bi-wallet2 text-3xl text-white\'></i></div><p class=\'font-bold text-gray-900\'>Koperasi PWA Portal</p><p class=\'text-xs text-gray-500 mb-4\'>Versi 1.0.0 (Stable)</p><div class=\'w-full border-t border-gray-100 pt-4 text-center\'><p class=\'text-[10px] text-gray-400\'>&copy; 2026 Tim IT Koperasi Simpan Pinjam.<br>Seluruh hak cipta dilindungi.</p></div></div>',
                 showConfirmButton: false,
                 showCloseButton: true,
                 customClass: { popup: 'rounded-3xl' }
             })"
-                class="px-5 py-4 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition-colors">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center"><i
-                            class="bi bi-info-circle"></i></div>
-                    <span class="text-sm font-medium text-gray-700">Tentang Aplikasi</span>
-                </div>
-                <i class="bi bi-chevron-right text-gray-300 text-xs"></i>
-            </button>
-        </div>
+            class="px-5 py-4 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition-colors">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center"><i
+                        class="bi bi-info-circle"></i></div>
+                <span class="text-sm font-medium text-gray-700">Tentang Aplikasi</span>
+            </div>
+            <i class="bi bi-chevron-right text-gray-300 text-xs"></i>
+        </button>
     </div>
+</div>
 
-    <!-- Logout Button -->
-    <button onclick="Portal.logout()"
-        class="w-full bg-white border border-rose-100 hover:bg-rose-50 text-rose-600 py-3.5 rounded-2xl font-bold shadow-sm active:scale-[0.98] transition-all flex justify-center items-center gap-2 mt-4">
-        <i class="bi bi-box-arrow-right"></i> Keluar dari Portal
-    </button>
+<!-- Logout Button -->
+<button onclick="Portal.logout()"
+    class="w-full bg-white border border-rose-100 hover:bg-rose-50 text-rose-600 py-3.5 rounded-2xl font-bold shadow-sm active:scale-[0.98] transition-all flex justify-center items-center gap-2 mt-4">
+    <i class="bi bi-box-arrow-right"></i> Keluar dari Portal
+</button>
 </div>

@@ -1,7 +1,46 @@
 <!-- View container for RAT (Rapat Anggota Tahunan) -->
-<!-- Content is dynamically populated by Portal.loadRAT() -->
-<div id="p-content-rat">
-    <div class="flex justify-center py-20">
-        <i class="ri-loader-4-line text-4xl animate-spin text-blue-500"></i>
+<!-- Header Section -->
+<div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 transition-all duration-300">
+    <div class="bg-white/80 backdrop-blur-xl px-6 pt-6 pb-6 border-b border-gray-100/50">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100">
+                    <i class="bi bi-people text-indigo-600 text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black text-gray-900 tracking-tight leading-tight">RAT</h1>
+                    <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Kedaulatan Anggota</p>
+                </div>
+            </div>
+            <button onclick="Portal.tab('home')"
+                class="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                <i class="bi bi-house-fill text-sm"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Spacer -->
+<div class="h-[100px]"></div>
+
+<!-- Content Container -->
+<div class="px-6 pb-24 animate-fadeIn">
+    <!-- Placeholders for active sessions -->
+    <div id="rat-session-container">
+        <!-- Skeleton Loading -->
+        <div class="relative z-10 mb-8 animate-pulse">
+            <div class="bg-gray-200 rounded-[2.5rem] h-[180px] w-full"></div>
+        </div>
+    </div>
+
+    <!-- Empty State (Hidden by default) -->
+    <div id="rat-empty-state" class="hidden animate-fadeIn">
+        <div class="bg-white rounded-[2.5rem] p-10 text-center border-2 border-dashed border-gray-100 mt-20">
+            <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-200">
+                <i class="bi bi-calendar-event text-4xl"></i>
+            </div>
+            <h4 class="font-black text-gray-800 tracking-tight">Belum ada RAT aktif</h4>
+            <p class="text-xs text-gray-400 mt-2 leading-relaxed px-4">Jadwal rapat anggota akan muncul di sini saat sesi dimulai.</p>
+        </div>
     </div>
 </div>

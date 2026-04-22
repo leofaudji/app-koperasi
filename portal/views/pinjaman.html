@@ -1,41 +1,62 @@
-<!-- Header Fixed -->
-<div
-    class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 pt-6 pb-4 bg-[#f8fafc]/95 backdrop-blur-md z-30 shadow-sm border-b border-gray-100">
-    <div class="flex items-center gap-3 mb-4 pr-12">
-        <div
-            class="w-10 h-10 bg-gradient-to-br from-rose-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-rose-500/30 shadow-md shrink-0">
-            <i class="bi bi-cash-stack text-white text-lg"></i>
-        </div>
-        <div>
-            <h1 class="text-xl font-bold text-gray-900 leading-tight">Pinjaman</h1>
-            <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider mt-0.5">Daftar pembiayaan aktif dan
-                lunas
-            </p>
+<!-- Header Section -->
+<div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 transition-all duration-300">
+    <div class="bg-white/80 backdrop-blur-xl px-6 pt-6 pb-20 border-b border-gray-100/50">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100">
+                    <i class="bi bi-cash-stack text-rose-600 text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black text-gray-900 tracking-tight leading-tight">Pinjaman</h1>
+                    <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Kewajiban & Angsuran</p>
+                </div>
+            </div>
+            <button onclick="Portal.tab('home')"
+                class="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                <i class="bi bi-house-fill text-sm"></i>
+            </button>
         </div>
     </div>
-    <!-- Summary Card Integrated -->
-    <div class="bg-gradient-to-br from-rose-500 to-orange-500 rounded-2xl p-4 text-white shadow-lg shadow-rose-500/20">
-        <p class="text-[10px] text-rose-100 uppercase tracking-wider mb-1">Total Sisa Kewajiban Aktif</p>
-        <p class="text-2xl font-bold font-mono" id="pin-total-sisa">Rp —</p>
-        <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/20">
-            <div>
-                <p class="text-[9px] text-rose-100 uppercase tracking-widest mb-0.5">Dipinjam</p>
-                <p class="text-xs font-semibold" id="pin-total-pinjam">Rp —</p>
+
+    <!-- Floating Summary Card -->
+    <div class="px-6 -mt-16 relative z-10">
+        <div
+            class="bg-gradient-to-br from-rose-500 via-orange-600 to-pink-700 rounded-[2.5rem] p-7 text-white shadow-xl shadow-rose-500/20 overflow-hidden relative">
+            <!-- Premium Glass Ornaments -->
+            <div
+                class="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-white rounded-full mix-blend-overlay opacity-20 blur-2xl">
             </div>
-            <div>
-                <p class="text-[9px] text-rose-100 uppercase tracking-widest mb-0.5">Sudah Bayar</p>
-                <p class="text-xs font-semibold" id="pin-total-bayar">Rp —</p>
+            <div
+                class="absolute bottom-0 left-0 -mb-6 -ml-6 w-24 h-24 bg-orange-300 rounded-full mix-blend-overlay opacity-20 blur-xl">
             </div>
-            <div class="text-right">
-                <p class="text-[9px] text-rose-100 uppercase tracking-widest mb-0.5">Aktif</p>
-                <p class="text-xs font-semibold" id="pin-jml">— Akun</p>
+
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-rose-100 uppercase tracking-[0.2em] mb-1 opacity-80">Total Sisa
+                    Kewajiban</p>
+                <h2 class="text-3xl font-black tracking-tight drop-shadow-sm" id="pin-total-sisa">Rp —</h2>
+
+                <div class="grid grid-cols-3 gap-2 mt-6 pt-5 border-t border-white/10">
+                    <div>
+                        <p class="text-[9px] text-rose-100 uppercase tracking-widest mb-0.5 opacity-70">Dipinjam</p>
+                        <p class="text-[11px] font-bold" id="pin-total-pinjam">Rp —</p>
+                    </div>
+                    <div class="border-x border-white/10 px-2">
+                        <p class="text-[9px] text-rose-100 uppercase tracking-widest mb-0.5 opacity-70">Dibayar</p>
+                        <p class="text-[11px] font-bold" id="pin-total-bayar">Rp —</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[9px] text-rose-100 uppercase tracking-widest mb-0.5 opacity-70">Aktif</p>
+                        <p class="text-[11px] font-bold" id="pin-jml">— Akun</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Spacer for fixed header -->
-<div class="h-[240px]"></div>
+<div class="h-[280px]"></div>
 
 <div class="px-6 space-y-4 pb-28 mt-2">
     <!-- Active loans list -->

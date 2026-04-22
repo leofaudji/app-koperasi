@@ -1,4 +1,4 @@
-const CACHE_NAME = 'koperasi-portal-v8';
+const CACHE_NAME = 'koperasi-portal-v23';
 const ASSETS = [
     './',
     'index.html',

@@ -75,13 +75,17 @@ switch ($id) {
 
     case 'me':
         $anggotaId = portalAuthCheck();
-        $anggota = $db->fetch("SELECT id, no_anggota, nama, telepon, email FROM anggota WHERE id = ?", [$anggotaId]);
+        $anggota = $db->fetch("SELECT id, no_anggota, nama, telepon, email, created_at FROM anggota WHERE id = ?", [$anggotaId]);
         if (!$anggota)
             errorResponse('Anggota tidak ditemukan');
+
+        // Fetch PWA Name from settings
+        $pwaName = $db->fetch("SELECT setting_value FROM app_settings WHERE setting_key = 'pwa_name'")['setting_value'] ?? 'Portal Anggota Koperasi';
 
         $token = getCsrfToken();
         successResponse([
             'anggota' => $anggota,
+            'pwa_name' => $pwaName,
             'csrf_token' => $token
         ]);
         break;

@@ -1,6 +1,6 @@
 {
-    "name": "Portal Anggota Koperasi",
-    "short_name": "Koperasi",
+    "name": "KOSMIK Sandya Raharja",
+    "short_name": "KOSMIK",
     "start_url": "/portal/",
     "display": "standalone",
     "background_color": "#F8FAFC",
@@ -16,11 +16,6 @@
             "src": "icons/icon-512.png",
             "sizes": "512x512",
             "type": "image/png"
-        },
-        {
-            "src": "https://kosmiksaja.id",
-            "sizes": "any",
-            "purpose": "any maskable"
         }
     ]
 }

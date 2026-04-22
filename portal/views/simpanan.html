@@ -1,37 +1,59 @@
-<!-- Header Fixed -->
-<div
-    class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 pt-6 pb-4 bg-[#f8fafc]/95 backdrop-blur-md z-30 shadow-sm border-b border-gray-100">
-    <div class="flex items-center gap-3 mb-4 pr-12">
-        <div
-            class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-emerald-500/30 shadow-md shrink-0">
-            <i class="bi bi-piggy-bank text-white text-lg"></i>
-        </div>
-        <div>
-            <h1 class="text-xl font-bold text-gray-900 leading-tight">Simpanan Saya</h1>
-            <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider mt-0.5">Saldo per produk simpanan
-            </p>
+<!-- Header Section -->
+<div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 transition-all duration-300">
+    <div class="bg-white/80 backdrop-blur-xl px-6 pt-6 pb-20 border-b border-gray-100/50">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100">
+                    <i class="bi bi-wallet2 text-emerald-600 text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black text-gray-900 tracking-tight leading-tight">Simpanan</h1>
+                    <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Produk & Saldo Dana</p>
+                </div>
+            </div>
+            <button onclick="Portal.tab('home')"
+                class="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                <i class="bi bi-house-fill text-sm"></i>
+            </button>
         </div>
     </div>
-    <!-- Summary Card Integrated -->
-    <div
-        class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-500/20">
-        <p class="text-[10px] text-emerald-100 uppercase tracking-wider mb-1">Total Saldo Simpanan</p>
-        <p class="text-2xl font-bold font-mono" id="simp-total-saldo">Rp —</p>
-        <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-white/20">
-            <div>
-                <p class="text-[9px] text-emerald-100 uppercase tracking-widest mb-0.5">Produk Aktif</p>
-                <p class="text-xs font-semibold" id="simp-produk-count">— Produk</p>
+
+    <!-- Floating Summary Card -->
+    <div class="px-6 -mt-16 relative z-10">
+        <div
+            class="bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 rounded-[2.5rem] p-7 text-white shadow-xl shadow-emerald-500/20 overflow-hidden relative">
+            <!-- Premium Glass Ornaments -->
+            <div
+                class="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-white rounded-full mix-blend-overlay opacity-20 blur-2xl">
             </div>
-            <div class="text-right">
-                <p class="text-[9px] text-emerald-100 uppercase tracking-widest mb-0.5">Data per</p>
-                <p class="text-xs font-semibold" id="simp-update-time">—</p>
+            <div
+                class="absolute bottom-0 left-0 -mb-6 -ml-6 w-24 h-24 bg-teal-300 rounded-full mix-blend-overlay opacity-20 blur-xl">
+            </div>
+
+            <div class="relative z-10">
+                <p class="text-[10px] font-bold text-emerald-100 uppercase tracking-[0.2em] mb-1 opacity-80">Total Saldo
+                    Terkumpul</p>
+                <h2 class="text-3xl font-black tracking-tight drop-shadow-sm" id="simp-total-saldo">Rp —</h2>
+
+                <div class="flex items-center justify-between mt-6 pt-5 border-t border-white/10">
+                    <div>
+                        <p class="text-[9px] text-emerald-100 uppercase tracking-widest mb-0.5 opacity-70">Produk Aktif
+                        </p>
+                        <p class="text-xs font-bold" id="simp-produk-count">— Produk</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[9px] text-emerald-100 uppercase tracking-widest mb-0.5 opacity-70">Update</p>
+                        <p class="text-[10px] font-medium opacity-90" id="simp-update-time">—</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Spacer for fixed header -->
-<div class="h-[240px]"></div>
+<div class="h-[260px]"></div>
 
 <!-- Produk Simpanan (container) -->
 <div class="px-6 pb-24 space-y-3 mt-2" id="p-content-simpanan"></div>
