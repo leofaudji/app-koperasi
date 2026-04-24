@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__) . '/api/config/env.php';
 require_once dirname(__DIR__) . '/api/config/database.php';
 require_once dirname(__DIR__) . '/minify_html.php';
 

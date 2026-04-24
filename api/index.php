@@ -127,6 +127,86 @@ function logActivity($action, $tableName, $recordId, $oldData = null, $newData =
     );
 }
 
+function getIPLocation($ip)
+{
+    if (!$ip || $ip === '::1' || $ip === '127.0.0.1')
+        return 'Localhost';
+
+    try {
+        $url = "http://ip-api.com/json/" . $ip . "?fields=status,message,country,regionName,city";
+        $ctx = stream_context_create(['http' => ['timeout' => 2]]); // 2 seconds timeout
+        $res = @file_get_contents($url, false, $ctx);
+        if ($res) {
+            $data = json_decode($res, true);
+            if ($data && $data['status'] === 'success') {
+                return $data['city'] . ', ' . $data['regionName'] . ', ' . $data['country'];
+            }
+        }
+    } catch (Exception $e) {
+    }
+    return 'Unknown Location';
+}
+
+function logPortalActivity($activity, $anggotaId = null)
+{
+    $db = Database::getInstance();
+    $anggotaId = $anggotaId ?: ($_SESSION['portal_anggota_id'] ?? 0);
+    if (!$anggotaId)
+        return;
+
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $platform = 'Desktop';
+    if (preg_match('/mobile/i', $ua))
+        $platform = 'Mobile';
+    if (preg_match('/android/i', $ua))
+        $platform = 'Android';
+    if (preg_match('/iphone|ipad/i', $ua))
+        $platform = 'iOS';
+
+    $os = 'Unknown OS';
+    if (preg_match('/windows/i', $ua))
+        $os = 'Windows';
+    elseif (preg_match('/macintosh|mac os x/i', $ua))
+        $os = 'MacOS';
+    elseif (preg_match('/linux/i', $ua))
+        $os = 'Linux';
+    elseif (preg_match('/android/i', $ua))
+        $os = 'Android';
+    elseif (preg_match('/iphone|ipad/i', $ua))
+        $os = 'iOS';
+
+    $browser = 'Unknown';
+    if (preg_match('/chrome/i', $ua))
+        $browser = 'Chrome';
+    elseif (preg_match('/firefox/i', $ua))
+        $browser = 'Firefox';
+    elseif (preg_match('/safari/i', $ua) && !preg_match('/chrome/i', $ua))
+        $browser = 'Safari';
+    elseif (preg_match('/edge/i', $ua))
+        $browser = 'Edge';
+
+    $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+    $location = getIPLocation($ip);
+
+    // We store OS in platform column for now or we can use a new column if we want.
+    // Let's use the 'platform' column to store 'Platform (OS)' to avoid schema changes.
+    $displayPlatform = "$platform ($os)";
+
+    $db->execute(
+        "INSERT INTO portal_logs (anggota_id, activity, platform, browser, ip_address, location, user_agent) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            $anggotaId,
+            $activity,
+            $displayPlatform,
+            $browser,
+            $ip,
+            $location,
+            $ua
+        ]
+    );
+}
+
 // Load controllers
 $controllerPath = __DIR__ . '/controllers/';
 
@@ -215,6 +295,9 @@ try {
             break;
         case 'audit':
             require_once $controllerPath . 'AuditController.php';
+            break;
+        case 'log':
+            require_once $controllerPath . 'LogController.php';
             break;
         default:
             errorResponse('Route not found', 404);

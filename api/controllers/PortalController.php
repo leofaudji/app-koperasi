@@ -33,11 +33,18 @@ switch ($id) {
             [$noAnggota]
         );
 
-        if (!$user || !password_verify($password, $user['user_password'])) {
+        if (!$user) {
+            // Cannot log to specific member as user not found
+            errorResponse('No. anggota atau password salah', 401);
+        }
+
+        if (!password_verify($password, $user['user_password'])) {
+            logPortalActivity('Gagal Login (Password Salah)', $user['anggota_id']);
             errorResponse('No. anggota atau password salah', 401);
         }
 
         if ($user['anggota_status'] !== 'aktif') {
+            logPortalActivity('Gagal Login (Status Tidak Aktif)', $user['anggota_id']);
             errorResponse('Status anggota tidak aktif', 403);
         }
 
@@ -45,6 +52,8 @@ switch ($id) {
         $_SESSION['portal_anggota_id'] = $user['anggota_id'];
         $_SESSION['portal_anggota_nama'] = $user['anggota_nama'];
         $_SESSION['portal_no_anggota'] = $user['no_anggota'];
+
+        logPortalActivity('Login ke Portal', $user['anggota_id']);
 
         $token = getCsrfToken();
         successResponse([
@@ -58,6 +67,7 @@ switch ($id) {
         break;
 
     case 'logout':
+        logPortalActivity('Logout dari Portal');
         unset($_SESSION['portal_anggota_id'], $_SESSION['portal_anggota_nama'], $_SESSION['portal_no_anggota']);
         successResponse(null, 'Logout berhasil');
         break;
@@ -104,6 +114,7 @@ switch ($id) {
              ORDER BY js.kode",
             [$anggotaId]
         );
+        logPortalActivity('Cek Saldo Simpanan');
         successResponse($saldo);
         break;
 
@@ -124,6 +135,7 @@ switch ($id) {
              LIMIT 50",
             [$anggotaId, $dari, $sampai]
         );
+        logPortalActivity('Cek Mutasi Simpanan');
         successResponse($data);
         break;
 
@@ -296,6 +308,8 @@ switch ($id) {
         $newPasswordHash = password_hash($input['new_password'], PASSWORD_DEFAULT);
         $db->execute("UPDATE users SET password = ? WHERE id = ?", [$newPasswordHash, $userId]);
 
+        logPortalActivity('Mengubah Password Portal');
+
         successResponse(['message' => 'Password berhasil diubah']);
         break;
 
@@ -402,6 +416,8 @@ switch ($id) {
              VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), NOW())",
             [$noPinjaman, $anggotaId, $jenisId, $jumlah, $tenor, 'pending', 'Pengajuan dari Mobile Portal']
         );
+
+        logPortalActivity('Mengajukan Pinjaman: ' . $noPinjaman);
 
         successResponse(null, 'Pengajuan pinjaman berhasil dikirim!');
         break;

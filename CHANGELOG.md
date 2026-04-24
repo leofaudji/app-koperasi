@@ -6,15 +6,57 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
-## [v1.5.1] - 2026-03-23
+## [v1.6.0] - 2026-04-22
 
 ### ✨ Ditambahkan
-- Halaman **Changelog** dengan tampilan version control yang interaktif
-- File `CHANGELOG.md` sebagai sumber tunggal riwayat versi
-- Entri menu **Changelog** di bagian SISTEM pada sidebar
-- Fitur filter changelog berdasarkan tipe perubahan (Tambah / Ubah / Hapus / Perbaiki)
+- Fitur **Monitoring Portal** pada dashboard Admin
+- **Dashboard Summary Real-time**: Monitoring jumlah login hari ini, user aktif, total aktifitas, dan split platform (Mobile vs Desktop)
+- Pelacakan aktifitas anggota secara real-time (Login, Cek Saldo, Mutasi, Pinjaman, dll.)
+- Informasi detail aktifitas: Nama Anggota, Jenis Aktifitas, Platform (Mobile/Desktop), Browser, dan IP Address
+- Filter pencarian dan paginasi pada log aktifitas portal
+
+---
+
+## [v1.5.4] - 2026-04-22
+
+### ✨ Ditambahkan
+- Penggabungan kolom **No. Anggota** dan **Nama Anggota** menjadi satu kolom "Anggota" yang lebih efisien ruang
+- Tampilan ID Anggota menggunakan font mono kecil di bawah nama anggota
 
 ### 🔧 Diubah
+- Optimasi lebar tabel laporan simpanan agar lebih nyaman dilihat pada layar standar
+
+---
+
+## [v1.5.3] - 2026-04-22
+
+### ✨ Ditambahkan
+- Fitur **Sorting Kolom** pada Laporan Saldo Simpanan (klik judul kolom untuk mengurutkan)
+- **Ringkasan Total di Atas** (Summary Cards) pada Laporan Saldo Simpanan agar total dapat dilihat langsung tanpa scrolling
+- Indikator arah pengurutan (ikon panah) pada header tabel
+
+### 🔧 Diubah
+- Pembaruan tampilan dashboard portal untuk konsistensi branding
+
+---
+
+## [v1.5.2] - 2026-04-22
+
+### ✨ Ditambahkan
+- Dukungan penuh untuk **Simpanan Partisipatif** di Laporan Saldo Simpanan dan Portal Anggota
+- Ikon spesifik untuk Simpanan Partisipatif di dashboard portal
+
+### 🔧 Diubah
+- Refaktor layout **Laporan Saldo Simpanan** untuk memastikan tombol aksi berada di atas tabel
+- Optimasi SQL `laporan-saldo` menggunakan `LEFT JOIN` agar seluruh anggota aktif tampil di laporan
+
+### 🐞 Perbaiki
+- Perbaikan layout "berantakan" pada header laporan simpanan
+- Penanganan nilai `NaN` pada kalkulasi total laporan jika terdapat data kosong
+
+---
+
+## [v1.5.1] - 2026-03-23
 - Pembersihan file migrasi dan debug yang sudah tidak digunakan dari root dan folder `database/`
 - Penambahan `.gitignore` untuk mengecualikan `database.sql` dan folder `uploads/`
 

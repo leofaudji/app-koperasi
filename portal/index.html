@@ -1391,6 +1391,7 @@
                         let icon = 'bi-wallet2 text-blue-500 bg-blue-50';
                         if (s.nama.toLowerCase().includes('wajib')) icon = 'bi-shield-check text-emerald-500 bg-emerald-50';
                         if (s.nama.toLowerCase().includes('sukarela')) icon = 'bi-piggy-bank text-orange-500 bg-orange-50';
+                        if (s.nama.toLowerCase().includes('partisipatif')) icon = 'bi-bank text-purple-500 bg-purple-50';
 
                         bd.innerHTML += `
                         <div class="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl border border-gray-100 hover:border-blue-100 hover:bg-white transition-all cursor-pointer" 
@@ -1661,7 +1662,12 @@
                 const elTime = document.getElementById('simp-update-time');
                 if (elTime) elTime.textContent = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 
-                const iconMap = { 'pokok': 'bi-shield-fill text-blue-500 bg-blue-50 border-blue-100', 'wajib': 'bi-shield-check text-emerald-500 bg-emerald-50 border-emerald-100', 'sukarela': 'bi-piggy-bank text-orange-500 bg-orange-50 border-orange-100' };
+                const iconMap = { 
+                    'pokok': 'bi-shield-fill text-blue-500 bg-blue-50 border-blue-100', 
+                    'wajib': 'bi-shield-check text-emerald-500 bg-emerald-50 border-emerald-100', 
+                    'sukarela': 'bi-piggy-bank text-orange-500 bg-orange-50 border-orange-100',
+                    'partisipatif': 'bi-bank text-purple-500 bg-purple-50 border-purple-100'
+                };
 
                 container.innerHTML = r.data.length ? r.data.map((p, i) => {
                     const lcNama = (p.nama || '').toLowerCase();

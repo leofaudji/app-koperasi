@@ -471,6 +471,14 @@ const App = {
         return `${parts[2]}-${parts[1]}-${parts[0]}`;
     },
 
+    debounce(func, wait) {
+        let timeout;
+        return function (...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    },
+
     // ===== Export Helpers =====
     /**
      * Unified Export Function

@@ -308,6 +308,13 @@
                 "perm": "dashboard.view"
             },
             {
+                "id": 55,
+                "nama": "Monitoring Portal",
+                "icon": "ri-radar-line",
+                "url": "#/portal-logs",
+                "perm": "dashboard.view"
+            },
+            {
                 "id": 19,
                 "nama": "Pengaturan",
                 "icon": "ri-settings-3-line",

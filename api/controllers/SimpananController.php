@@ -9,14 +9,16 @@ switch ($method) {
             checkPermission('laporan.simpanan_saldo');
             $data = $db->fetchAll(
                 "SELECT a.no_anggota, a.nama as anggota_nama, 
-                        SUM(CASE WHEN js.kode = 'SP' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END) as pokok,
-                        SUM(CASE WHEN js.kode = 'SW' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END) as wajib,
-                        SUM(CASE WHEN js.kode NOT IN ('SP', 'SW') THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END) as sukarela,
-                        SUM(CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) as total_saldo
-                 FROM simpanan s
-                 JOIN anggota a ON s.anggota_id = a.id
-                 JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
-                 JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                        COALESCE(SUM(CASE WHEN js.kode = 'SP' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as pokok,
+                        COALESCE(SUM(CASE WHEN js.kode = 'SW' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as wajib,
+                        COALESCE(SUM(CASE WHEN js.kode = 'SS' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as sukarela,
+                        COALESCE(SUM(CASE WHEN js.kode = 'SPF' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as partisipatif,
+                        COALESCE(SUM(CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END), 0) as total_saldo
+                 FROM anggota a
+                 LEFT JOIN simpanan s ON a.id = s.anggota_id
+                 LEFT JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
+                 LEFT JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                 WHERE a.status = 'aktif'
                  GROUP BY a.id, a.no_anggota, a.nama
                  ORDER BY a.nama"
             );
