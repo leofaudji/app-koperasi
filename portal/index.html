@@ -58,8 +58,13 @@
             -ms-overflow-style: none;
         }
 
-        body::-webkit-scrollbar {
+        body::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
             display: none;
+        }
+
+        .custom-scrollbar {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
 
         .mobile-container {
@@ -231,13 +236,46 @@
         .nav-item.active::after {
             content: '';
             position: absolute;
-            top: -10px;
+            bottom: -8px;
             left: 50%;
             transform: translateX(-50%);
-            width: 4px;
-            height: 4px;
+            width: 12px;
+            height: 3px;
             background: #2563eb;
-            border-radius: 50%;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+            animation: barExpand 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes barExpand {
+            from { width: 0; opacity: 0; }
+            to { width: 12px; opacity: 1; }
+        }
+
+        @keyframes navPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1.1); }
+        }
+
+        .nav-item.active i {
+            animation: navPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            color: #2563eb;
+            filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.3));
+        }
+
+        .nav-item {
+            padding: 8px 12px;
+            border-radius: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item.active {
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        html.dark .nav-item.active {
+            background: rgba(37, 99, 235, 0.1);
         }
 
         .hide-scrollbar::-webkit-scrollbar {
@@ -253,9 +291,33 @@
             animation: fadeIn 0.3s ease;
         }
 
-        /* Tab Transition Animation */
+        /* Tab Transition Animation - Native Feel */
         .tab-content {
-            animation: tabSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tab-content:not(.hidden) {
+            opacity: 1;
+            transform: translateX(0) translateY(0);
+        }
+
+        .slide-in-right {
+            animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .slide-in-left {
+            animation: slideInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideInRight {
+            0% { opacity: 0; transform: translateX(30px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideInLeft {
+            0% { opacity: 0; transform: translateX(-30px); }
+            100% { opacity: 1; transform: translateX(0); }
         }
 
         @keyframes tabSlideUp {
@@ -270,7 +332,81 @@
             }
         }
 
+        /* Initial Splash Screen */
+        #initial-splash {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at top right, #3b82f6 0%, #1e40af 100%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background 1.5s ease-in-out, opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+        }
 
+        /* Dynamic Time-based Backgrounds */
+        #initial-splash.bg-morning { background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); }
+        #initial-splash.bg-day { background: radial-gradient(circle at top right, #3b82f6 0%, #1e40af 100%); }
+        #initial-splash.bg-evening { background: linear-gradient(135deg, #f97316 0%, #4338ca 100%); }
+        #initial-splash.bg-night { background: radial-gradient(circle at top right, #1e293b 0%, #020617 100%); }
+
+        #initial-splash.fade-out {
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(1.1);
+        }
+
+        .splash-loader {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: inline-block;
+            position: relative;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        .splash-loader::after {
+            content: '';
+            box-sizing: border-box;
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: white;
+            width: 12px;
+            height: 12px;
+            transform: translate(-50%, 50%);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .branding-appear {
+            animation: brandingSlideUp 1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+
+        @keyframes brandingSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
         /* Splash Screen Animations */
         @keyframes popIn {
@@ -403,76 +539,6 @@
         .modal-sheet-wrapper.visible {
             visibility: visible;
         }
-
-        /* Initial Splash Screen */
-        #initial-splash {
-            position: fixed;
-            inset: 0;
-            background: radial-gradient(circle at top right, #3b82f6 0%, #1e40af 100%);
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.8s cubic-bezier(0.65, 0, 0.35, 1);
-        }
-
-        #initial-splash.fade-out {
-            opacity: 0;
-            visibility: hidden;
-            transform: scale(1.1);
-        }
-
-        .splash-loader {
-            width: 48px;
-            height: 48px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            display: inline-block;
-            position: relative;
-            box-sizing: border-box;
-            animation: rotation 1s linear infinite;
-        }
-
-        .splash-loader::after {
-            content: '';
-            box-sizing: border-box;
-            position: absolute;
-            left: 0;
-            top: 0;
-            background: white;
-            width: 12px;
-            height: 12px;
-            transform: translate(-50%, 50%);
-            border-radius: 50%;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
-
-        @keyframes rotation {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .branding-appear {
-            animation: brandingSlideUp 1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-
-        @keyframes brandingSlideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
     </style>
 </head>
 
@@ -505,11 +571,17 @@
             </div>
         </div>
 
-        <div class="absolute bottom-16 flex flex-col items-center gap-4">
+        <div class="absolute bottom-24 flex flex-col items-center gap-4">
             <span class="splash-loader"></span>
-            <p class="text-white/40 text-[9px] uppercase tracking-widest animate-pulse">Initializing System...</p>
+            <p id="splash-loader-text" class="text-white/40 text-[9px] uppercase tracking-widest animate-pulse">Initializing System...</p>
+        </div>
+
+        <!-- Financial Wisdom/Tips -->
+        <div class="absolute bottom-12 px-10 text-center branding-appear" style="animation-delay: 0.5s">
+            <p id="splash-tip" class="text-white/30 text-[10px] leading-relaxed italic font-medium max-w-[280px]"></p>
         </div>
     </div>
+
     <div class="mobile-container">
         <!-- Login -->
         <div id="portal-login"
@@ -656,21 +728,21 @@
             <div
                 class="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-obsidian-950/95 backdrop-blur-md border-t border-gray-100 dark:border-obsidian-800 px-6 py-3 flex justify-between items-center max-w-[480px] mx-auto z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] transition-colors duration-300">
                 <button onclick="Portal.tab('home')" id="tab-home" class="nav-item flex flex-col items-center gap-1">
-                    <i class="bi bi-house-door text-xl mb-0.5"></i>
+                    <i class="bi bi-grid text-xl mb-0.5"></i>
                     <span class="text-[10px] font-medium">Home</span>
                 </button>
                 <button onclick="Portal.tab('simpanan')" id="tab-simpanan"
                     class="nav-item flex flex-col items-center gap-1">
-                    <i class="bi bi-wallet2 text-xl mb-0.5"></i>
+                    <i class="bi bi-piggy-bank text-xl mb-0.5"></i>
                     <span class="text-[10px] font-medium">Simpanan</span>
                 </button>
                 <button onclick="Portal.tab('pinjaman')" id="tab-pinjaman"
                     class="nav-item flex flex-col items-center gap-1">
-                    <i class="bi bi-cash-stack text-xl mb-0.5"></i>
+                    <i class="bi bi-credit-card-2-front text-xl mb-0.5"></i>
                     <span class="text-[10px] font-medium">Pinjaman</span>
                 </button>
                 <button onclick="Portal.tab('rat')" id="tab-rat" class="nav-item flex flex-col items-center gap-1">
-                    <i class="bi bi-person-video3 text-xl mb-0.5"></i>
+                    <i class="bi bi-megaphone text-xl mb-0.5"></i>
                     <span class="text-[10px] font-medium">RAT</span>
                 </button>
                 <button onclick="Portal.tab('profil')" id="tab-profil"

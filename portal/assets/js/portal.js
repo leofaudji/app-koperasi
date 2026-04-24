@@ -14,6 +14,8 @@ const Portal = {
     })(),
     html5QrCode: null, // For QR scanner instance
     searchTimeout: null,
+    currentTab: 'home',
+    tabOrder: ['home', 'simpanan', 'pinjaman', 'rat', 'profil'],
     getFirstName(name) {
         if (!name) return 'Anggota';
         let cleanName = name.trim();
@@ -84,7 +86,43 @@ const Portal = {
     },
 
     async init() {
-        this.initTheme(); // Load theme from storage
+        this.initSplashTheme(); // Set dynamic background & tips
+        this.initTheme(); // Load dark/light mode from storage
+
+        // Check for updates first
+        const splashText = document.getElementById('splash-loader-text');
+        try {
+            const res = await fetch(`${this.PORTAL_BASE}version.json?t=${Date.now()}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.version && data.version !== this.VERSION) {
+                    if (splashText) {
+                        splashText.textContent = 'Downloading new version ' + data.version + '...';
+                        splashText.classList.remove('text-white/40');
+                        splashText.classList.add('text-blue-200', 'font-bold');
+                    }
+                    // Wait 1.5s so user can see the message
+                    await new Promise(r => setTimeout(r, 1500));
+                    await this.forceUpdate();
+                    return; // Stop initialization as we are reloading
+                } else {
+                    // Already up to date
+                    if (splashText) {
+                        splashText.textContent = 'Version ' + this.VERSION + ' up to date';
+                        splashText.classList.remove('text-white/40', 'animate-pulse');
+                        splashText.classList.add('text-blue-100', 'font-bold');
+                    }
+                    // Short delay for visibility
+                    await new Promise(r => setTimeout(r, 800));
+                    if (splashText) {
+                        splashText.textContent = 'Initializing System...';
+                        splashText.classList.add('text-white/40', 'animate-pulse');
+                        splashText.classList.remove('text-blue-100', 'font-bold');
+                    }
+                }
+            }
+        } catch (e) { console.warn('Update check bypassed:', e); }
+
         document.getElementById('p-login-form').addEventListener('submit', e => { e.preventDefault(); this.login(); });
         const r = await this.api('portal/me');
         if (r?.data?.csrf_token) this.csrfToken = r.data.csrf_token;
@@ -920,6 +958,17 @@ const Portal = {
         const targetNav = document.getElementById('tab-' + name);
         if (targetNav && targetNav.classList.contains('active')) return;
 
+        // Add Haptic Feedback (Vibration)
+        if (navigator.vibrate) {
+            navigator.vibrate(15);
+        }
+
+        // Determine direction for animation
+        const oldIndex = this.tabOrder.indexOf(this.currentTab);
+        const newIndex = this.tabOrder.indexOf(name);
+        const directionClass = newIndex > oldIndex ? 'slide-in-right' : 'slide-in-left';
+        this.currentTab = name;
+
         // Toggle active class on nav items
         document.querySelectorAll('.nav-item').forEach(t => {
             t.classList.remove('active', 'text-blue-600');
@@ -928,7 +977,12 @@ const Portal = {
             const icon = t.querySelector('i');
             if (icon) {
                 // Reset to base icons (outlined)
-                icon.className = icon.className.replace('-fill', '');
+                const baseClass = [...icon.classList].find(c => c.startsWith('bi-'));
+                if (baseClass && baseClass.endsWith('-fill')) {
+                    const outlined = baseClass.replace('-fill', '');
+                    icon.classList.remove(baseClass);
+                    icon.classList.add(outlined);
+                }
             }
         });
 
@@ -939,12 +993,10 @@ const Portal = {
 
             const icon = activeNav.querySelector('i');
             if (icon) {
-                // Add fill only for icons known to have -fill versions in Bootstrap Icons
                 const baseClass = [...icon.classList].find(c => c.startsWith('bi-'));
-                const supportedFills = ['bi-house-door', 'bi-person'];
-                if (supportedFills.includes(baseClass)) {
-                    icon.classList.add(baseClass + '-fill');
+                if (baseClass && !baseClass.endsWith('-fill')) {
                     icon.classList.remove(baseClass);
+                    icon.classList.add(baseClass + '-fill');
                 }
             }
         }
@@ -956,10 +1008,16 @@ const Portal = {
         }
 
         // Toggle active content and lazy load
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-        const activeContent = document.getElementById('tab-content-' + name);
+        document.querySelectorAll('.tab-content').forEach(c => {
+            c.classList.add('hidden');
+            c.classList.remove('slide-in-right', 'slide-in-left');
+        });
 
+        const activeContent = document.getElementById('tab-content-' + name);
         if (activeContent) {
+            activeContent.classList.remove('hidden');
+            activeContent.classList.add(directionClass);
+
             if (activeContent.innerHTML.trim() === '') {
                 activeContent.innerHTML = '<div class="flex justify-center py-20"><i class="ri-loader-4-line text-4xl animate-spin text-blue-500"></i></div>';
                 try {
@@ -972,7 +1030,6 @@ const Portal = {
                     activeContent.innerHTML = '<div class="text-center py-20 text-gray-500 text-xs">Gagal memuat tampilan</div>';
                 }
             }
-            activeContent.classList.remove('hidden');
         }
 
         // Load appropriate data
@@ -2175,7 +2232,33 @@ const Portal = {
             errorBox.classList.remove('hidden');
             console.error('Laporan error:', e);
         }
-    }
+    },
+
+    initSplashTheme() {
+        const hour = new Date().getHours();
+        const splash = document.getElementById('initial-splash');
+        if (!splash) return;
+
+        // 1. Dynamic Background
+        if (hour >= 5 && hour < 11) splash.classList.add('bg-morning');
+        else if (hour >= 11 && hour < 15) splash.classList.add('bg-day');
+        else if (hour >= 15 && hour < 18) splash.classList.add('bg-evening');
+        else splash.classList.add('bg-night');
+
+        // 2. Financial Wisdom / Tips
+        const tips = [
+            "Menyisihkan 10% penghasilan secara rutin dapat memperkuat dana darurat Anda.",
+            "Gunakan fitur Simulasi Pinjaman untuk merencanakan keuangan dengan lebih bijak.",
+            "Keamanan akun adalah tanggung jawab bersama. Ganti password Anda secara berkala.",
+            "Simpanan Wajib yang rutin adalah bentuk investasi jangka panjang bagi masa depan Anda.",
+            "Portal ini memudahkan Anda memantau saldo secara real-time, kapan pun dan di mana pun.",
+            "Tahukah Anda? Bunga simpanan di koperasi seringkali lebih kompetitif dibanding bank umum.",
+            "Kedisiplinan dalam mengangsur pinjaman membantu meningkatkan skor kesehatan finansial Anda."
+        ];
+        const randomTip = tips[Math.floor(Math.random() * tips.length)];
+        const tipEl = document.getElementById('splash-tip');
+        if (tipEl) tipEl.textContent = randomTip;
+    },
 };
 
 Portal.init();
