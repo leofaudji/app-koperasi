@@ -1,19 +1,19 @@
 <!-- Header Section -->
 <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 transition-all duration-300">
-    <div class="bg-white/80 backdrop-blur-xl px-6 pt-6 pb-20 border-b border-gray-100/50">
+    <div class="bg-white/80 dark:bg-obsidian-950/80 backdrop-blur-xl px-6 pt-6 pb-20 border-b border-gray-100/50 dark:border-obsidian-800/50">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div
-                    class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100">
-                    <i class="bi bi-wallet2 text-emerald-600 text-lg"></i>
+                    class="w-10 h-10 bg-white dark:bg-obsidian-800 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-obsidian-700">
+                    <i class="bi bi-wallet2 text-emerald-600 dark:text-emerald-400 text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-black text-gray-900 tracking-tight leading-tight">Simpanan</h1>
-                    <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Produk & Saldo Dana</p>
+                    <h1 class="text-xl font-black text-gray-900 dark:text-obsidian-100 tracking-tight leading-tight">Simpanan</h1>
+                    <p class="text-[10px] text-gray-500 dark:text-obsidian-500 font-medium uppercase tracking-wider">Produk & Saldo Dana</p>
                 </div>
             </div>
             <button onclick="Portal.tab('home')"
-                class="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                class="w-9 h-9 rounded-full bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-obsidian-200 transition-colors">
                 <i class="bi bi-house-fill text-sm"></i>
             </button>
         </div>
@@ -53,10 +53,10 @@
 </div>
 
 <!-- Spacer for fixed header -->
-<div class="h-[260px]"></div>
+<div class="h-[265px]"></div>
 
 <!-- Produk Simpanan (container) -->
-<div class="px-6 pb-24 space-y-3 mt-2" id="p-content-simpanan"></div>
+<div class="px-6 pb-24 space-y-3 mt-4" id="p-content-simpanan"></div>
 
 <!-- Mutasi Modal (bottom sheet) -->
 <div id="simp-mutasi-modal" class="modal-sheet-wrapper fixed inset-0 z-50 flex flex-col">
@@ -64,20 +64,20 @@
         onclick="Portal.closeModal('simp-mutasi-modal')"></div>
     <div class="flex-1 pointer-events-none"></div>
     <div
-        class="modal-sheet-panel bg-white rounded-t-3xl max-h-[85vh] flex flex-col max-w-[480px] mx-auto w-full shadow-2xl relative">
+        class="modal-sheet-panel bg-white dark:bg-obsidian-900 rounded-t-3xl max-h-[85vh] flex flex-col max-w-[480px] mx-auto w-full shadow-2xl relative">
         <div
-            class="px-6 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-3xl">
+            class="px-6 pt-5 pb-4 border-b border-gray-100 dark:border-obsidian-800 flex items-center justify-between sticky top-0 bg-white dark:bg-obsidian-900 rounded-t-3xl">
             <div>
-                <div class="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mb-3"></div>
-                <p id="simp-mut-judul" class="font-bold text-gray-900 text-base"></p>
-                <p id="simp-mut-saldo" class="text-sm text-emerald-600 font-semibold mt-0.5"></p>
+                <div class="w-10 h-1.5 bg-gray-200 dark:bg-obsidian-800 rounded-full mx-auto mb-3"></div>
+                <p id="simp-mut-judul" class="font-bold text-gray-900 dark:text-obsidian-100 text-base"></p>
+                <p id="simp-mut-saldo" class="text-sm text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5"></p>
             </div>
             <button onclick="Portal.closeModal('simp-mutasi-modal')"
-                class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+                class="w-9 h-9 rounded-full bg-gray-100 dark:bg-obsidian-800 flex items-center justify-center text-gray-500 dark:text-obsidian-400 hover:bg-gray-200 dark:hover:bg-obsidian-700 transition-colors">
                 <i class="bi bi-x-lg text-sm"></i>
             </button>
         </div>
-        <div id="simp-mut-list" class="overflow-y-auto px-6 py-4 space-y-3 flex-1">
+        <div id="simp-mut-list" class="overflow-y-auto px-6 py-4 space-y-3 flex-1 custom-scrollbar">
             <div class="text-center text-gray-400 text-sm py-8"><i
                     class="bi bi-hourglass-split animate-pulse text-2xl block mb-2"></i>Memuat mutasi...</div>
         </div>

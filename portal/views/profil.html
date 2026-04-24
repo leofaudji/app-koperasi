@@ -1,19 +1,19 @@
 <!-- Header Section -->
 <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 transition-all duration-300">
-    <div class="bg-white/80 backdrop-blur-xl px-6 pt-6 pb-6 border-b border-gray-100/50">
+    <div class="bg-white/80 dark:bg-obsidian-950/80 backdrop-blur-xl px-6 pt-6 pb-6 border-b border-gray-100/50 dark:border-obsidian-800/50">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div
-                    class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100">
-                    <i class="bi bi-person-badge text-indigo-600 text-lg"></i>
+                    class="w-10 h-10 bg-white dark:bg-obsidian-800 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-obsidian-700">
+                    <i class="bi bi-person-badge text-indigo-600 dark:text-indigo-400 text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-black text-gray-900 tracking-tight leading-tight">Profil Anda</h1>
-                    <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Pengaturan & Keamanan</p>
+                    <h1 class="text-xl font-black text-gray-900 dark:text-obsidian-100 tracking-tight leading-tight">Profil Anda</h1>
+                    <p class="text-[10px] text-gray-500 dark:text-obsidian-500 font-medium uppercase tracking-wider">Pengaturan & Keamanan</p>
                 </div>
             </div>
             <button onclick="Portal.tab('home')"
-                class="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                class="w-9 h-9 rounded-full bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 dark:text-obsidian-400 hover:text-gray-600 dark:hover:text-obsidian-200 transition-colors">
                 <i class="bi bi-house-fill text-sm"></i>
             </button>
         </div>
@@ -29,10 +29,15 @@
             <!-- Front Side: obsidian Dark Premium -->
             <div class="flip-card-front">
                 <div
-                    class="relative h-full overflow-hidden rounded-[2rem] p-7 shadow-2xl shadow-indigo-900/20 bg-[#050505] text-white text-left group">
-                    <!-- Premium Obsidian Mesh Gradient -->
+                    class="relative h-full overflow-hidden rounded-[2rem] p-7 shadow-2xl shadow-indigo-900/10 dark:shadow-indigo-900/20 bg-[#050505] dark:bg-white text-white dark:text-gray-900 text-left group transition-all duration-500">
+                    <!-- Inverted Premium Mesh Gradient -->
+                    <!-- Light Mode Portal -> Dark Card -->
                     <div
-                        class="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-emerald-900/20 to-black opacity-90 transition-all duration-1000 group-hover:hue-rotate-15">
+                        class="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-emerald-900/20 to-black opacity-90 dark:hidden transition-all duration-1000 group-hover:hue-rotate-15">
+                    </div>
+                    <!-- Dark Mode Portal -> Light Card -->
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-indigo-50/80 via-white/40 to-blue-50/80 hidden dark:block opacity-90">
                     </div>
 
                     <!-- Decorative Light Streaks -->
@@ -51,48 +56,48 @@
                     <div class="relative z-10 flex justify-between items-start mb-6">
                         <div>
                             <p id="p-card-app-name"
-                                class="text-[9px] font-black text-amber-200/50 uppercase tracking-[0.3em]">Portal
+                                class="text-[9px] font-black text-amber-200/50 dark:text-indigo-600/40 uppercase tracking-[0.3em]">Portal
                                 Anggota Koperasi</p>
-                            <h3 class="font-bold text-[11px] mt-0.5 text-white/40 tracking-widest">ID CARD</h3>
+                            <h3 class="font-bold text-[11px] mt-0.5 text-white/40 dark:text-gray-400 tracking-widest">ID CARD</h3>
                         </div>
                         <div
-                            class="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-200/20 to-amber-500/10 backdrop-blur-xl border border-white/5 flex items-center justify-center shadow-2xl">
-                            <i class="bi bi-wallet2 text-amber-400/80 text-lg"></i>
+                            class="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-200/20 to-amber-500/10 dark:bg-indigo-50 backdrop-blur-xl border border-white/5 dark:border-indigo-100 flex items-center justify-center shadow-2xl dark:shadow-sm">
+                            <i class="bi bi-wallet2 text-amber-400/80 dark:text-indigo-600 text-lg"></i>
                         </div>
                     </div>
 
                     <div class="relative z-10 mb-8 flex items-center gap-5">
-                        <!-- Premium Gold Chip -->
+                        <!-- Premium Inverted Chip -->
                         <div
-                            class="w-12 h-9 rounded-lg bg-gradient-to-br from-amber-200 via-yellow-500 to-amber-700 p-[1.5px] shadow-lg relative">
+                            class="w-12 h-9 rounded-lg bg-gradient-to-br from-amber-200 via-yellow-500 to-amber-700 dark:from-gray-300 dark:via-gray-100 dark:to-gray-400 p-[1.5px] shadow-lg relative">
                             <div
-                                class="w-full h-full bg-black/40 rounded-[inherit] flex flex-wrap p-1.5 gap-1 overflow-hidden">
-                                <div class="w-1/2 h-[1px] bg-amber-200/30"></div>
-                                <div class="w-1/3 h-[1px] bg-amber-200/30"></div>
-                                <div class="w-full h-[1px] bg-amber-200/30"></div>
-                                <div class="w-2/3 h-[1px] bg-amber-200/30"></div>
+                                class="w-full h-full bg-black/40 dark:bg-white/40 rounded-[inherit] flex flex-wrap p-1.5 gap-1 overflow-hidden">
+                                <div class="w-1/2 h-[1px] bg-amber-200/30 dark:bg-gray-400/30"></div>
+                                <div class="w-1/3 h-[1px] bg-amber-200/30 dark:bg-gray-400/30"></div>
+                                <div class="w-full h-[1px] bg-amber-200/30 dark:bg-gray-400/30"></div>
+                                <div class="w-2/3 h-[1px] bg-amber-200/30 dark:bg-gray-400/30"></div>
                             </div>
-                            <div class="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent"></div>
+                            <div class="absolute inset-0 bg-gradient-to-tr from-white/10 dark:from-white/20 to-transparent"></div>
                         </div>
-                        <p class="font-mono text-xl tracking-[0.25em] font-black text-white/95 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]"
+                        <p class="font-mono text-xl tracking-[0.25em] font-black text-white/95 dark:text-gray-800 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] dark:drop-shadow-sm"
                             id="p-no-profil">AGT-0000</p>
                     </div>
 
                     <div class="relative z-10 flex justify-between items-center mt-auto">
                         <div class="flex-1 mr-4 overflow-hidden">
-                            <p class="font-black text-[11px] leading-tight uppercase tracking-[0.15em] text-white/90"
+                            <p class="font-black text-[11px] leading-tight uppercase tracking-[0.15em] text-white/90 dark:text-gray-900"
                                 id="p-nama-profil">Nama Lengkap</p>
                             <div class="flex items-center gap-2 mt-2">
                                 <span
-                                    class="w-1 h-1 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
-                                <p class="text-[8px] font-bold text-white/30 uppercase tracking-[0.2em]"
+                                    class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] dark:shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                                <p class="text-[8px] font-bold text-white/30 dark:text-gray-400 uppercase tracking-[0.2em]"
                                     id="p-tgl-gabung">2026</p>
                             </div>
                         </div>
                         <div class="relative shrink-0 mb-1">
-                            <div class="absolute inset-0 bg-amber-400/20 rounded-full blur-md animate-pulse"></div>
+                            <div class="absolute inset-0 bg-amber-400/20 dark:bg-indigo-200/30 rounded-full blur-md animate-pulse"></div>
                             <img id="p-avatar-profil" src="" alt="Avatar"
-                                class="w-12 h-12 rounded-full border border-white/10 shadow-2xl relative z-10 p-0.5 bg-black/40 backdrop-blur-md">
+                                class="w-12 h-12 rounded-full border border-white/10 dark:border-indigo-100 shadow-2xl dark:shadow-lg relative z-10 p-0.5 bg-black/40 dark:bg-white backdrop-blur-md">
                         </div>
                     </div>
 
@@ -156,114 +161,113 @@
             </div>
         </div>
     </div>
-</div>
-</div>
-</div>
-</div>
-
-<div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-    <div class="px-5 py-4 border-b border-gray-50 mb-2">
-        <h3 class="text-sm font-bold text-gray-800"><i class="bi bi-shield-lock text-blue-500 mr-2"></i>Keamanan
-            Akun</h3>
-    </div>
-    <form id="p-form-password" class="p-5 pt-2 space-y-4">
-        <div id="p-pwd-alert" class="hidden text-xs px-3 py-2 rounded-xl mb-3 border"></div>
-
-        <div class="space-y-1.5">
-            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">Password
-                Lama</label>
-            <div class="relative">
-                <i class="bi bi-key-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input type="password" id="p-old-pwd" required
-                    class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 pl-10 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
-                    placeholder="Masukkan password saat ini">
-            </div>
-        </div>
-
-        <div class="space-y-1.5">
-            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">Password
-                Baru</label>
-            <div class="relative">
-                <i class="bi bi-lock-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input type="password" id="p-new-pwd" required minlength="6"
-                    class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 pl-10 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
-                    placeholder="Minimal 6 karakter">
-            </div>
-        </div>
-
-        <div class="space-y-1.5">
-            <label class="block text-[10px] font-bold text-gray-600 uppercase tracking-wider">Ulangi
-                Password Baru</label>
-            <div class="relative">
-                <i class="bi bi-check-circle-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input type="password" id="p-new-pwd-confirm" required minlength="6"
-                    class="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 pl-10 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
-                    placeholder="Ketik ulang password baru">
-            </div>
-        </div>
-
-        <button type="submit" id="p-btn-pwd"
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2 py-3 rounded-xl font-bold shadow-md shadow-blue-500/20 active:scale-[0.98] transition-all flex justify-center items-center gap-2 text-sm">
-            <i class="bi bi-save"></i> Simpan Password
-        </button>
-    </form>
-</div>
 
 <!-- Menu Fungsional -->
-<div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-6">
-    <div class="px-5 py-4 border-b border-gray-50 mb-2">
-        <h3 class="text-sm font-bold text-gray-800"><i class="bi bi-grid-fill text-indigo-500 mr-2"></i>Lainnya</h3>
+<!-- Tampilan -->
+<div class="bg-white dark:bg-obsidian-900 rounded-3xl border border-gray-100 dark:border-obsidian-800 shadow-sm overflow-hidden mb-6 transition-colors duration-300">
+    <div class="px-5 py-4 border-b border-gray-50 dark:border-obsidian-800 mb-2">
+        <h3 class="text-sm font-bold text-gray-800 dark:text-obsidian-100"><i class="bi bi-palette-fill text-purple-500 mr-2"></i>Tampilan</h3>
     </div>
     <div class="flex flex-col">
+        <div class="px-5 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <i class="bi bi-moon-stars"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Mode Gelap</span>
+                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Lebih nyaman di mata</span>
+                </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="theme-toggle-check" class="sr-only peer" onclick="Portal.toggleTheme()">
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-obsidian-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+            </label>
+        </div>
+    </div>
+</div>
+
+<div class="bg-white dark:bg-obsidian-900 rounded-3xl border border-gray-100 dark:border-obsidian-800 shadow-sm overflow-hidden mb-6 transition-colors duration-300">
+    <div class="px-5 py-4 border-b border-gray-50 dark:border-obsidian-800 mb-2">
+        <h3 class="text-sm font-bold text-gray-800 dark:text-obsidian-100"><i class="bi bi-grid-fill text-indigo-500 mr-2"></i>Pengaturan & Bantuan</h3>
+    </div>
+    <div class="flex flex-col">
+        <button onclick="Portal.showSecurity()"
+            class="px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-obsidian-800 active:bg-gray-100 dark:active:bg-obsidian-700 transition-colors border-b border-gray-50/50 dark:border-obsidian-800">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center"><i
+                        class="bi bi-shield-lock"></i></div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Keamanan Akun</span>
+                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Ganti password secara berkala</span>
+                </div>
+            </div>
+            <i class="bi bi-chevron-right text-gray-300 dark:text-obsidian-600 text-xs"></i>
+        </button>
         <button onclick="Swal.fire({
                 title: 'Pusat Bantuan',
-                html: '<div class=\'text-left space-y-3\'><p class=\'text-sm\'>Ada pertanyaan atau kendala? Hubungi tim support kami melalui:</p><div class=\'flex flex-col gap-2\'><a href=\'https://wa.me/6281234567890\' target=\'_blank\' class=\'flex items-center gap-3 p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100\'><i class=\'bi bi-whatsapp text-xl\'></i><div><p class=\'font-bold text-xs\'>WhatsApp Support</p><p class=\'text-[10px]\'>Respon cepat (08:00 - 17:00)</p></div></a><div class=\'flex items-center gap-3 p-3 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100\'><i class=\'bi bi-envelope text-xl\'></i><div><p class=\'font-bold text-xs\'>Email Helpdesk</p><p class=\'text-[10px]\'>support@koperasi.id</p></div></div></div></div>',
+                html: '<div class=\'text-left space-y-3 dark:text-obsidian-300\'><p class=\'text-sm\'>Ada pertanyaan atau kendala? Hubungi tim support kami melalui:</p><div class=\'flex flex-col gap-2\'><a href=\'https://wa.me/6281234567890\' target=\'_blank\' class=\'flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-2xl border border-emerald-100 dark:border-emerald-800/50\'><i class=\'bi bi-whatsapp text-xl\'></i><div><p class=\'font-bold text-xs\'>WhatsApp Support</p><p class=\'text-[10px]\'>Respon cepat (08:00 - 17:00)</p></div></a><div class=\'flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-2xl border border-blue-100 dark:border-blue-800/50\'><i class=\'bi bi-envelope text-xl\'></i><div><p class=\'font-bold text-xs\'>Email Helpdesk</p><p class=\'text-[10px]\'>support@koperasi.id</p></div></div></div></div>',
                 showConfirmButton: false,
                 showCloseButton: true,
-                customClass: { popup: 'rounded-3xl' }
+                customClass: { popup: 'rounded-[2.5rem] p-8 dark:bg-obsidian-900 dark:text-obsidian-100' }
             })"
-            class="px-5 py-4 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-50/50">
+            class="px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-obsidian-800 active:bg-gray-100 dark:active:bg-obsidian-700 transition-colors border-b border-gray-50/50 dark:border-obsidian-800">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><i
-                        class="bi bi-headset"></i></div>
-                <span class="text-sm font-medium text-gray-700">Pusat Bantuan</span>
+                <div class="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center"><i
+                        class="bi bi-chat-dots"></i></div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Pusat Bantuan</span>
+                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Hubungi tim support & bantuan</span>
+                </div>
             </div>
-            <i class="bi bi-chevron-right text-gray-300 text-xs"></i>
+            <i class="bi bi-chevron-right text-gray-300 dark:text-obsidian-600 text-xs"></i>
         </button>
         <button onclick="Swal.fire({
                 title: 'Syarat & Ketentuan',
-                html: '<div class=\'text-left text-xs text-gray-600 max-h-[300px] overflow-y-auto space-y-4 pr-2\'>' +
-                      '<p><strong>1. Keanggotaan:</strong> Setiap anggota wajib menaati AD/ART Koperasi dan memelihara kerahasiaan kredensial login portal.</p>' +
-                      '<p><strong>2. Transaksi:</strong> Data yang ditampilkan adalah real-time sesuai dengan input sistem pusat. Koperasi berhak membatalkan transaksi jika ditemukan ketidaksesuaian data.</p>' +
-                      '<p><strong>3. Keamanan:</strong> Anggota disarankan mengganti password secara berkala melalu menu Keamanan Akun.</p>' +
-                      '<p><strong>4. Layanan:</strong> Portal tersedia 24/7 namun maintenance sistem dapat dilakukan sewaktu-waktu dengan pemberitahuan sebelumnya.</p>' +
+                html: '<div class=\'text-left text-xs text-gray-600 dark:text-obsidian-400 max-h-[300px] overflow-y-auto space-y-4 pr-2 custom-scrollbar\'>' +
+                      '<p><strong class=\'dark:text-obsidian-200\'>1. Keanggotaan:</strong> Setiap anggota wajib menaati AD/ART Koperasi dan memelihara kerahasiaan kredensial login portal.</p>' +
+                      '<p><strong class=\'dark:text-obsidian-200\'>2. Transaksi:</strong> Data yang ditampilkan adalah real-time sesuai dengan input sistem pusat. Koperasi berhak membatalkan transaksi jika ditemukan ketidaksesuaian data.</p>' +
+                      '<p><strong class=\'dark:text-obsidian-200\'>3. Keamanan:</strong> Anggota disarankan mengganti password secara berkala melalu menu Keamanan Akun.</p>' +
+                      '<p><strong class=\'dark:text-obsidian-200\'>4. Layanan:</strong> Portal tersedia 24/7 namun maintenance sistem dapat dilakukan sewaktu-waktu dengan pemberitahuan sebelumnya.</p>' +
                       '<p class=\'pt-2 italic text-[10px]\'>Pembaruan terakhir: 01 Maret 2026</p></div>',
                 confirmButtonText: 'Saya Mengerti',
                 confirmButtonColor: '#2563eb',
-                customClass: { popup: 'rounded-3xl', confirmButton: 'rounded-xl w-full py-3 font-bold' }
+                customClass: { popup: 'rounded-[2.5rem] p-8 dark:bg-obsidian-900 dark:text-obsidian-100', confirmButton: 'rounded-2xl w-full py-4 font-bold text-sm shadow-lg shadow-blue-500/20' }
             })"
-            class="px-5 py-4 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-50/50">
+            class="px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-obsidian-800 active:bg-gray-100 dark:active:bg-obsidian-700 transition-colors border-b border-gray-50/50 dark:border-obsidian-800">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><i
+                <div class="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center"><i
                         class="bi bi-file-earmark-text"></i></div>
-                <span class="text-sm font-medium text-gray-700">Syarat & Ketentuan</span>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Syarat & Ketentuan</span>
+                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Ketentuan penggunaan layanan</span>
+                </div>
             </div>
-            <i class="bi bi-chevron-right text-gray-300 text-xs"></i>
+            <i class="bi bi-chevron-right text-gray-300 dark:text-obsidian-600 text-xs"></i>
         </button>
-        <button onclick="Swal.fire({
-                title: 'Tentang Aplikasi',
-                html: '<div class=\'flex flex-col items-center py-4\'><div class=\'w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center mb-4\'><i class=\'bi bi-wallet2 text-3xl text-white\'></i></div><p class=\'font-bold text-gray-900\'>Koperasi PWA Portal</p><p class=\'text-xs text-gray-500 mb-4\'>Versi 1.0.0 (Stable)</p><div class=\'w-full border-t border-gray-100 pt-4 text-center\'><p class=\'text-[10px] text-gray-400\'>&copy; 2026 Tim IT Koperasi Simpan Pinjam.<br>Seluruh hak cipta dilindungi.</p></div></div>',
-                showConfirmButton: false,
-                showCloseButton: true,
-                customClass: { popup: 'rounded-3xl' }
-            })"
-            class="px-5 py-4 flex items-center justify-between hover:bg-gray-50 active:bg-gray-100 transition-colors">
+        <button onclick="Portal.showChangelog()"
+            class="px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-obsidian-800 active:bg-gray-100 dark:active:bg-obsidian-700 transition-colors border-b border-gray-50/50 dark:border-obsidian-800">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center"><i
-                        class="bi bi-info-circle"></i></div>
-                <span class="text-sm font-medium text-gray-700">Tentang Aplikasi</span>
+                <div class="w-8 h-8 rounded-full bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 flex items-center justify-center"><i
+                        class="bi bi-rocket-takeoff"></i></div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Update Terbaru</span>
+                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Lihat riwayat pembaruan fitur</span>
+                </div>
             </div>
-            <i class="bi bi-chevron-right text-gray-300 text-xs"></i>
+            <i class="bi bi-chevron-right text-gray-300 dark:text-obsidian-600 text-xs"></i>
+        </button>
+        <button onclick="Portal.showAbout()"
+            class="px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-obsidian-800 active:bg-gray-100 dark:active:bg-obsidian-700 transition-colors">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center"><i
+                        class="bi bi-info-circle"></i></div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Tentang Aplikasi</span>
+                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Informasi sistem & versi</span>
+                </div>
+            </div>
+            <i class="bi bi-chevron-right text-gray-300 dark:text-obsidian-600 text-xs"></i>
         </button>
     </div>
 </div>

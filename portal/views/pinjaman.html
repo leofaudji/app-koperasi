@@ -1,19 +1,22 @@
 <!-- Header Section -->
 <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 transition-all duration-300">
-    <div class="bg-white/80 backdrop-blur-xl px-6 pt-6 pb-20 border-b border-gray-100/50">
+    <div
+        class="bg-white/80 dark:bg-obsidian-950/80 backdrop-blur-xl px-6 pt-6 pb-20 border-b border-gray-100/50 dark:border-obsidian-800/50">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div
-                    class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100">
-                    <i class="bi bi-cash-stack text-rose-600 text-lg"></i>
+                    class="w-10 h-10 bg-white dark:bg-obsidian-800 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-obsidian-700">
+                    <i class="bi bi-cash-stack text-rose-600 dark:text-rose-400 text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-black text-gray-900 tracking-tight leading-tight">Pinjaman</h1>
-                    <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Kewajiban & Angsuran</p>
+                    <h1 class="text-xl font-black text-gray-900 dark:text-obsidian-100 tracking-tight leading-tight">
+                        Pinjaman</h1>
+                    <p class="text-[10px] text-gray-500 dark:text-obsidian-500 font-medium uppercase tracking-wider">
+                        Kewajiban & Angsuran</p>
                 </div>
             </div>
             <button onclick="Portal.tab('home')"
-                class="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                class="w-9 h-9 rounded-full bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-obsidian-200 transition-colors">
                 <i class="bi bi-house-fill text-sm"></i>
             </button>
         </div>
@@ -65,17 +68,19 @@
     <!-- Riwayat Lunas summary row (hidden until data arrives) -->
     <div id="pin-lunas-summary" class="hidden cursor-pointer" onclick="Portal.openModal('pin-lunas-modal')">
         <div
-            class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between hover:bg-emerald-100 transition-colors active:scale-[0.99]">
+            class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl p-4 flex items-center justify-between hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors active:scale-[0.99]">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                    <i class="bi bi-check-circle-fill text-emerald-600 text-lg"></i>
+                <div
+                    class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                    <i class="bi bi-check-circle-fill text-emerald-600 dark:text-emerald-400 text-lg"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-bold text-emerald-800">Riwayat Pinjaman Lunas</p>
-                    <p class="text-[10px] text-emerald-600" id="pin-lunas-count">— akun terlunasi</p>
+                    <p class="text-sm font-bold text-emerald-800 dark:text-emerald-200">Riwayat Pinjaman Lunas</p>
+                    <p class="text-[10px] text-emerald-600 dark:text-emerald-400" id="pin-lunas-count">— akun terlunasi
+                    </p>
                 </div>
             </div>
-            <i class="bi bi-chevron-right text-emerald-500 text-sm"></i>
+            <i class="bi bi-chevron-right text-emerald-500 dark:text-emerald-400 text-sm"></i>
         </div>
     </div>
 </div>
@@ -92,36 +97,38 @@
         onclick="Portal.closeModal('pin-angsuran-modal')"></div>
     <div class="flex-1 pointer-events-none"></div>
     <div
-        class="modal-sheet-panel bg-white rounded-t-3xl max-h-[85vh] flex flex-col max-w-[480px] mx-auto w-full shadow-2xl relative">
-        <div class="px-6 pt-5 pb-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-3xl">
-            <div class="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mb-3"></div>
+        class="modal-sheet-panel bg-white dark:bg-obsidian-900 rounded-t-3xl max-h-[85vh] flex flex-col max-w-[480px] mx-auto w-full shadow-2xl relative">
+        <div
+            class="px-6 pt-5 pb-4 border-b border-gray-100 dark:border-obsidian-800 sticky top-0 bg-white dark:bg-obsidian-900 rounded-t-3xl transition-colors">
+            <div class="w-10 h-1.5 bg-gray-200 dark:bg-obsidian-800 rounded-full mx-auto mb-3"></div>
             <div class="flex items-start justify-between">
                 <div>
-                    <p id="pin-ang-no" class="font-bold text-gray-900 text-base"></p>
-                    <p id="pin-ang-jenis" class="text-xs text-gray-500 mt-0.5"></p>
+                    <p id="pin-ang-no" class="font-bold text-gray-900 dark:text-obsidian-100 text-base"></p>
+                    <p id="pin-ang-jenis" class="text-xs text-gray-500 dark:text-obsidian-500 mt-0.5"></p>
                 </div>
                 <button onclick="Portal.closeModal('pin-angsuran-modal')"
-                    class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors shrink-0 ml-3">
+                    class="w-9 h-9 rounded-full bg-gray-100 dark:bg-obsidian-800 flex items-center justify-center text-gray-500 dark:text-obsidian-400 hover:bg-gray-200 dark:hover:bg-obsidian-700 transition-colors shrink-0 ml-3">
                     <i class="bi bi-x-lg text-sm"></i>
                 </button>
             </div>
             <!-- Info Bar -->
-            <div class="grid grid-cols-3 gap-2 mt-3 bg-rose-50 rounded-xl p-3">
+            <div class="grid grid-cols-3 gap-2 mt-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl p-3">
                 <div class="text-center">
-                    <p class="text-[9px] text-rose-400 uppercase tracking-widest mb-0.5">Pinjaman</p>
-                    <p class="text-xs font-bold text-rose-700" id="pin-ang-total"></p>
+                    <p class="text-[9px] text-rose-400 dark:text-rose-500 uppercase tracking-widest mb-0.5">Pinjaman</p>
+                    <p class="text-xs font-bold text-rose-700 dark:text-rose-300" id="pin-ang-total"></p>
                 </div>
-                <div class="text-center border-x border-rose-200">
-                    <p class="text-[9px] text-rose-400 uppercase tracking-widest mb-0.5">Sudah Bayar</p>
-                    <p class="text-xs font-bold text-emerald-600" id="pin-ang-bayar"></p>
+                <div class="text-center border-x border-rose-200 dark:border-rose-800">
+                    <p class="text-[9px] text-rose-400 dark:text-rose-500 uppercase tracking-widest mb-0.5">Sudah Bayar
+                    </p>
+                    <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400" id="pin-ang-bayar"></p>
                 </div>
                 <div class="text-center">
-                    <p class="text-[9px] text-rose-400 uppercase tracking-widest mb-0.5">Sisa</p>
-                    <p class="text-xs font-bold text-rose-700" id="pin-ang-sisa"></p>
+                    <p class="text-[9px] text-rose-400 dark:text-rose-500 uppercase tracking-widest mb-0.5">Sisa</p>
+                    <p class="text-xs font-bold text-rose-700 dark:text-rose-300" id="pin-ang-sisa"></p>
                 </div>
             </div>
         </div>
-        <div id="pin-ang-list" class="overflow-y-auto px-6 py-4 space-y-2 flex-1"></div>
+        <div id="pin-ang-list" class="overflow-y-auto px-6 py-4 space-y-2 flex-1 custom-scrollbar"></div>
     </div>
 </div>
 
@@ -131,22 +138,25 @@
         onclick="Portal.closeModal('pin-lunas-modal')"></div>
     <div class="flex-1 pointer-events-none"></div>
     <div
-        class="modal-sheet-panel bg-white rounded-t-3xl max-h-[85vh] flex flex-col max-w-[480px] mx-auto w-full shadow-2xl relative">
-        <div class="px-6 pt-5 pb-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-3xl">
-            <div class="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mb-3"></div>
+        class="modal-sheet-panel bg-white dark:bg-obsidian-900 rounded-t-3xl max-h-[85vh] flex flex-col max-w-[480px] mx-auto w-full shadow-2xl relative">
+        <div
+            class="px-6 pt-5 pb-4 border-b border-gray-100 dark:border-obsidian-800 sticky top-0 bg-white dark:bg-obsidian-900 rounded-t-3xl transition-colors">
+            <div class="w-10 h-1.5 bg-gray-200 dark:bg-obsidian-800 rounded-full mx-auto mb-3"></div>
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="font-bold text-gray-900 text-base flex items-center gap-2">
+                    <p class="font-bold text-gray-900 dark:text-obsidian-100 text-base flex items-center gap-2">
                         <i class="bi bi-check-circle-fill text-emerald-500"></i> Riwayat Pinjaman Lunas
                     </p>
-                    <p class="text-[10px] text-gray-400 mt-0.5">Pembiayaan yang telah terlunasi</p>
+                    <p class="text-[10px] text-gray-400 dark:text-obsidian-500 mt-0.5">Pembiayaan yang telah terlunasi
+                    </p>
                 </div>
                 <button onclick="Portal.closeModal('pin-lunas-modal')"
-                    class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors shrink-0 ml-3">
+                    class="w-9 h-9 rounded-full bg-gray-100 dark:bg-obsidian-800 flex items-center justify-center text-gray-500 dark:text-obsidian-400 hover:bg-gray-200 dark:hover:bg-obsidian-700 transition-colors shrink-0 ml-3">
                     <i class="bi bi-x-lg text-sm"></i>
                 </button>
             </div>
         </div>
-        <div id="pin-lunas-list" class="overflow-y-auto px-6 py-4 space-y-2 flex-1"></div>
+        <div id="pin-lunas-list" class="overflow-y-auto px-6 py-4 space-y-2 flex-1 custom-scrollbar"></div>
     </div>
+</div>
 </div>

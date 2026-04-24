@@ -1,19 +1,19 @@
 <!-- View container for RAT (Rapat Anggota Tahunan) -->
 <!-- Header Section -->
 <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 transition-all duration-300">
-    <div class="bg-white/80 backdrop-blur-xl px-6 pt-6 pb-6 border-b border-gray-100/50">
+    <div class="bg-white/80 dark:bg-obsidian-950/80 backdrop-blur-xl px-6 pt-6 pb-6 border-b border-gray-100/50 dark:border-obsidian-800/50 transition-colors">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100">
-                    <i class="bi bi-people text-indigo-600 text-lg"></i>
+                <div class="w-10 h-10 bg-white dark:bg-obsidian-800 rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-obsidian-700">
+                    <i class="bi bi-people text-indigo-600 dark:text-indigo-400 text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-black text-gray-900 tracking-tight leading-tight">RAT</h1>
-                    <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Kedaulatan Anggota</p>
+                    <h1 class="text-xl font-black text-gray-900 dark:text-obsidian-100 tracking-tight leading-tight">RAT</h1>
+                    <p class="text-[10px] text-gray-500 dark:text-obsidian-500 font-medium uppercase tracking-wider">Kedaulatan Anggota</p>
                 </div>
             </div>
             <button onclick="Portal.tab('home')"
-                class="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                class="w-9 h-9 rounded-full bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 dark:text-obsidian-500 hover:text-gray-600 dark:hover:text-obsidian-200 transition-colors">
                 <i class="bi bi-house-fill text-sm"></i>
             </button>
         </div>
@@ -29,18 +29,18 @@
     <div id="rat-session-container">
         <!-- Skeleton Loading -->
         <div class="relative z-10 mb-8 animate-pulse">
-            <div class="bg-gray-200 rounded-[2.5rem] h-[180px] w-full"></div>
+            <div class="bg-gray-200 dark:bg-obsidian-800 rounded-[2.5rem] h-[180px] w-full"></div>
         </div>
     </div>
 
     <!-- Empty State (Hidden by default) -->
     <div id="rat-empty-state" class="hidden animate-fadeIn">
-        <div class="bg-white rounded-[2.5rem] p-10 text-center border-2 border-dashed border-gray-100 mt-20">
-            <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-200">
+        <div class="bg-white dark:bg-obsidian-900 rounded-[2.5rem] p-10 text-center border-2 border-dashed border-gray-100 dark:border-obsidian-800 mt-20 transition-colors">
+            <div class="w-20 h-20 bg-gray-50 dark:bg-obsidian-800 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-200 dark:text-obsidian-700">
                 <i class="bi bi-calendar-event text-4xl"></i>
             </div>
-            <h4 class="font-black text-gray-800 tracking-tight">Belum ada RAT aktif</h4>
-            <p class="text-xs text-gray-400 mt-2 leading-relaxed px-4">Jadwal rapat anggota akan muncul di sini saat sesi dimulai.</p>
+            <h4 class="font-black text-gray-800 dark:text-obsidian-100 tracking-tight">Belum ada RAT aktif</h4>
+            <p class="text-xs text-gray-400 dark:text-obsidian-500 mt-2 leading-relaxed px-4">Jadwal rapat anggota akan muncul di sini saat sesi dimulai.</p>
         </div>
     </div>
 </div>

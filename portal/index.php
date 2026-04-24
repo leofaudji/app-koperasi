@@ -19,9 +19,20 @@ ob_start();
 readfile(__DIR__ . '/index.html');
 $html = ob_get_clean();
 
+// Get latest version from changelog.md
+$version = '1.0.0'; // Default
+$changelogPath = __DIR__ . '/changelog.md';
+if (file_exists($changelogPath)) {
+    $changelogContent = file_get_contents($changelogPath);
+    if (preg_match('/##\s*\[([\d.]+)\]/', $changelogContent, $matches)) {
+        $version = $matches[1];
+    }
+}
+
 // Inject dynamic data
 $html = str_replace('{{PWA_NAME}}', $pwaName, $html);
 $html = str_replace('{{LOGO_URL}}', $logoUrl, $html);
+$html = str_replace('{{VERSION}}', $version, $html);
 
 header('Content-Type: text/html; charset=UTF-8');
 header('X-Content-Type-Options: nosniff');

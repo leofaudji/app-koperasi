@@ -1,9 +1,10 @@
-const CACHE_NAME = 'koperasi-portal-v23';
+const CACHE_NAME = 'koperasi-portal-v42';
 const ASSETS = [
     './',
     'index.html',
     'assets/js/tailwind.min.js',
     'assets/js/sweetalert2.all.min.js',
+    'assets/js/portal.js',
     'views/home.html',
     'views/simpanan.html',
     'views/pinjaman.html',
