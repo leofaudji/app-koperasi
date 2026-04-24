@@ -118,18 +118,42 @@ switch ($method) {
             });
             $cleanSql = implode("\n", $filtered);
 
-            // Split by semicolon (careful with quoted semicolons — basic split sufficient for mysqldump output)
-            $statements = array_filter(
-                array_map('trim', explode(';', $cleanSql)),
-                fn($s) => !empty($s)
-            );
-
-            $count = 0;
-            foreach ($statements as $stmt) {
-                if (trim($stmt) !== '') {
-                    $pdo->exec($stmt);
-                    $count++;
+            // Split by semicolon, but respect quotes to avoid splitting inside strings (like User Agents)
+            $statements = [];
+            $currentStmt = '';
+            $inString = false;
+            $escaped = false;
+            $len = strlen($cleanSql);
+            
+            for ($i = 0; $i < $len; $i++) {
+                $char = $cleanSql[$i];
+                $currentStmt .= $char;
+                
+                if ($char === "'" && !$escaped) {
+                    $inString = !$inString;
                 }
+                
+                if ($char === "\\" && $inString) {
+                    $escaped = !$escaped;
+                } else {
+                    $escaped = false;
+                }
+                
+                if ($char === ";" && !$inString) {
+                    $stmt = trim($currentStmt);
+                    if ($stmt !== '') {
+                        $pdo->exec($stmt);
+                        $count++;
+                    }
+                    $currentStmt = '';
+                }
+            }
+            
+            // Handle last statement if not ending with ;
+            $stmt = trim($currentStmt);
+            if ($stmt !== '') {
+                $pdo->exec($stmt);
+                $count++;
             }
 
             $pdo->exec("SET FOREIGN_KEY_CHECKS=1");
