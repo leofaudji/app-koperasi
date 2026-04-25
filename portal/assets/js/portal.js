@@ -1,7 +1,7 @@
 const Portal = {
     member: null,
     csrfToken: '',
-    VERSION: window.PORTAL_VERSION || '1.3.1', // Dynamic version from index.php
+    VERSION: window.PORTAL_VERSION || '1.3.2', // Dynamic version from index.php
     pwaName: '',
     API: (() => {
         const path = window.location.pathname.replace(/\/[^\/]+\.[^\/]+$/, '/');
