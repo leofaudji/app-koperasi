@@ -1,4 +1,4 @@
-const CACHE_NAME = 'koperasi-portal-v44';
+const CACHE_NAME = 'koperasi-portal-v46';
 const ASSETS = [
     './',
     'index.html',
@@ -34,7 +34,7 @@ self.addEventListener('fetch', e => {
         e.respondWith(fetch(e.request));
         return;
     }
-    
+
     // API Requests: Network First, Fallback to Cache
     if (e.request.url.includes('/api/')) {
         e.respondWith(

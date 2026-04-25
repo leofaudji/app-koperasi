@@ -84,13 +84,61 @@ const Portal = {
             toast.style.transform = 'translate(-50%, -100px)';
         }, 3000);
     },
+    
+    sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); },
 
     async init() {
         this.initSplashTheme(); // Set dynamic background & tips
         this.initTheme(); // Load dark/light mode from storage
 
-        // Version check temporarily disabled - proceed to login
         const splashText = document.getElementById('splash-loader-text');
+        
+        // 1. Version Check & Update
+        if ('serviceWorker' in navigator) {
+            try {
+                if (splashText) splashText.textContent = 'Checking for updates...';
+                await this.sleep(1000); // Visual delay
+                
+                const vRes = await fetch('version.json', { cache: 'no-store' });
+                const vData = await vRes.json();
+                const lastSwVersion = localStorage.getItem('portal_sw_version');
+                
+                // Register service worker first
+                const registration = await navigator.serviceWorker.register('sw.js');
+                
+                if (vData.sw_version !== lastSwVersion) {
+                    if (splashText) {
+                        splashText.textContent = `New version available (v${vData.version})`;
+                        await this.sleep(800);
+                        splashText.textContent = 'Downloading updates...';
+                        splashText.classList.remove('text-white/40');
+                        splashText.classList.add('text-white', 'font-bold');
+                    }
+                    
+                    // Trigger manual update check
+                    await registration.update();
+                    
+                    // Wait for the update to complete
+                    const updated = await this.waitForUpdate(registration);
+                    if (updated) {
+                        localStorage.setItem('portal_sw_version', vData.sw_version);
+                        if (splashText) splashText.textContent = 'Updates installed successfully';
+                        await this.sleep(800);
+                    }
+                } else {
+                    localStorage.setItem('portal_sw_version', vData.sw_version);
+                    if (splashText) {
+                        splashText.textContent = `System up to date (v${vData.version})`;
+                        splashText.classList.remove('animate-pulse');
+                    }
+                    await this.sleep(1000);
+                }
+            } catch (e) {
+                console.warn('Update check failed, proceeding anyway:', e);
+            }
+        }
+
+        // 2. System Initialization
         if (splashText) {
             splashText.textContent = 'Initializing System...';
             splashText.classList.add('text-white/40', 'animate-pulse');
@@ -122,6 +170,34 @@ const Portal = {
                 setTimeout(() => splash.remove(), 800);
             }, 1200);
         }
+    },
+
+    waitForUpdate(registration) {
+        return new Promise((resolve) => {
+            if (registration.waiting) {
+                resolve(true);
+                return;
+            }
+
+            const onStateChange = (e) => {
+                if (e.target.state === 'installed') {
+                    resolve(true);
+                }
+            };
+
+            if (registration.installing) {
+                registration.installing.addEventListener('statechange', onStateChange);
+            } else {
+                // If not installing, listen for updatefound
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', onStateChange);
+                });
+                
+                // Timeout as fallback
+                setTimeout(() => resolve(false), 5000);
+            }
+        });
     },
 
     async login() {
@@ -2343,6 +2419,4 @@ pAppContainer.addEventListener('touchend', async () => {
     pCurrentY = 0;
 });
 
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-}
+// PWA Service Worker was moved to Portal.init() for version checking flow
