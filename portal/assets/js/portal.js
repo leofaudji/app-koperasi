@@ -1,7 +1,7 @@
 const Portal = {
     member: null,
     csrfToken: '',
-    VERSION: window.PORTAL_VERSION || '1.3.2', // Dynamic version from index.php
+    VERSION: window.PORTAL_VERSION || '1.3.3', // Dynamic version from index.php
     pwaName: '',
     API: (() => {
         const path = window.location.pathname.replace(/\/[^\/]+\.[^\/]+$/, '/');
@@ -89,32 +89,33 @@ const Portal = {
         this.initSplashTheme(); // Set dynamic background & tips
         this.initTheme(); // Load dark/light mode from storage
 
-        // Check for updates first
+        // Check for updates first (DISABLED for debugging)
         const splashText = document.getElementById('splash-loader-text');
-        try {
-            const res = await fetch(`${this.PORTAL_BASE}version.json?t=${Date.now()}`, { cache: 'no-store' });
-            if (res.ok) {
-                const data = await res.json();
-                console.log('Portal version check:', { local: this.VERSION, remote: data.version });
-                if (data.version && data.version !== this.VERSION) {
-                    if (splashText) {
-                        splashText.textContent = 'Downloading new version ' + data.version + '...';
-                        splashText.classList.remove('text-white/40');
-                        splashText.classList.add('text-blue-200', 'font-bold');
-                    }
-                    console.log('Version mismatch detected, triggering update');
-                    // Wait 1.5s so user can see the message
-                    await new Promise(r => setTimeout(r, 1500));
-                    await this.forceUpdate();
-                    return; // Stop initialization as we are reloading
-                } else {
-                    // Already up to date
-                    console.log('Portal is up to date');
-                    if (splashText) {
-                        splashText.textContent = 'Version ' + this.VERSION + ' up to date';
-                        splashText.classList.remove('text-white/40', 'animate-pulse');
-                        splashText.classList.add('text-blue-100', 'font-bold');
-                    }
+        if (false) { // Temporarily disabled
+            try {
+                const res = await fetch(`${this.PORTAL_BASE}version.json?t=${Date.now()}`, { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log('Portal version check:', { local: this.VERSION, remote: data.version });
+                    if (data.version && data.version !== this.VERSION) {
+                        if (splashText) {
+                            splashText.textContent = 'Downloading new version ' + data.version + '...';
+                            splashText.classList.remove('text-white/40');
+                            splashText.classList.add('text-blue-200', 'font-bold');
+                        }
+                        console.log('Version mismatch detected, triggering update');
+                        // Wait 1.5s so user can see the message
+                        await new Promise(r => setTimeout(r, 1500));
+                        await this.forceUpdate();
+                        return; // Stop initialization as we are reloading
+                    } else {
+                        // Already up to date
+                        console.log('Portal is up to date');
+                        if (splashText) {
+                            splashText.textContent = 'Version ' + this.VERSION + ' up to date';
+                            splashText.classList.remove('text-white/40', 'animate-pulse');
+                            splashText.classList.add('text-blue-100', 'font-bold');
+                        }
                     // Short delay for visibility
                     await new Promise(r => setTimeout(r, 800));
                     if (splashText) {
