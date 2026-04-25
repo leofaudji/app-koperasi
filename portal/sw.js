@@ -29,6 +29,12 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+    // version.json: Always network first, never cache
+    if (e.request.url.includes('version.json')) {
+        e.respondWith(fetch(e.request));
+        return;
+    }
+    
     // API Requests: Network First, Fallback to Cache
     if (e.request.url.includes('/api/')) {
         e.respondWith(

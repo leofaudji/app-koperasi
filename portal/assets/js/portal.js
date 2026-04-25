@@ -92,21 +92,24 @@ const Portal = {
         // Check for updates first
         const splashText = document.getElementById('splash-loader-text');
         try {
-            const res = await fetch(`${this.PORTAL_BASE}version.json?t=${Date.now()}`);
+            const res = await fetch(`${this.PORTAL_BASE}version.json?t=${Date.now()}`, { cache: 'no-store' });
             if (res.ok) {
                 const data = await res.json();
+                console.log('Portal version check:', { local: this.VERSION, remote: data.version });
                 if (data.version && data.version !== this.VERSION) {
                     if (splashText) {
                         splashText.textContent = 'Downloading new version ' + data.version + '...';
                         splashText.classList.remove('text-white/40');
                         splashText.classList.add('text-blue-200', 'font-bold');
                     }
+                    console.log('Version mismatch detected, triggering update');
                     // Wait 1.5s so user can see the message
                     await new Promise(r => setTimeout(r, 1500));
                     await this.forceUpdate();
                     return; // Stop initialization as we are reloading
                 } else {
                     // Already up to date
+                    console.log('Portal is up to date');
                     if (splashText) {
                         splashText.textContent = 'Version ' + this.VERSION + ' up to date';
                         splashText.classList.remove('text-white/40', 'animate-pulse');
@@ -1213,6 +1216,7 @@ const Portal = {
     },
 
     async forceUpdate() {
+        console.log('forceUpdate triggered, clearing cache and reloading...');
         Swal.fire({
             title: 'Memperbarui...',
             text: 'Sedang menyelaraskan versi aplikasi',
@@ -1225,6 +1229,7 @@ const Portal = {
             try {
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 for (let registration of registrations) {
+                    console.log('Unregistering SW:', registration.scope);
                     await registration.unregister();
                 }
             } catch (e) { console.error('SW Unregister failed:', e); }
@@ -1234,14 +1239,17 @@ const Portal = {
         if ('caches' in window) {
             try {
                 const cacheNames = await caches.keys();
+                console.log('Clearing caches:', cacheNames);
                 for (let name of cacheNames) {
                     await caches.delete(name);
                 }
             } catch (e) { console.error('Cache Clear failed:', e); }
         }
 
-        // 3. Reload
-        window.location.reload(true);
+        // 3. Hard reload with cache bypass
+        setTimeout(() => {
+            window.location.href = window.location.href;
+        }, 500);
     },
 
     async showChangelog() {
