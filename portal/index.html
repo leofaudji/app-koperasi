@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#4F46E5">
     <meta name="description" content="Portal Anggota Koperasi Simpan Pinjam">
     <meta name="mobile-web-app-capable" content="yes">
@@ -541,7 +541,36 @@
         .modal-sheet-wrapper.visible {
             visibility: visible;
         }
+
+        /* Prevent Mobile Zoom on Input Focus */
+        input, textarea, select {
+            font-size: 16px !important;
+        }
+        
+        html {
+            touch-action: manipulation;
+        }
     </style>
+
+    <!-- Prevent Viewport Zoom on Input Focus -->
+    <script>
+        document.addEventListener('touchmove', function(event) {
+            if (event.scale !== 1) {
+                event.preventDefault();
+            }
+        }, { passive: false });
+        
+        let viewport = document.querySelector('meta[name="viewport"]');
+        document.addEventListener('focusin', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            }
+        });
+        
+        document.addEventListener('focusout', function() {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+        });
+    </script>
 </head>
 
 <body class="overflow-hidden">
@@ -617,7 +646,7 @@
                         <div class="relative">
                             <i class="bi bi-person absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                             <input type="text" id="p-no-anggota"
-                                class="w-full bg-gray-50 dark:bg-obsidian-900 border border-gray-100 dark:border-obsidian-800 rounded-2xl px-5 py-3.5 pl-11 text-sm focus:bg-white dark:focus:bg-obsidian-800 focus:ring-2 focus:ring-blue-500 transition-all dark:text-obsidian-100"
+                                class="w-full bg-gray-50 dark:bg-obsidian-900 border border-gray-100 dark:border-obsidian-800 rounded-2xl px-5 py-3.5 pl-11 text-base focus:bg-white dark:focus:bg-obsidian-800 focus:ring-2 focus:ring-blue-500 transition-all dark:text-obsidian-100"
                                 placeholder="mis. AGT-0001" required>
                         </div>
                     </div>
@@ -627,7 +656,7 @@
                         <div class="relative">
                             <i class="bi bi-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                             <input type="password" id="p-password"
-                                class="w-full bg-gray-50 dark:bg-obsidian-900 border border-gray-100 dark:border-obsidian-800 rounded-2xl px-5 py-3.5 pl-11 text-sm focus:bg-white dark:focus:bg-obsidian-800 focus:ring-2 focus:ring-blue-500 transition-all dark:text-obsidian-100"
+                                class="w-full bg-gray-50 dark:bg-obsidian-900 border border-gray-100 dark:border-obsidian-800 rounded-2xl px-5 py-3.5 pl-11 text-base focus:bg-white dark:focus:bg-obsidian-800 focus:ring-2 focus:ring-blue-500 transition-all dark:text-obsidian-100"
                                 placeholder="Masukkan password" required>
                         </div>
                     </div>
