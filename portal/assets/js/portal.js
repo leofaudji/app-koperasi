@@ -89,43 +89,12 @@ const Portal = {
         this.initSplashTheme(); // Set dynamic background & tips
         this.initTheme(); // Load dark/light mode from storage
 
-        // Check for updates first (DISABLED for debugging)
+        // Version check temporarily disabled - proceed to login
         const splashText = document.getElementById('splash-loader-text');
-        if (false) { // Temporarily disabled
-            try {
-                const res = await fetch(`${this.PORTAL_BASE}version.json?t=${Date.now()}`, { cache: 'no-store' });
-                if (res.ok) {
-                    const data = await res.json();
-                    console.log('Portal version check:', { local: this.VERSION, remote: data.version });
-                    if (data.version && data.version !== this.VERSION) {
-                        if (splashText) {
-                            splashText.textContent = 'Downloading new version ' + data.version + '...';
-                            splashText.classList.remove('text-white/40');
-                            splashText.classList.add('text-blue-200', 'font-bold');
-                        }
-                        console.log('Version mismatch detected, triggering update');
-                        // Wait 1.5s so user can see the message
-                        await new Promise(r => setTimeout(r, 1500));
-                        await this.forceUpdate();
-                        return; // Stop initialization as we are reloading
-                    } else {
-                        // Already up to date
-                        console.log('Portal is up to date');
-                        if (splashText) {
-                            splashText.textContent = 'Version ' + this.VERSION + ' up to date';
-                            splashText.classList.remove('text-white/40', 'animate-pulse');
-                            splashText.classList.add('text-blue-100', 'font-bold');
-                        }
-                    // Short delay for visibility
-                    await new Promise(r => setTimeout(r, 800));
-                    if (splashText) {
-                        splashText.textContent = 'Initializing System...';
-                        splashText.classList.add('text-white/40', 'animate-pulse');
-                        splashText.classList.remove('text-blue-100', 'font-bold');
-                    }
-                }
-            }
-        } catch (e) { console.warn('Update check bypassed:', e); }
+        if (splashText) {
+            splashText.textContent = 'Initializing System...';
+            splashText.classList.add('text-white/40', 'animate-pulse');
+        }
 
         document.getElementById('p-login-form').addEventListener('submit', e => { e.preventDefault(); this.login(); });
         const r = await this.api('portal/me');
