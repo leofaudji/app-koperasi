@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "id.web.crudworks.smkn5_ksp.twa",
+    "sha256_cert_fingerprints": ["69:0D:27:82:6F:0C:52:43:FC:DC:1C:AF:FA:BA:E5:83:33:9F:8B:BD:E4:2D:AC:4B:F8:BD:8F:54:B7:71:2A:6E"]
+  }
+}]
