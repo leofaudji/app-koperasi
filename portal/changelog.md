@@ -4,6 +4,13 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [1.4.0] - 2026-04-30
+### Smart Login & Bug Fixes
+- **Smart Login:** Anggota kini dapat login hanya dengan mengetikkan angka (misal: 0007), sistem akan otomatis melengkapinya.
+- **Bug Fix:** Memperbaiki masalah halaman yang otomatis me-*refresh* saat terjadi kesalahan ketik pada Ganti Password.
+- **Pembaruan Sistem:** Sinkronisasi pembaruan *cache* versi ke-50 untuk *production*.
+
+---
 ## [1.3.9] - 2026-04-27
 ### UI/UX
 - Desain ulang kartu simulasi pinjaman agar lebih menarik dan profesional.

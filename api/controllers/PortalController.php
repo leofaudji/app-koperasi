@@ -20,6 +20,15 @@ switch ($id) {
             errorResponse('Method not allowed', 405);
         $noAnggota = $params['no_anggota'] ?? '';
         $password = $params['password'] ?? '';
+        
+        // Auto-format "7" or "0007" to "AGT-0007" and handle lowercase
+        $noAnggota = trim($noAnggota);
+        if (preg_match('/^\d+$/', $noAnggota)) {
+            $noAnggota = 'AGT-' . str_pad($noAnggota, 4, '0', STR_PAD_LEFT);
+        } else {
+            $noAnggota = strtoupper($noAnggota);
+        }
+
         if (empty($noAnggota) || empty($password))
             errorResponse('No. anggota dan password wajib diisi');
 

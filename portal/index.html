@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#4F46E5">
     <meta name="description" content="Portal Anggota Koperasi Simpan Pinjam">
     <meta name="mobile-web-app-capable" content="yes">
@@ -60,7 +61,8 @@
             -ms-overflow-style: none;
         }
 
-        body::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
+        body::-webkit-scrollbar,
+        .custom-scrollbar::-webkit-scrollbar {
             display: none;
         }
 
@@ -83,8 +85,13 @@
             transition: background-color 0.3s ease;
         }
 
-        html.dark body { background-color: #020617; }
-        html.dark .mobile-container { background-color: #020617; }
+        html.dark body {
+            background-color: #020617;
+        }
+
+        html.dark .mobile-container {
+            background-color: #020617;
+        }
 
         .mobile-container::-webkit-scrollbar {
             display: none;
@@ -98,11 +105,13 @@
             border-radius: 2.5rem !important;
         }
 
-        .dark .swal2-title, .dark .swal2-html-container {
+        .dark .swal2-title,
+        .dark .swal2-html-container {
             color: #f1f5f9 !important;
         }
 
-        .dark .swal2-input, .dark .swal2-textarea {
+        .dark .swal2-input,
+        .dark .swal2-textarea {
             background: #020617 !important;
             border-color: #1e293b !important;
             color: #f1f5f9 !important;
@@ -250,14 +259,29 @@
         }
 
         @keyframes barExpand {
-            from { width: 0; opacity: 0; }
-            to { width: 12px; opacity: 1; }
+            from {
+                width: 0;
+                opacity: 0;
+            }
+
+            to {
+                width: 12px;
+                opacity: 1;
+            }
         }
 
         @keyframes navPop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.3); }
-            100% { transform: scale(1.1); }
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.3);
+            }
+
+            100% {
+                transform: scale(1.1);
+            }
         }
 
         .nav-item.active i {
@@ -313,13 +337,27 @@
         }
 
         @keyframes slideInRight {
-            0% { opacity: 0; transform: translateX(30px); }
-            100% { opacity: 1; transform: translateX(0); }
+            0% {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         @keyframes slideInLeft {
-            0% { opacity: 0; transform: translateX(-30px); }
-            100% { opacity: 1; transform: translateX(0); }
+            0% {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         @keyframes tabSlideUp {
@@ -348,10 +386,21 @@
         }
 
         /* Dynamic Time-based Backgrounds */
-        #initial-splash.bg-morning { background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); }
-        #initial-splash.bg-day { background: radial-gradient(circle at top right, #3b82f6 0%, #1e40af 100%); }
-        #initial-splash.bg-evening { background: linear-gradient(135deg, #f97316 0%, #4338ca 100%); }
-        #initial-splash.bg-night { background: radial-gradient(circle at top right, #1e293b 0%, #020617 100%); }
+        #initial-splash.bg-morning {
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+        }
+
+        #initial-splash.bg-day {
+            background: radial-gradient(circle at top right, #3b82f6 0%, #1e40af 100%);
+        }
+
+        #initial-splash.bg-evening {
+            background: linear-gradient(135deg, #f97316 0%, #4338ca 100%);
+        }
+
+        #initial-splash.bg-night {
+            background: radial-gradient(circle at top right, #1e293b 0%, #020617 100%);
+        }
 
         #initial-splash.fade-out {
             opacity: 0;
@@ -543,10 +592,12 @@
         }
 
         /* Prevent Mobile Zoom on Input Focus */
-        input, textarea, select {
+        input,
+        textarea,
+        select {
             font-size: 16px !important;
         }
-        
+
         html {
             touch-action: manipulation;
         }
@@ -554,20 +605,20 @@
 
     <!-- Prevent Viewport Zoom on Input Focus -->
     <script>
-        document.addEventListener('touchmove', function(event) {
+        document.addEventListener('touchmove', function (event) {
             if (event.scale !== 1) {
                 event.preventDefault();
             }
         }, { passive: false });
-        
+
         let viewport = document.querySelector('meta[name="viewport"]');
-        document.addEventListener('focusin', function(e) {
+        document.addEventListener('focusin', function (e) {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
                 viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
             }
         });
-        
-        document.addEventListener('focusout', function() {
+
+        document.addEventListener('focusout', function () {
             viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
         });
     </script>
@@ -604,7 +655,8 @@
 
         <div class="absolute bottom-24 flex flex-col items-center gap-4">
             <span class="splash-loader"></span>
-            <p id="splash-loader-text" class="text-white/40 text-[9px] uppercase tracking-widest animate-pulse">Initializing System...</p>
+            <p id="splash-loader-text" class="text-white/40 text-[9px] uppercase tracking-widest animate-pulse">
+                Initializing System...</p>
         </div>
 
         <!-- Financial Wisdom/Tips -->
@@ -615,65 +667,84 @@
 
     <div class="mobile-container">
         <!-- Login -->
-        <div id="portal-login" class="min-h-screen flex flex-col items-center justify-center p-6 bg-[#F8FAFC] dark:bg-[#0B1120] relative overflow-hidden transition-colors duration-500 font-sans">
-            
+        <div id="portal-login"
+            class="min-h-screen flex flex-col items-center justify-center p-6 bg-[#F8FAFC] dark:bg-[#0B1120] relative overflow-hidden transition-colors duration-500 font-sans">
+
             <!-- Minimal Geometric Background Elements (Standard Fintech) -->
             <div class="absolute inset-0 overflow-hidden pointer-events-none flex justify-center items-center">
                 <!-- Soft top glow -->
-                <div class="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-blue-500/5 dark:bg-blue-500/10 rounded-[100%] blur-[80px]"></div>
+                <div
+                    class="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-blue-500/5 dark:bg-blue-500/10 rounded-[100%] blur-[80px]">
+                </div>
                 <!-- Grid pattern for structure -->
-                <div class="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+                <div
+                    class="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px]">
+                </div>
             </div>
 
             <!-- Main Container -->
             <div class="w-full max-w-[400px] relative z-10 flex flex-col items-center">
-                
+
                 <!-- Corporate Fintech Branding -->
                 <div class="mb-8 text-center flex flex-col items-center w-full">
-                    <div class="w-16 h-16 bg-blue-600 dark:bg-blue-500 rounded-[18px] flex items-center justify-center mb-6 shadow-lg shadow-blue-600/20">
+                    <div
+                        class="w-16 h-16 bg-blue-600 dark:bg-blue-500 rounded-[18px] flex items-center justify-center mb-6 shadow-lg shadow-blue-600/20">
                         <i class="bi bi-shield-check text-white text-3xl"></i>
                     </div>
-                    <h1 class="text-[28px] font-bold text-slate-900 dark:text-white tracking-tight mb-2">{{PWA_NAME}}</h1>
-                    <p class="text-[14px] text-slate-500 dark:text-slate-400 font-medium">Portal Keuangan Digital Anggota</p>
+                    <h1 class="text-[28px] font-bold text-slate-900 dark:text-white tracking-tight mb-2">{{PWA_NAME}}
+                    </h1>
+                    <p class="text-[14px] text-slate-500 dark:text-slate-400 font-medium">Portal Keuangan Digital
+                        Anggota</p>
                 </div>
 
                 <!-- Form Card -->
-                <div class="w-full bg-white dark:bg-[#1E293B] rounded-2xl p-8 shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-none border border-slate-200/60 dark:border-slate-700/50 relative">
-                    
+                <div
+                    class="w-full bg-white dark:bg-[#1E293B] rounded-2xl p-8 shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-none border border-slate-200/60 dark:border-slate-700/50 relative">
+
                     <form id="p-login-form" class="space-y-5">
-                        
+
                         <!-- Error Alert -->
-                        <div id="p-login-error" class="hidden bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 p-3 text-[13px] flex items-start gap-2.5 rounded-lg transition-all">
-                            <i class="bi bi-exclamation-circle-fill mt-0.5"></i> 
+                        <div id="p-login-error"
+                            class="hidden bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 p-3 text-[13px] flex items-start gap-2.5 rounded-lg transition-all">
+                            <i class="bi bi-exclamation-circle-fill mt-0.5"></i>
                             <span id="p-login-error-msg" class="font-medium"></span>
                         </div>
 
                         <!-- ID Input -->
                         <div class="space-y-1.5 group">
-                            <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300">Nomor Anggota</label>
+                            <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300">Nomor
+                                Anggota</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                    <i class="bi bi-person text-slate-400 dark:text-slate-500 text-[18px] group-focus-within:text-blue-600 dark:group-focus-within:text-blue-500 transition-colors"></i>
+                                    <i
+                                        class="bi bi-person text-slate-400 dark:text-slate-500 text-[18px] group-focus-within:text-blue-600 dark:group-focus-within:text-blue-500 transition-colors"></i>
                                 </div>
-                                <input type="text" id="p-no-anggota" class="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-slate-600 rounded-xl pl-10 pr-4 py-3 text-[15px] font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-500/10 outline-none transition-all duration-200" placeholder="Contoh: AGT-0001" required>
+                                <input type="text" id="p-no-anggota"
+                                    class="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-slate-600 rounded-xl pl-10 pr-4 py-3 text-[15px] font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-500/10 outline-none transition-all duration-200"
+                                    placeholder="Contoh: 0001" required>
                             </div>
                         </div>
 
                         <!-- Password Input -->
                         <div class="space-y-1.5 group">
                             <div class="flex justify-between items-center">
-                                <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300">Kata Sandi</label>
+                                <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300">Kata
+                                    Sandi</label>
                             </div>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                    <i class="bi bi-shield-lock text-slate-400 dark:text-slate-500 text-[18px] group-focus-within:text-blue-600 dark:group-focus-within:text-blue-500 transition-colors"></i>
+                                    <i
+                                        class="bi bi-shield-lock text-slate-400 dark:text-slate-500 text-[18px] group-focus-within:text-blue-600 dark:group-focus-within:text-blue-500 transition-colors"></i>
                                 </div>
-                                <input type="password" id="p-password" class="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-slate-600 rounded-xl pl-10 pr-4 py-3 text-[15px] font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-500/10 outline-none transition-all duration-200" placeholder="••••••••" required>
+                                <input type="password" id="p-password"
+                                    class="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-slate-600 rounded-xl pl-10 pr-4 py-3 text-[15px] font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-500/10 outline-none transition-all duration-200"
+                                    placeholder="••••••••" required>
                             </div>
                         </div>
 
                         <!-- Action Button -->
-                        <button type="submit" id="p-login-btn" class="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white py-3.5 rounded-xl font-semibold text-[15px] transition-colors duration-200 mt-2 shadow-sm flex justify-center items-center gap-2">
+                        <button type="submit" id="p-login-btn"
+                            class="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white py-3.5 rounded-xl font-semibold text-[15px] transition-colors duration-200 mt-2 shadow-sm flex justify-center items-center gap-2">
                             <span>Masuk ke Portal</span>
                         </button>
                     </form>
@@ -682,9 +753,11 @@
                 <!-- Footer Text -->
                 <div class="mt-8 text-center flex flex-col items-center gap-3">
                     <p class="text-[13px] text-slate-500 dark:text-slate-400">
-                        Default sandi: <span class="font-semibold text-slate-700 dark:text-slate-300 bg-slate-200/50 dark:bg-slate-800 px-2 py-1 rounded">DDMMYYYY</span>
+                        Default sandi: <span
+                            class="font-semibold text-slate-700 dark:text-slate-300 bg-slate-200/50 dark:bg-slate-800 px-2 py-1 rounded">DDMMYYYY</span>
                     </p>
-                    <div class="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-2">
+                    <div
+                        class="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-2">
                         <i class="bi bi-lock-fill"></i>
                         <span>Dilindungi oleh Enkripsi Bank-Grade 256-bit</span>
                     </div>
@@ -703,7 +776,8 @@
         </div>
 
         <!-- App Container -->
-        <div id="portal-app" class="hidden min-h-screen bg-[#f8fafc] dark:bg-obsidian-950 pb-24 relative transition-colors duration-300">
+        <div id="portal-app"
+            class="hidden min-h-screen bg-[#f8fafc] dark:bg-obsidian-950 pb-24 relative transition-colors duration-300">
 
             <!-- Global Header Overlay Elements -->
             <div
@@ -718,10 +792,12 @@
 
             <!-- Notification Overlay -->
             <div id="notif-overlay" class="fixed inset-0 z-[70] hidden">
-                <div class="absolute inset-0 bg-black/20 dark:bg-black/40 backdrop-blur-sm" onclick="Portal.toggleNotifications()"></div>
+                <div class="absolute inset-0 bg-black/20 dark:bg-black/40 backdrop-blur-sm"
+                    onclick="Portal.toggleNotifications()"></div>
                 <div id="notif-panel"
                     class="absolute bottom-0 left-0 right-0 bg-white dark:bg-obsidian-900 rounded-t-[2.5rem] shadow-2xl max-w-[480px] mx-auto transform translate-y-full transition-transform duration-300 ease-out flex flex-col max-h-[85vh]">
-                    <div class="px-6 py-6 border-b border-gray-50 dark:border-obsidian-800 flex items-center justify-between">
+                    <div
+                        class="px-6 py-6 border-b border-gray-50 dark:border-obsidian-800 flex items-center justify-between">
                         <h3 class="text-xl font-bold text-gray-900 dark:text-obsidian-100">Notifikasi</h3>
                         <button onclick="Portal.toggleNotifications()"
                             class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 dark:bg-obsidian-800 text-gray-400 dark:text-obsidian-500 hover:text-gray-900 dark:hover:text-obsidian-100">

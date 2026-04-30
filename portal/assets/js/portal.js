@@ -45,13 +45,14 @@ const Portal = {
 
             // Handle 401 (Unauthorized)
             if (r.status === 401) {
-                if (this.member && ep !== 'portal/me') {
+                const skipReload = ['portal/me', 'portal/login', 'portal/change-password'];
+                if (this.member && !skipReload.includes(ep)) {
                     // Session expired while logged in
                     this.member = null;
                     location.reload();
                     return null;
                 }
-                // For 'me' check, just return the JSON normally (success: false)
+                // For endpoints that handle their own 401, return the JSON normally
                 try { return await r.json(); } catch (e) { return { success: false }; }
             }
 
