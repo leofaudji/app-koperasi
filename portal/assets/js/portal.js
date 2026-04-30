@@ -1137,21 +1137,21 @@ const Portal = {
                             <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Password Lama</label>
                             <div class="relative">
                                 <i class="bi bi-key-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                <input type="password" id="sw-old-pwd" class="swal2-input !mt-0 !w-full !m-0 !rounded-xl !border-gray-100 !bg-gray-50 !pl-10 !text-sm focus:!ring-blue-500" placeholder="Masukkan password saat ini">
+                                <input type="password" id="sw-old-pwd" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="swal2-input !mt-0 !w-full !m-0 !rounded-xl !border-gray-100 !bg-gray-50 !pl-10 !text-sm focus:!ring-blue-500" placeholder="Masukkan password saat ini">
                             </div>
                         </div>
                         <div class="space-y-1.5">
                             <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Password Baru</label>
                             <div class="relative">
                                 <i class="bi bi-lock-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                <input type="password" id="sw-new-pwd" class="swal2-input !mt-0 !w-full !m-0 !rounded-xl !border-gray-100 !bg-gray-50 !pl-10 !text-sm focus:!ring-blue-500" placeholder="Minimal 6 karakter">
+                                <input type="password" id="sw-new-pwd" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="swal2-input !mt-0 !w-full !m-0 !rounded-xl !border-gray-100 !bg-gray-50 !pl-10 !text-sm focus:!ring-blue-500" placeholder="Minimal 6 karakter">
                             </div>
                         </div>
                         <div class="space-y-1.5">
                             <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ulangi Password Baru</label>
                             <div class="relative">
                                 <i class="bi bi-check-circle-fill absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                <input type="password" id="sw-confirm-pwd" class="swal2-input !mt-0 !w-full !m-0 !rounded-xl !border-gray-100 !bg-gray-50 !pl-10 !text-sm focus:!ring-blue-500" placeholder="Ketik ulang password baru">
+                                <input type="password" id="sw-confirm-pwd" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="swal2-input !mt-0 !w-full !m-0 !rounded-xl !border-gray-100 !bg-gray-50 !pl-10 !text-sm focus:!ring-blue-500" placeholder="Ketik ulang password baru">
                             </div>
                         </div>
                     </div>
