@@ -261,22 +261,41 @@ switch ($id) {
         break;
 
     case 'mutasi-per-jenis':
-        // GET /portal/mutasi-per-jenis?jenis_id=xxx
+        // GET /portal/mutasi-per-jenis?jenis_id=xxx&bulan=xx&tahun=xxxx&page=x
         $anggotaId = portalAuthCheck();
         $jenisId = $params['jenis_id'] ?? null;
         if (!$jenisId)
             errorResponse('jenis_id diperlukan', 400);
-        $data = $db->fetchAll(
-            "SELECT s.no_transaksi, s.tgl_transaksi, js.nama as jenis_simpanan,
+
+        $bulan = $params['bulan'] ?? null;
+        $tahun = $params['tahun'] ?? null;
+        $page = (int) ($params['page'] ?? 1);
+        $limit = 20;
+        $offset = ($page - 1) * $limit;
+
+        $sql = "SELECT s.no_transaksi, s.tgl_transaksi, js.nama as jenis_simpanan,
                     kt.nama as nama_transaksi, kt.kode as kode_transaksi, kt.dk,
                     s.jumlah, s.saldo_sebelum, s.saldo_sesudah, s.keterangan
              FROM simpanan s
              JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
              JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
-             WHERE s.anggota_id = ? AND s.jenis_simpanan_id = ?
-             ORDER BY s.tgl_transaksi DESC, s.id DESC",
-            [$anggotaId, $jenisId]
-        );
+             WHERE s.anggota_id = ? AND s.jenis_simpanan_id = ?";
+        
+        $sqlParams = [$anggotaId, $jenisId];
+
+        if ($bulan && $bulan !== 'all') {
+            $sql .= " AND MONTH(s.tgl_transaksi) = ?";
+            $sqlParams[] = $bulan;
+        }
+
+        if ($tahun && $tahun !== 'all') {
+            $sql .= " AND YEAR(s.tgl_transaksi) = ?";
+            $sqlParams[] = $tahun;
+        }
+
+        $sql .= " ORDER BY s.tgl_transaksi DESC, s.id DESC LIMIT $limit OFFSET $offset";
+        
+        $data = $db->fetchAll($sql, $sqlParams);
         successResponse($data);
         break;
 
@@ -326,30 +345,42 @@ switch ($id) {
         $anggotaId = portalAuthCheck();
         $input = json_decode(file_get_contents('php://input'), true);
 
-        if (empty($input['jenis_pinjaman_id']) || empty($input['jumlah']) || empty($input['tenor'])) {
-            errorResponse('Data simulasi tidak lengkap.', 400);
-        }
-
         $jenisId = $input['jenis_pinjaman_id'];
         $jumlahStr = preg_replace('/[^0-9]/', '', $input['jumlah']);
         $jumlah = (float) $jumlahStr;
         $tenor = (int) $input['tenor'];
+
+        if (!$jenisId || !$jumlah || !$tenor || $tenor < 1) {
+            errorResponse('Data simulasi tidak lengkap.', 400);
+        }
+
+        // Check for active/pending loan OF THE SAME TYPE
+        $existingLoan = $db->fetch(
+            "SELECT no_pinjaman, jumlah, tenor, status, sisa_pinjaman 
+             FROM pinjaman 
+             WHERE anggota_id = ? AND jenis_pinjaman_id = ? AND status IN ('pending', 'cair')
+             LIMIT 1",
+            [$anggotaId, $jenisId]
+        );
+
+        if ($existingLoan) {
+            successResponse([
+                'has_existing' => true,
+                'existing' => [
+                    'no_pinjaman' => $existingLoan['no_pinjaman'],
+                    'jumlah' => (float)$existingLoan['jumlah'],
+                    'tenor' => (int)$existingLoan['tenor'],
+                    'status' => $existingLoan['status'],
+                    'sisa' => (float)$existingLoan['sisa_pinjaman']
+                ]
+            ], 'Anda sudah memiliki pinjaman aktif atau pengajuan pending untuk jenis ini.');
+        }
 
         $jenisData = $db->fetch(
             "SELECT bunga_persen, max_jumlah as maksimal_pinjaman, max_tenor as tenor_maksimal 
              FROM jenis_pinjaman WHERE id = ?",
             [$jenisId]
         );
-
-        if (!$jenisData) {
-            errorResponse('Jenis pinjaman tidak valid.', 404);
-        }
-        if ($jumlah > $jenisData['maksimal_pinjaman']) {
-            errorResponse('Jumlah pinjaman melebihi batas (Rp ' . number_format($jenisData['maksimal_pinjaman'], 0, ',', '.') . ').', 400);
-        }
-        if ($tenor > $jenisData['tenor_maksimal']) {
-            errorResponse('Tenor melebihi batas maksimal (' . $jenisData['tenor_maksimal'] . ' bulan).', 400);
-        }
 
         // Kalkulasi Simulasi Angsuran Flat Sederhana
         $bungaTahunan = (float) $jenisData['bunga_persen'];
@@ -382,14 +413,19 @@ switch ($id) {
             errorResponse('Data pengajuan tidak lengkap.', 400);
         }
 
-        // Cek jika ada pinjaman aktif/pending belum lunas
+        $jenisId = $input['jenis_pinjaman_id'];
+        $jumlahStr = preg_replace('/[^0-9]/', '', $input['jumlah']);
+        $jumlah = (float) $jumlahStr;
+        $tenor = (int) $input['tenor'];
+
+        // Cek jika ada pinjaman aktif/pending dengan jenis yang sama
         $activeLoansCount = $db->fetch(
-            "SELECT COUNT(*) as count FROM pinjaman WHERE anggota_id = ? AND status IN ('pending', 'cair')",
-            [$anggotaId]
+            "SELECT COUNT(*) as count FROM pinjaman WHERE anggota_id = ? AND jenis_pinjaman_id = ? AND status IN ('pending', 'cair')",
+            [$anggotaId, $jenisId]
         )['count'];
 
         if ($activeLoansCount > 0) {
-            errorResponse('Anda masih memiliki pinjaman aktif atau pengajuan yang sedang diproses.', 400);
+            errorResponse('Anda sudah memiliki pinjaman aktif atau pengajuan pending untuk jenis pinjaman ini.', 400);
         }
 
         $jenisId = $input['jenis_pinjaman_id'];
@@ -397,11 +433,11 @@ switch ($id) {
         $jumlah = (float) $jumlahStr;
         $tenor = (int) $input['tenor'];
 
-        $jenisData = $db->fetch("SELECT kode_numerik, max_jumlah, max_tenor FROM jenis_pinjaman WHERE id = ?", [$jenisId]);
+        $jenisData = $db->fetch("SELECT kode_numerik, max_jumlah, max_tenor, bunga_persen FROM jenis_pinjaman WHERE id = ?", [$jenisId]);
         if (!$jenisData)
             errorResponse('Jenis pinjaman tidak valid.');
 
-        // Generate No Pinjaman logic (replicated for simplicity or called from helper)
+        // Generate No Pinjaman logic
         $yy = date('y');
         $jpNum = str_pad($jenisData['kode_numerik'] ?? '00', 2, '0', STR_PAD_LEFT);
         $m = $db->fetch("SELECT no_anggota FROM anggota WHERE id = ?", [$anggotaId]);
@@ -409,12 +445,16 @@ switch ($id) {
         $aaaaaaa = str_pad($matches[0] ?? '0', 7, '0', STR_PAD_LEFT);
         $count = $db->count("SELECT COUNT(*) FROM pinjaman WHERE anggota_id = ? AND jenis_pinjaman_id = ?", [$anggotaId, $jenisId]);
         $nn = str_pad($count + 1, 2, '0', STR_PAD_LEFT);
-        $noPinjaman = "$yy.$jpNum.$aaaaaaa.$nn"; // Placeholder 99 for mobile source
+        $noPinjaman = "$yy.$jpNum.$aaaaaaa.$nn";
+
+        $bungaPersen = (float)$jenisData['bunga_persen'];
+        $totalBunga = $jumlah * ($bungaPersen / 100) * $tenor;
+        $totalBayar = $jumlah + $totalBunga;
 
         $db->execute(
-            "INSERT INTO pinjaman (no_pinjaman, anggota_id, jenis_pinjaman_id, jumlah, tenor, status, keterangan, tgl_pengajuan, created_at) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE(), NOW())",
-            [$noPinjaman, $anggotaId, $jenisId, $jumlah, $tenor, 'pending', 'Pengajuan dari Mobile Portal']
+            "INSERT INTO pinjaman (no_pinjaman, anggota_id, jenis_pinjaman_id, jumlah, tenor, bunga_persen, total_bunga, total_bayar, sisa_pinjaman, status, keterangan, tgl_pengajuan, created_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), NOW())",
+            [$noPinjaman, $anggotaId, $jenisId, $jumlah, $tenor, $bungaPersen, $totalBunga, $totalBayar, $jumlah, 'pending', 'Pengajuan dari Mobile Portal']
         );
 
         logPortalActivity('Mengajukan Pinjaman: ' . $noPinjaman);

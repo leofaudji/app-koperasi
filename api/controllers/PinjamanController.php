@@ -262,8 +262,8 @@ switch ($method) {
 
         $anggotaId = $params['anggota_id'] ?? '';
         $jenisId = $params['jenis_pinjaman_id'] ?? '';
-        $jumlah = $params['jumlah'] ?? 0;
-        $tenor = $params['tenor'] ?? 0;
+        $jumlah = (float) ($params['jumlah'] ?? 0);
+        $tenor = (int) ($params['tenor'] ?? 0);
         $agunanInput = $params['agunan'] ?? null;
         $agunan = is_array($agunanInput) ? json_encode($agunanInput) : $agunanInput;
         $isTopup = isset($params['is_topup']) && $params['is_topup'] == 1 ? 1 : 0;
@@ -272,6 +272,8 @@ switch ($method) {
         if (empty($anggotaId) || empty($jenisId) || $jumlah <= 0 || $tenor <= 0) {
             errorResponse('Anggota, jenis pinjaman, jumlah, dan tenor wajib diisi');
         }
+
+        $db->beginTransaction();
 
         // Validate jenis pinjaman
         $jenisPinjaman = $db->fetch("SELECT * FROM jenis_pinjaman WHERE id = ? AND is_active = 1", [$jenisId]);
@@ -285,15 +287,15 @@ switch ($method) {
             errorResponse('Jumlah melebihi maksimum (Rp ' . number_format($jenisPinjaman['max_jumlah']));
         }
 
-        // Check existing active loan
-        $whereActive = "anggota_id = ? AND status IN ('pending','disetujui','cair')";
+        // Check existing active loan OF THE SAME TYPE
+        $whereActive = "anggota_id = ? AND jenis_pinjaman_id = ? AND status IN ('pending','disetujui','cair')";
         if ($isTopup && $topupRefId) {
             $whereActive .= " AND id != " . (int) $topupRefId;
         }
 
         $activeLoan = $db->count(
             "SELECT COUNT(*) FROM pinjaman WHERE $whereActive",
-            [$anggotaId]
+            [$anggotaId, $jenisId]
         );
         if ($activeLoan > 0) {
             errorResponse('Anggota masih memiliki pinjaman aktif lain atau pengajuan yang sedang diproses');

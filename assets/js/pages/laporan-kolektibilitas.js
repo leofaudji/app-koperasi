@@ -40,14 +40,13 @@ const KolektibilitasPage = {
                 </div>
 
                 <!-- Rekap per Kolektibilitas -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <h3 class="font-bold text-gray-800 mb-4 flex items-center text-lg"><i class="ri-bar-chart-grouped-line text-blue-500 mr-2"></i>Distribusi Kolektibilitas</h3>
-                        <div class="space-y-4" id="kol-dist"></div>
-                    </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center text-lg"><i class="ri-bar-chart-grouped-line text-blue-500 mr-2"></i>Distribusi Kolektibilitas (Filter)</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4" id="kol-dist"></div>
+                </div>
 
-                    <!-- Datatable -->
-                    <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                <!-- Datatable -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
                         <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <h3 class="font-bold text-gray-800 flex items-center"><i class="ri-file-list-3-line text-gray-400 mr-2"></i>Rincian Pinjaman Aktif</h3>
                             <div class="relative w-64 hidden sm:block">

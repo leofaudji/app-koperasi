@@ -6,22 +6,41 @@ const LaporanBakiDebetPage = {
     async render(container) {
         App.setTitle('Laporan Baki Debet', 'Data outstanding pokok pinjaman aktif');
         container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
+            <!-- Header -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <h3 class="font-semibold text-gray-800">Daftar Baki Debet</h3>
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800">Laporan Baki Debet</h3>
+                    <p class="text-xs text-gray-400 mt-1">Data outstanding pokok pinjaman aktif anggota</p>
+                </div>
                 <div class="flex items-center gap-2">
-                <div class="flex items-center gap-2">
-                    <button onclick="LaporanBakiDebetPage.export('pdf')" class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-xl text-sm font-medium transition-colors">
-                        <i class="ri-file-pdf-line mr-1"></i> PDF
+                    <button onclick="LaporanBakiDebetPage.export('pdf')" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 border border-red-100 shadow-sm active:scale-95">
+                        <i class="ri-file-pdf-line"></i> PDF
                     </button>
-                    <button onclick="LaporanBakiDebetPage.export('csv')" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-2 rounded-xl text-sm font-medium transition-colors">
-                        <i class="ri-file-excel-line mr-1"></i> CSV
+                    <button onclick="LaporanBakiDebetPage.export('csv')" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 border border-emerald-100 shadow-sm active:scale-95">
+                        <i class="ri-file-excel-line"></i> CSV
                     </button>
-                    <div class="w-px h-6 bg-gray-100 mx-1"></div>
-                    <button onclick="LaporanBakiDebetPage.load()" class="text-primary-600 hover:text-primary-700 p-2 rounded-lg hover:bg-primary-50 transition-colors" title="Refresh">
+                    <div class="w-px h-8 bg-gray-100 mx-1"></div>
+                    <button onclick="LaporanBakiDebetPage.load()" class="text-gray-500 hover:text-primary-600 p-2.5 rounded-xl hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100" title="Refresh">
                         <i class="ri-refresh-line text-lg"></i>
                     </button>
                 </div>
             </div>
+
+            <!-- Filter Row -->
+            <div class="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 mb-6">
+                <div class="flex flex-col sm:flex-row items-end gap-4">
+                    <div class="flex-1 w-full">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Cari Anggota / No. Pinjaman</label>
+                        <div class="relative">
+                            <input type="text" id="bd-search" class="bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5 shadow-sm" placeholder="Ketik nama atau nomor pinjaman..." oninput="LaporanBakiDebetPage.filter(this.value)">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <i class="ri-search-line text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="bd-table"><div class="flex justify-center py-10"><i class="ri-loader-4-line animate-spin text-2xl text-primary-500"></i></div></div>
         </div>`;
         this.load();
@@ -32,7 +51,21 @@ const LaporanBakiDebetPage = {
         if (!res?.success) return;
 
         this.data = res.data;
-        const totalBakiDebet = res.data.reduce((a, b) => a + parseFloat(b.sisa_pinjaman), 0);
+        this.renderTable(this.data);
+    },
+
+    filter(query) {
+        const q = query.toLowerCase();
+        const filtered = this.data.filter(r => 
+            (r.anggota_nama || '').toLowerCase().includes(q) || 
+            (r.no_anggota || '').toLowerCase().includes(q) || 
+            (r.no_pinjaman || '').toLowerCase().includes(q)
+        );
+        this.renderTable(filtered);
+    },
+
+    renderTable(data) {
+        const totalBakiDebet = data.reduce((a, b) => a + parseFloat(b.sisa_pinjaman), 0);
         this.footer = {
             tenor: 'TOTAL BAKI DEBET',
             sisa_pinjaman: App.formatRupiah(totalBakiDebet)
@@ -52,7 +85,7 @@ const LaporanBakiDebetPage = {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
-                    ${res.data.map((r, i) => `
+                    ${data.map((r, i) => `
                         <tr class="hover:bg-gray-50/50 transition-colors">
                             <td class="px-4 py-3 text-gray-400">${i + 1}</td>
                             <td class="px-4 py-3 font-mono text-xs text-primary-600 font-bold">${r.no_pinjaman}</td>
@@ -63,9 +96,9 @@ const LaporanBakiDebetPage = {
                             <td class="px-4 py-3 text-right font-bold text-primary-700">${App.formatRupiah(r.sisa_pinjaman)}</td>
                         </tr>
                     `).join('')}
-                    ${res.data.length === 0 ? '<tr><td colspan="7" class="text-center py-10 text-gray-400">Tidak ada pinjaman aktif</td></tr>' : ''}
+                    ${data.length === 0 ? '<tr><td colspan="7" class="text-center py-10 text-gray-400">Tidak ada pinjaman aktif</td></tr>' : ''}
                 </tbody>
-                ${res.data.length > 0 ? `
+                ${data.length > 0 ? `
                 <tfoot class="bg-gray-50/50 font-bold border-t border-gray-100">
                     <tr>
                         <td colspan="6" class="px-4 py-3 text-right text-gray-500 uppercase tracking-wider">${this.footer.tenor}</td>

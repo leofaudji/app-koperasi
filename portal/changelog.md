@@ -4,13 +4,43 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [1.3.9] - 2026-04-27
+### UI/UX
+- Desain ulang kartu simulasi pinjaman agar lebih menarik dan profesional.
+- Penambahan detail rincian Total Bunga dan Total Pengembalian pada simulasi portal.
+
+---
+
+## [1.3.8] - 2026-04-27
+### Fixed
+- Perbaikan error "401 Unauthorized" pada konsol saat inisialisasi awal.
+- Perbaikan bug "400 Bad Request" pada pengajuan pinjaman (fix double-stringification).
+- Peningkatan stabilitas transaksi di backend dengan database transaction.
+
+---
+
+## [1.3.7] - 2026-04-27
+### Layout Optimization
+Perbaikan tata letak halaman untuk menghilangkan ruang kosong berlebih di bagian bawah.
+- Penghapusan padding redundan pada tab Simpanan dan Pinjaman.
+- Standarisasi jarak aman navigasi bawah melalui kontainer utama.
+
+---
+
+## [1.3.6] - 2026-04-27
+
+---
+
+## [1.3.3] - 2026-04-25
+### Update Mechanism Refinement
+Peningkatan pengalaman pengguna saat proses pembaruan aplikasi.
+- Penambahan jeda visual (sleep) pada splash screen untuk transisi yang lebih premium.
+- Tampilan nomor versi real-time pada splash screen saat pengecekan update.
+- Status "System up to date" yang lebih jelas bagi pengguna.
+
+---
+
 ## [1.3.1] - 2026-04-24
-### Infrastructure Modernization
-Refaktor besar-besaran pada arsitektur kode untuk performa dan skalabilitas.
-- Pemisahan logika JavaScript dari file index ke file modular `portal.js`.
-- Implementasi mekanisme `forceUpdate()` untuk sinkronisasi versi yang lebih handal.
-- Optimasi pemuatan aset melalui Service Worker v42.
-- Peningkatan manajemen cache untuk mencegah tampilan antarmuka yang usang (stale UI).
 
 ---
 

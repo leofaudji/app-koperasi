@@ -53,6 +53,21 @@ const LaporanSimpananPage = {
                 </div>
             </div>
             
+            <!-- Filter Row -->
+            <div class="bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
+                <div class="flex flex-col sm:flex-row items-end gap-4">
+                    <div class="flex-1 w-full">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Cari Anggota</label>
+                        <div class="relative">
+                            <input type="text" id="ls-search" class="bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5 shadow-sm" placeholder="Ketik nama atau nomor anggota..." oninput="LaporanSimpananPage.filter(this.value)">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <i class="ri-search-line text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Table Card -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 overflow-hidden">
                 <div id="ls-table">
@@ -74,7 +89,16 @@ const LaporanSimpananPage = {
 
         this.data = res.data;
         this.updateSummary();
-        this.renderTable();
+        this.renderTable(this.data);
+    },
+
+    filter(query) {
+        const q = query.toLowerCase();
+        const filtered = this.data.filter(r => 
+            (r.anggota_nama || '').toLowerCase().includes(q) || 
+            (r.no_anggota || '').toLowerCase().includes(q)
+        );
+        this.renderTable(filtered);
     },
 
     updateSummary() {
@@ -133,10 +157,11 @@ const LaporanSimpananPage = {
             return 0;
         });
 
-        this.renderTable();
+        this.renderTable(this.data);
     },
 
-    renderTable() {
+    renderTable(data = null) {
+        if (!data) data = this.data;
         const getSortIcon = (key) => {
             if (this.sortKey !== key) return '<i class="ri-arrow-up-down-line ml-1 opacity-20"></i>';
             return this.sortDir === 1 ? '<i class="ri-arrow-up-s-line ml-1 text-primary-500"></i>' : '<i class="ri-arrow-down-s-line ml-1 text-primary-500"></i>';
@@ -168,7 +193,7 @@ const LaporanSimpananPage = {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
-                    ${this.data.map((r, i) => `
+                    ${data.map((r, i) => `
                         <tr class="hover:bg-gray-50/50 transition-colors">
                             <td class="px-4 py-3 text-gray-400">${i + 1}</td>
                             <td class="px-4 py-3">
@@ -182,9 +207,9 @@ const LaporanSimpananPage = {
                             <td class="px-4 py-3 text-right font-bold text-primary-700">${App.formatRupiah(r.total_saldo)}</td>
                         </tr>
                     `).join('')}
-                    ${this.data.length === 0 ? '<tr><td colspan="7" class="text-center py-10 text-gray-400">Tidak ada data simpanan</td></tr>' : ''}
+                    ${data.length === 0 ? '<tr><td colspan="7" class="text-center py-10 text-gray-400">Tidak ada data simpanan</td></tr>' : ''}
                 </tbody>
-                ${this.data.length > 0 ? `
+                ${data.length > 0 ? `
                 <tfoot class="bg-gray-50/50 font-bold border-t border-gray-100">
                     <tr>
                         <td colspan="2" class="px-4 py-3 text-right text-gray-500 uppercase tracking-wider">${this.footer.anggota_nama}</td>

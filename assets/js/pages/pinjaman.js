@@ -343,6 +343,7 @@ const PinjamanPage = {
                     <div><label class="block text-sm font-medium text-gray-600 mb-1">Tenor (bulan) *</label><input type="number" id="pf-tenor" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" min="1" required oninput="PinjamanPage.calcSim()"></div>
                 </div>
                 <div id="pf-sim" class="hidden bg-blue-50 rounded-xl p-4 text-sm mt-4"></div>
+                <div id="pf-existing-error" class="hidden bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-4 text-sm mt-4 animate-fadeIn"></div>
 
 
                 <!-- Top-up Section -->
@@ -440,6 +441,11 @@ const PinjamanPage = {
 
         let deb;
         App.datepicker('#pf-tgl', { defaultDate: 'today' });
+        document.getElementById('pf-jenis').addEventListener('change', () => {
+            const aid = document.getElementById('pf-anggota-id').value;
+            if (aid) PinjamanPage.checkExistingLoan(aid);
+            PinjamanPage.calcSim();
+        });
         document.getElementById('pf-anggota-search').addEventListener('input', e => {
             clearTimeout(deb); deb = setTimeout(async () => {
                 if (e.target.value.length < 2) {
@@ -710,24 +716,64 @@ const PinjamanPage = {
         </div>`).join('');
     },
 
-    async checkActiveLoan(anggotaId) {
+    async checkExistingLoan(anggotaId) {
+        const jenisId = document.getElementById('pf-jenis').value;
+        if (!anggotaId || !jenisId) return;
+
+        const errorBox = document.getElementById('pf-existing-error');
+        const simBox = document.getElementById('pf-sim');
         const section = document.getElementById('pf-topup-section');
-        const details = document.getElementById('pf-topup-details');
         const isTopup = document.getElementById('pf-is-topup');
 
-        section.classList.add('hidden');
-        details.classList.add('hidden');
+        errorBox.classList.add('hidden');
         if (isTopup) isTopup.checked = false;
         PinjamanPage._activeLoan = null;
         PinjamanPage._topupPelunasan = 0;
+        document.getElementById('pf-topup-details').classList.add('hidden');
+        section.classList.add('hidden');
 
-        const res = await App.api(`pinjaman?anggota_id=${anggotaId}&status=cair&per_page=1`);
+        const res = await App.api(`pinjaman?anggota_id=${anggotaId}&jenis_pinjaman_id=${jenisId}&status=pending,disetujui,cair&per_page=1`);
+        
         if (res?.success && res.data.length > 0) {
             const loan = res.data[0];
-            PinjamanPage._activeLoan = loan;
-            section.classList.remove('hidden');
-            details.innerHTML = `<div class="p-1">Terdapat pinjaman aktif <strong>${loan.no_pinjaman}</strong> dengan sisa baki debet <strong>${App.formatRupiah(loan.sisa_pinjaman)}</strong>.</div>`;
+            PinjamanPage._activeLoan = (loan.status === 'cair') ? loan : null;
+            
+            errorBox.classList.remove('hidden');
+            simBox.classList.add('hidden');
+
+            let msg = `
+                <div class="flex items-start gap-3">
+                    <i class="ri-error-warning-fill text-xl mt-0.5"></i>
+                    <div>
+                        <div class="font-bold uppercase text-[10px] tracking-widest mb-1">Peringatan: Pinjaman Terdeteksi</div>
+                        <p class="text-xs leading-relaxed">
+                            Anggota sudah memiliki pinjaman <strong>${loan.jenis_pinjaman}</strong> (${loan.no_pinjaman}) 
+                            dengan status <strong>${loan.status.toUpperCase()}</strong>.
+                        </p>
+                        ${loan.status === 'cair' ? `
+                            <p class="text-[10px] mt-2 font-medium bg-white/50 p-2 rounded-lg border border-rose-100">
+                                Sisa Baki Debet: <strong>${App.formatRupiah(loan.sisa_pinjaman)}</strong>. 
+                                <br>Gunakan fitur <b>Top-up</b> jika ingin melakukan pembiayaan ulang.
+                            </p>
+                        ` : `
+                            <p class="text-[10px] mt-2 font-bold text-rose-800">
+                                Pengajuan baru tidak diizinkan sampai pengajuan sebelumnya selesai diproses.
+                            </p>
+                        `}
+                    </div>
+                </div>
+            `;
+            errorBox.innerHTML = msg;
+
+            if (loan.status === 'cair') {
+                section.classList.remove('hidden');
+            }
         }
+    },
+
+    async checkActiveLoan(anggotaId) {
+        // We now use checkExistingLoan which is more specific
+        this.checkExistingLoan(anggotaId);
     },
 
     async toggleTopup(checked) {
@@ -785,21 +831,62 @@ const PinjamanPage = {
         }
 
 
-        if (jumlah > 0 && tenor > 0) {
+        const existingErr = document.getElementById('pf-existing-error');
+        const isTopup = document.getElementById('pf-is-topup');
+
+        if (jumlah > 0 && tenor > 0 && (existingErr?.classList.contains('hidden') || isTopup?.checked)) {
             const totalBunga = jumlah * (bunga / 100) * tenor; const angsuran = (jumlah + totalBunga) / tenor;
             const topupSettlement = PinjamanPage._topupPelunasan || 0;
             const netCair = Math.max(0, jumlah - topupSettlement);
 
             document.getElementById('pf-sim').classList.remove('hidden');
-            let simHtml = `<strong>Simulasi:</strong> Bunga ${bunga}%/bln | Total Bunga: ${App.formatRupiah(totalBunga)} | Angsuran/bln: ${App.formatRupiah(angsuran)} | Total Bayar: ${App.formatRupiah(jumlah + totalBunga)}`;
+            document.getElementById('pf-sim').className = 'block mt-4 animate-fadeIn'; // Reset from bg-blue-50 to plain for our card
 
-            if (topupSettlement > 0) {
-                simHtml += `<div class="mt-2 pt-2 border-t border-blue-200 flex justify-between items-center">
-                    <span class="text-xs uppercase font-bold text-blue-800 tracking-wider">Estimasi Cair Bersih (Net)</span>
-                    <span class="text-lg font-black text-primary-700">${App.formatRupiah(netCair)}</span>
+            let simHtml = `
+                <div class="bg-white border border-primary-100 rounded-2xl overflow-hidden shadow-sm">
+                    <div class="px-4 py-2 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-between">
+                        <span>Simulasi Angsuran</span>
+                        <i class="ri-calculator-line"></i>
+                    </div>
+                    <div class="p-5">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <div class="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-tight">Angsuran / Bulan</div>
+                                <div class="text-2xl font-black text-primary-700 leading-none tracking-tight">${App.formatRupiah(angsuran)}</div>
+                                <div class="text-[10px] text-gray-500 mt-1.5 flex items-center gap-1"><i class="ri-calendar-line"></i> Selama ${tenor} Bulan</div>
+                            </div>
+                            <div class="border-l border-gray-100 pl-6">
+                                <div class="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-tight">Total Pengembalian</div>
+                                <div class="text-xl font-bold text-gray-800 leading-none tracking-tight">${App.formatRupiah(jumlah + totalBunga)}</div>
+                                <div class="text-[10px] text-gray-500 mt-1.5">Bunga ${bunga}% / Bulan</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-5 pt-4 border-t border-dashed border-gray-100 flex justify-between items-center">
+                            <div>
+                                <div class="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">Pokok Pinjaman</div>
+                                <div class="text-sm font-bold text-gray-700">${App.formatRupiah(jumlah)}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">Total Jasa / Bunga</div>
+                                <div class="text-sm font-bold text-amber-600">${App.formatRupiah(totalBunga)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    ${topupSettlement > 0 ? `
+                        <div class="bg-amber-50/50 p-4 border-t border-amber-100">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-black text-amber-900 uppercase tracking-tight">Estimasi Terima Bersih</span>
+                                <span class="text-xl font-black text-amber-600 tracking-tight">${App.formatRupiah(netCair)}</span>
+                            </div>
+                            <div class="text-[10px] text-amber-600 flex items-start gap-1.5 leading-relaxed bg-white/50 p-2 rounded-lg border border-amber-100 mt-2">
+                                <i class="ri-information-fill text-amber-500 text-xs"></i>
+                                <span>Dana cair bersih setelah dikurangi pelunasan sisa pinjaman lama sebesar <b>${App.formatRupiah(topupSettlement)}</b>.</span>
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
-                <div class="text-[10px] text-blue-500 mt-0.5 animate-pulse flex items-center gap-1"><i class="ri-information-line"></i> Plafon ${App.formatRupiah(jumlah)} dikurangi Pelunasan Pinjaman Lama ${App.formatRupiah(topupSettlement)}</div>`;
-            }
+            `;
 
             document.getElementById('pf-sim').innerHTML = simHtml;
 
@@ -848,31 +935,58 @@ const PinjamanPage = {
                     };
 
                     details.innerHTML = `
-                        <div class="flex flex-col gap-3">
-                            <div class="flex justify-between items-center bg-gray-50/50 p-2 rounded-lg border border-gray-100 gap-2">
-                                <div class="flex-1">
-                                    <div class="text-xs text-gray-500 font-medium mb-1">Kapasitas Bayar (DSR)</div>
-                                    <div class="font-bold text-gray-800">${s.dsr.rate}% <span class="text-xs font-normal text-gray-400">of Gaji</span></div>
-                                    <div class="text-[10px] text-gray-400 mt-0.5">Cicilan ${App.formatRupiah(s.dsr.cicilan)} vs Gaji ${App.formatRupiah(s.dsr.gaji)}</div>
+                        <div class="grid grid-cols-1 gap-3">
+                            <!-- Capacity -->
+                            <div class="p-3 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-gray-400 shadow-sm border border-gray-50">
+                                    <i class="ri-wallet-3-line text-lg"></i>
                                 </div>
-                                <div>${getPill(s.dsr.score, s.dsr.score === 'merah' ? '> 40%' : (s.dsr.score === 'kuning' ? '30-40%' : '< 30%'))}</div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Kapasitas Bayar (DSR)</span>
+                                        ${getPill(s.dsr.score, s.dsr.score === 'merah' ? 'Resiko Tinggi' : (s.dsr.score === 'kuning' ? 'Waspada' : 'Aman'))}
+                                    </div>
+                                    <div class="flex items-baseline gap-1.5">
+                                        <span class="text-lg font-black text-gray-800">${s.dsr.rate}%</span>
+                                        <span class="text-[10px] text-gray-400">beban cicilan dari gaji</span>
+                                    </div>
+                                    <div class="text-[9px] text-gray-400 mt-0.5">Cicilan ${App.formatRupiah(s.dsr.cicilan)} vs Gaji ${App.formatRupiah(s.dsr.gaji)}</div>
+                                </div>
                             </div>
 
-                            <div class="flex justify-between items-center bg-gray-50/50 p-2 rounded-lg border border-gray-100 gap-2">
-                                <div class="flex-1">
-                                    <div class="text-xs text-gray-500 font-medium mb-1">Karakter / Histori Telat</div>
-                                    <div class="font-bold text-gray-800">${s.histori.telat} <span class="text-xs font-normal text-gray-400">kali nunggak</span></div>
+                            <!-- Character -->
+                            <div class="p-3 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-gray-400 shadow-sm border border-gray-50">
+                                    <i class="ri-user-star-line text-lg"></i>
                                 </div>
-                                <div>${getPill(s.histori.score, s.histori.score === 'merah' ? '> 3x Telat' : (s.histori.score === 'kuning' ? '1-3x Telat' : 'Bersih'))}</div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Karakter / Histori Telat</span>
+                                        ${getPill(s.histori.score, s.histori.score === 'merah' ? 'Buruk' : (s.histori.score === 'kuning' ? 'Cukup' : 'Sangat Baik'))}
+                                    </div>
+                                    <div class="flex items-baseline gap-1.5">
+                                        <span class="text-lg font-black text-gray-800">${s.histori.telat}</span>
+                                        <span class="text-[10px] text-gray-400">kali nunggak dalam 12 bulan</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="flex justify-between items-center bg-gray-50/50 p-2 rounded-lg border border-gray-100 gap-2">
-                                <div class="flex-1">
-                                    <div class="text-xs text-gray-500 font-medium mb-1">Coverage (Simpanan + Agunan)</div>
-                                    <div class="font-bold text-gray-800">${s.simpanan.rate}% <span class="text-xs font-normal text-gray-400">tersedia</span></div>
-                                    <div class="text-[10px] text-gray-400 mt-0.5">Saldo Coverage ${App.formatRupiah(s.simpanan.saldo)}</div>
+                            <!-- Capital/Collateral -->
+                            <div class="p-3 bg-gray-50/50 rounded-2xl border border-gray-100 flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-gray-400 shadow-sm border border-gray-50">
+                                    <i class="ri-safe-2-line text-lg"></i>
                                 </div>
-                                <div>${getPill(s.simpanan.score, s.simpanan.score === 'merah' ? '< 10%' : (s.simpanan.score === 'kuning' ? '10-20%' : '> 20%'))}</div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Coverage (Simpanan + Agunan)</span>
+                                        ${getPill(s.simpanan.score, s.simpanan.score === 'merah' ? 'Lemah' : (s.simpanan.score === 'kuning' ? 'Cukup' : 'Kuat'))}
+                                    </div>
+                                    <div class="flex items-baseline gap-1.5">
+                                        <span class="text-lg font-black text-gray-800">${s.simpanan.rate}%</span>
+                                        <span class="text-[10px] text-gray-400">jaminan dari total pinjaman</span>
+                                    </div>
+                                    <div class="text-[9px] text-gray-400 mt-0.5">Total Jaminan: ${App.formatRupiah(s.simpanan.saldo)}</div>
+                                </div>
                             </div>
                         </div>
                     `;

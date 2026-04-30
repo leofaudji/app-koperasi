@@ -43,25 +43,22 @@ const Portal = {
         try {
             const r = await fetch(this.API + '/' + ep, config);
 
-            // Handle session expired (Unauthorized)
-            if (r.status === 401 && this.member && ep !== 'portal/me') {
-                this.member = null;
-                await Swal.fire({
-                    icon: 'info',
-                    title: 'Sesi Berakhir',
-                    text: 'Sesi Anda telah habis, silakan login kembali.',
-                    confirmButtonColor: '#2563eb',
-                });
-                location.reload();
-                return null;
+            // Handle 401 (Unauthorized)
+            if (r.status === 401) {
+                if (this.member && ep !== 'portal/me') {
+                    // Session expired while logged in
+                    this.member = null;
+                    location.reload();
+                    return null;
+                }
+                // For 'me' check, just return the JSON normally (success: false)
+                try { return await r.json(); } catch (e) { return { success: false }; }
             }
 
+            if (!r.ok) return null;
             return await r.json();
         } catch (e) {
-            // Fetch failed (likely offline). Let's see if we have an offline indicator UI.
-            if (!navigator.onLine) {
-                this.showOfflineToast();
-            }
+            if (!navigator.onLine) this.showOfflineToast();
             return null;
         }
     },
@@ -116,15 +113,24 @@ const Portal = {
                     }
                     
                     // Trigger manual update check
-                    await registration.update();
+                    try { await registration.update(); } catch(e) { console.warn(e); }
                     
-                    // Wait for the update to complete
-                    const updated = await this.waitForUpdate(registration);
-                    if (updated) {
-                        localStorage.setItem('portal_sw_version', vData.sw_version);
-                        if (splashText) splashText.textContent = 'Updates installed successfully';
-                        await this.sleep(800);
+                    // Wait for the update to complete if there is an installation in progress
+                    if (registration.installing || registration.waiting) {
+                        await this.waitForUpdate(registration);
                     }
+                    
+                    // Always update local storage so we don't prompt again for this version
+                    localStorage.setItem('portal_sw_version', vData.sw_version);
+                    
+                    if (splashText) {
+                        splashText.textContent = 'Updates installed successfully';
+                    }
+                    await this.sleep(800);
+                    
+                    // Reload to immediately load the new assets from the updated service worker
+                    window.location.reload();
+                    return; // Stop initialization and wait for reload
                 } else {
                     localStorage.setItem('portal_sw_version', vData.sw_version);
                     if (splashText) {
@@ -1459,47 +1465,131 @@ const Portal = {
 
                 document.getElementById('simp-mut-judul').textContent = namaJenis;
                 document.getElementById('simp-mut-saldo').textContent = 'Saldo: ' + this.rp(saldoJenis);
-                document.getElementById('simp-mut-list').innerHTML = `<div class="space-y-2">${Array(5).fill().map(() => `
-                    <div class="animate-pulse flex items-center justify-between p-3 rounded-xl bg-gray-50">
-                        <div class="flex items-center gap-2">
-                            <div class="w-7 h-7 rounded-full bg-gray-200 shrink-0"></div>
-                            <div>
-                                <div class="h-2.5 bg-gray-200 rounded-full w-24 mb-1.5"></div>
-                                <div class="h-2 bg-gray-100 rounded-full w-16"></div>
-                            </div>
-                        </div>
-                        <div class="h-3 bg-gray-200 rounded-full w-16 shrink-0"></div>
-                    </div>`).join('')}</div>`;
-                this.openModal('simp-mutasi-modal');
 
-                const rm = await this.api('portal/mutasi-per-jenis?jenis_id=' + jenisId);
-                const listEl = document.getElementById('simp-mut-list');
-                if (!rm?.success || !rm.data.length) {
-                    listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="bi bi-inbox text-2xl block mb-2"></i>Belum ada mutasi</div>';
-                    return;
+                // Populate Years and set defaults
+                const selBulan = document.getElementById('simp-mut-bulan');
+                const selTahun = document.getElementById('simp-mut-tahun');
+                
+                // Robustness check: Ensure elements exist before setting values
+                if (selBulan && selTahun) {
+                    if (selTahun.options.length === 0) {
+                        const currentYear = new Date().getFullYear();
+                        selTahun.innerHTML = '<option value="all">Semua Tahun</option>';
+                        for (let y = currentYear; y >= currentYear - 3; y--) {
+                            selTahun.innerHTML += `<option value="${y}">${y}</option>`;
+                        }
+                    }
+                    
+                    // Set to current month/year by default
+                    selBulan.value = new Date().getMonth() + 1;
+                    selTahun.value = new Date().getFullYear();
+                    
+                    // Set onchange handlers
+                    selBulan.onchange = () => refreshMutasi();
+                    selTahun.onchange = () => refreshMutasi();
                 }
-                listEl.innerHTML = rm.data.map(t => {
-                    const isMasuk = t.dk === 'D';
-                    const colorText = isMasuk ? 'text-emerald-600' : 'text-rose-600';
-                    const iconCls2 = isMasuk ? 'bi-arrow-down-left text-emerald-500 bg-emerald-50 border-emerald-100' : 'bi-arrow-up-right text-rose-500 bg-rose-50 border-rose-100';
-                    const prefix = isMasuk ? '+' : '-';
-                    return `
-                    <div class="bg-gray-50 p-3 rounded-xl flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 shrink-0 rounded-full flex items-center justify-center border ${iconCls2.split(' ').slice(1).join(' ')}">
-                                <i class="bi ${iconCls2.split(' ')[0]}"></i>
+
+                let mPage = 1;
+                let mLoading = false;
+                let mHasMore = true;
+
+                const refreshMutasi = async (append = false) => {
+                    if (mLoading) return;
+                    if (!append) {
+                        mPage = 1;
+                        mHasMore = true;
+                        document.getElementById('simp-mut-list').innerHTML = `<div class="space-y-2">${Array(5).fill().map(() => `
+                            <div class="animate-pulse flex items-center justify-between p-4 rounded-2xl bg-gray-50/50 dark:bg-obsidian-800/30">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-2xl bg-gray-200 dark:bg-obsidian-700 shrink-0"></div>
+                                    <div>
+                                        <div class="h-2.5 bg-gray-200 dark:bg-obsidian-700 rounded-full w-24 mb-2"></div>
+                                        <div class="h-2 bg-gray-100 dark:bg-obsidian-800 rounded-full w-16"></div>
+                                    </div>
+                                </div>
+                                <div class="h-3 bg-gray-200 dark:bg-obsidian-700 rounded-full w-20 shrink-0"></div>
+                            </div>`).join('')}</div>`;
+                    } else {
+                        const loader = document.createElement('div');
+                        loader.id = 'mut-scroll-loader';
+                        loader.className = 'text-center py-4';
+                        loader.innerHTML = '<i class="bi bi-hourglass-split animate-pulse text-emerald-500 text-xl"></i>';
+                        document.getElementById('simp-mut-list').appendChild(loader);
+                    }
+
+                    mLoading = true;
+                    const b = selBulan ? selBulan.value : 'all';
+                    const t = selTahun ? selTahun.value : 'all';
+                    
+                    const rm = await this.api(`portal/mutasi-per-jenis?jenis_id=${jenisId}&bulan=${b}&tahun=${t}&page=${mPage}`);
+                    mLoading = false;
+                    
+                    const listEl = document.getElementById('simp-mut-list');
+                    const loader = document.getElementById('mut-scroll-loader');
+                    if (loader) loader.remove();
+                    
+                    if (!rm?.success || !rm.data.length) {
+                        mHasMore = false;
+                        if (!append) {
+                            listEl.innerHTML = `
+                            <div class="text-center py-20 animate-fadeIn">
+                                <div class="w-20 h-20 bg-gray-50/50 dark:bg-obsidian-800/30 rounded-[2.5rem] flex items-center justify-center mx-auto mb-5 border-2 border-dashed border-gray-200 dark:border-obsidian-700">
+                                    <i class="bi bi-inbox text-3xl text-gray-300 dark:text-obsidian-600"></i>
+                                </div>
+                                <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Belum ada mutasi</p>
+                            </div>`;
+                        }
+                        return;
+                    }
+
+                    if (rm.data.length < 20) mHasMore = false;
+
+                    const html = rm.data.map(t => {
+                        const isMasuk = t.dk === 'D';
+                        const colorText = isMasuk ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+                        const iconCls2 = isMasuk ? 'bi-arrow-down-left text-emerald-500 bg-emerald-50 border-emerald-100 dark:bg-emerald-900/30 dark:border-emerald-800/30' : 'bi-arrow-up-right text-rose-500 bg-rose-50 border-rose-100 dark:bg-rose-900/30 dark:border-rose-800/30';
+                        const prefix = isMasuk ? '+' : '-';
+                        return `
+                        <div class="bg-gray-50/50 dark:bg-obsidian-800/20 p-4 rounded-2xl flex items-center justify-between border border-gray-50/50 dark:border-obsidian-800/50 animate-fadeIn hover:bg-white dark:hover:bg-obsidian-800 transition-all">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center border ${iconCls2.split(' ').slice(1).join(' ')}">
+                                    <i class="bi ${iconCls2.split(' ')[0]} text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-black text-gray-800 dark:text-obsidian-100 tracking-tight">${t.nama_transaksi}</p>
+                                    <div class="flex flex-col gap-0.5 mt-0.5">
+                                        <p class="text-[9px] text-gray-400 dark:text-obsidian-500 font-bold uppercase tracking-wider">${this.fdate(t.tgl_transaksi)}</p>
+                                        ${t.keterangan ? `<p class="text-[9px] text-gray-500 dark:text-obsidian-400 italic line-clamp-1 leading-tight">${t.keterangan}</p>` : ''}
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <p class="text-xs font-bold text-gray-800">${t.nama_transaksi}</p>
-                                <p class="text-[10px] text-gray-500">${this.fdate(t.tgl_transaksi)}</p>
+                            <div class="text-right">
+                                <p class="text-xs font-black ${colorText}">${prefix}${this.rp(t.jumlah)}</p>
+                                <p class="text-[9px] text-gray-400 dark:text-obsidian-500 font-medium mt-0.5">Saldo: ${this.rp(t.saldo_sesudah)}</p>
                             </div>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-xs font-bold ${colorText}">${prefix}${this.rp(t.jumlah)}</p>
-                            <p class="text-[9px] text-gray-400">Saldo: ${this.rp(t.saldo_sesudah)}</p>
-                        </div>
-                    </div>`;
-                }).join('');
+                        </div>`;
+                    }).join('');
+
+                    if (append) {
+                        listEl.innerHTML += html;
+                    } else {
+                        listEl.innerHTML = html;
+                        listEl.scrollTop = 0;
+                    }
+                    
+                    mPage++;
+                };
+
+                const listEl = document.getElementById('simp-mut-list');
+                listEl.onscroll = () => {
+                    if (!mHasMore || mLoading) return;
+                    if (listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 50) {
+                        refreshMutasi(true);
+                    }
+                };
+
+                this.openModal('simp-mutasi-modal');
+                refreshMutasi();
             });
         });
     },
@@ -2147,19 +2237,47 @@ const Portal = {
                         return;
                     }
 
+                    const resultBox = document.getElementById('p-sim-result');
+                    const existingBox = document.getElementById('p-sim-existing');
+                    
                     if (res.success) {
-                        document.getElementById('sr-pokok').textContent = `Rp ${res.data.estimasi_pokok.toLocaleString('id-ID')}`;
-                        document.getElementById('sr-bunga').textContent = `Rp ${res.data.estimasi_bunga.toLocaleString('id-ID')}`;
-                        document.getElementById('sr-angsuran').textContent = `Rp ${res.data.estimasi_angsuran.toLocaleString('id-ID')}`;
-                        resultBox.classList.remove('hidden');
-                        alertBox.classList.add('hidden');
+                        if (res.data.has_existing) {
+                            // Show existing loan info and hide simulation result
+                            resultBox.classList.add('hidden');
+                            existingBox.classList.remove('hidden');
+                            
+                            const ex = res.data.existing;
+                            document.getElementById('se-no').textContent = ex.no_pinjaman;
+                            document.getElementById('se-status').textContent = 'Status: ' + (ex.status === 'pending' ? 'Dalam Proses' : 'Aktif');
+                            document.getElementById('se-jumlah').textContent = `Rp ${ex.jumlah.toLocaleString('id-ID')}`;
+                            document.getElementById('se-sisa').textContent = `Rp ${ex.sisa.toLocaleString('id-ID')}`;
+                            
+                            btnSubmit.disabled = true;
+                            alertBox.classList.add('hidden');
+                        } else {
+                            existingBox.classList.add('hidden');
+                            const setVal = (id, val) => {
+                                const el = document.getElementById(id);
+                                if (el) el.textContent = val;
+                            };
 
-                        // Enable Submit if everything is filled
-                        if (txtTujuan.value.trim().length > 3) {
-                            btnSubmit.disabled = false;
+                            setVal('sr-pokok', `Rp ${res.data.estimasi_pokok.toLocaleString('id-ID')}`);
+                            setVal('sr-bunga', `Rp ${res.data.estimasi_bunga.toLocaleString('id-ID')}`);
+                            setVal('sr-angsuran', `Rp ${res.data.estimasi_angsuran.toLocaleString('id-ID')}`);
+                            setVal('sr-total-bunga', `Rp ${res.data.total_bunga ? res.data.total_bunga.toLocaleString('id-ID') : '0'}`);
+                            setVal('sr-total-bayar', `Rp ${res.data.total_bayar ? res.data.total_bayar.toLocaleString('id-ID') : '0'}`);
+
+                            resultBox.classList.remove('hidden');
+                            alertBox.classList.add('hidden');
+
+                            // Enable Submit if everything is filled
+                            if (txtTujuan.value.trim().length > 3) {
+                                btnSubmit.disabled = false;
+                            }
                         }
                     } else {
                         resultBox.classList.add('hidden');
+                        existingBox.classList.add('hidden');
                         alertBox.className = 'text-xs px-4 py-3 rounded-xl border bg-amber-50 text-amber-700 border-amber-200 mt-2';
                         alertBox.innerHTML = `<i class="bi bi-info-circle mr-1"></i> ${res.message}`;
                         alertBox.classList.remove('hidden');
@@ -2188,12 +2306,12 @@ const Portal = {
             try {
                 const res = await this.api('portal/submit-loan', {
                     method: 'POST',
-                    body: JSON.stringify({
+                    body: {
                         jenis_pinjaman_id: selJenis.value,
                         jumlah: inpNominal.value.replace(/\D/g, ""),
                         tenor: inpTenor.value,
                         tujuan: txtTujuan.value
-                    })
+                    }
                 });
 
                 alertBox.classList.remove('hidden');

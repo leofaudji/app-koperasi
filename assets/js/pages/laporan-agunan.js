@@ -5,29 +5,52 @@ const LaporanAgunanPage = {
     async render(container) {
         App.setTitle('Laporan Daftar Agunan', 'Daftar jaminan/agunan dari pinjaman anggota');
         container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
+            <!-- Header -->
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <div class="flex items-center gap-3">
-                    <h3 class="font-semibold text-gray-800">Data Agunan Pinjaman</h3>
-                    <select id="lag-filter-tipe" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 focus:ring-2 focus:ring-amber-500 focus:outline-none" onchange="LaporanAgunanPage.filterData(this.value)">
-                        <option value="">Semua Tipe</option>
-                        <option value="Sertifikat Tanah (SHM/SHGB)">Sertifikat Tanah</option>
-                        <option value="BPKB Kendaraan">BPKB Kendaraan</option>
-                        <option value="Deposito/Simpanan">Deposito/Simpanan</option>
-                        <option value="Lainnya">Lainnya / Manual</option>
-                    </select>
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800">Daftar Agunan Pinjaman</h3>
+                    <p class="text-xs text-gray-400 mt-1">Daftar jaminan/agunan dari pinjaman anggota</p>
                 </div>
                 <div class="flex items-center gap-2">
-                <div class="flex items-center gap-2">
-                    <button onclick="LaporanAgunanPage.export('pdf')" class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-xl text-sm font-medium transition-colors">
-                        <i class="ri-file-pdf-line mr-1"></i> PDF
+                    <button onclick="LaporanAgunanPage.export('pdf')" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 border border-red-100 shadow-sm active:scale-95">
+                        <i class="ri-file-pdf-line"></i> PDF
                     </button>
-                    <button onclick="LaporanAgunanPage.export('csv')" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-2 rounded-xl text-sm font-medium transition-colors">
-                        <i class="ri-file-excel-line mr-1"></i> CSV
+                    <button onclick="LaporanAgunanPage.export('csv')" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 border border-emerald-100 shadow-sm active:scale-95">
+                        <i class="ri-file-excel-line"></i> CSV
                     </button>
-                    <div class="w-px h-6 bg-gray-100 mx-1"></div>
-                    <button onclick="LaporanAgunanPage.load()" class="text-primary-600 hover:text-primary-700 p-2 rounded-lg hover:bg-primary-50 transition-colors" title="Refresh">
+                    <div class="w-px h-8 bg-gray-100 mx-1"></div>
+                    <button onclick="LaporanAgunanPage.load()" class="text-gray-500 hover:text-primary-600 p-2.5 rounded-xl hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100" title="Refresh">
                         <i class="ri-refresh-line text-lg"></i>
                     </button>
+                </div>
+            </div>
+
+            <!-- Filter Row -->
+            <div class="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 mb-6">
+                <div class="flex flex-col sm:flex-row items-end gap-4">
+                    <div class="flex-1 w-full">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Filter Tipe Agunan</label>
+                        <div class="relative">
+                            <select id="lag-filter-tipe" class="w-full border border-gray-200 rounded-xl px-10 py-2.5 text-sm font-medium text-amber-700 bg-white focus:ring-2 focus:ring-amber-500 shadow-sm appearance-none" onchange="LaporanAgunanPage.filterData(this.value)">
+                                <option value="">Semua Tipe Agunan</option>
+                                <option value="Sertifikat Tanah (SHM/SHGB)">Sertifikat Tanah (SHM/SHGB)</option>
+                                <option value="BPKB Kendaraan">BPKB Kendaraan</option>
+                                <option value="Deposito/Simpanan">Deposito/Simpanan</option>
+                                <option value="Lainnya">Lainnya / Manual</option>
+                            </select>
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <i class="ri-shield-line text-gray-400"></i>
+                            </div>
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                <i class="ri-arrow-down-s-line text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="w-full sm:w-auto">
+                         <button onclick="LaporanAgunanPage.load()" class="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-amber-500/20 transition-all active:scale-95">
+                            Reset Filter
+                        </button>
+                    </div>
                 </div>
             </div>
             <div id="lag-table"><div class="flex justify-center py-10"><i class="ri-loader-4-line animate-spin text-2xl text-primary-500"></i></div></div>

@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Koperasi Simpan Pinjam</title>
     <meta name="description" content="Aplikasi Koperasi Simpan Pinjam - Sistem Manajemen Keuangan Terpadu">
     <link rel="icon" type="image/png" href="assets/images/favicon.png">
@@ -102,10 +103,12 @@
 
     <!-- Prevent Mobile Zoom on Input Focus -->
     <style>
-        input, textarea, select {
+        input,
+        textarea,
+        select {
             font-size: 16px !important;
         }
-        
+
         html {
             touch-action: manipulation;
         }
@@ -113,20 +116,20 @@
 
     <!-- Prevent Viewport Zoom on Input Focus -->
     <script>
-        document.addEventListener('touchmove', function(event) {
+        document.addEventListener('touchmove', function (event) {
             if (event.scale !== 1) {
                 event.preventDefault();
             }
         }, { passive: false });
-        
+
         let viewport = document.querySelector('meta[name="viewport"]');
-        document.addEventListener('focusin', function(e) {
+        document.addEventListener('focusin', function (e) {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
                 viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
             }
         });
-        
-        document.addEventListener('focusout', function() {
+
+        document.addEventListener('focusout', function () {
             viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
         });
     </script>
@@ -308,7 +311,7 @@
                     <div class="flex items-center gap-1.5 mt-0.5">
                         <p class="text-gray-400 text-[0.6rem] font-medium">Simpan Pinjam</p>
                         <a href="#/changelog" id="sidebar-version"
-                            class="text-[9px] font-bold text-primary-600 bg-primary-50 px-1 py-0 rounded transition-colors">1.5.0</a>
+                            class="text-[9px] font-bold text-primary-600 bg-primary-50 px-1 py-0 rounded transition-colors">{{APP_VERSION}}</a>
                     </div>
                 </div>
             </div>
@@ -395,7 +398,7 @@
         </div>
     </div>
 
-    <script src="assets/js/app.js?v=1.1"></script>
+    <script src="assets/js/app.js?v={{APP_VERSION}}"></script>
     <!-- Splash Screen Overlay -->
     <div id="splash-screen"
         class="fixed inset-0 bg-primary-600 z-[200] flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-500">
