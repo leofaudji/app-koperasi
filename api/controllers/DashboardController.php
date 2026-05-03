@@ -7,6 +7,14 @@ $db = Database::getInstance();
 
 switch ($method) {
     case 'GET':
+        $redis = RedisManager::getInstance();
+        $cacheKey = 'dashboard_stats';
+        $cachedStats = $redis->get($cacheKey);
+
+        if ($cachedStats) {
+            successResponse($cachedStats);
+        }
+
         $totalAnggota = $db->count("SELECT COUNT(*) FROM anggota WHERE status = 'aktif'");
 
         // Total simpanan (D - K)
@@ -58,7 +66,7 @@ switch ($method) {
              LIMIT 10"
         );
 
-        successResponse([
+        $stats = [
             'total_anggota' => $totalAnggota,
             'total_simpanan' => $totalSimpanan['total'] ?? 0,
             'total_pinjaman' => $totalPinjaman['total'] ?? 0,
@@ -66,7 +74,12 @@ switch ($method) {
             'simpanan_per_jenis' => $simpananPerJenis,
             'angsuran_jatuh_tempo' => $angsuranJatuhTempo,
             'transaksi_terakhir' => $transaksiTerakhir
-        ]);
+        ];
+
+        // Cache for 5 minutes
+        $redis->set($cacheKey, $stats, 300);
+
+        successResponse($stats);
         break;
 
     default:

@@ -273,32 +273,39 @@
                 "perm": "pengumuman.view"
             },
             {
-                "id": 34,
-                "nama": "Pembagian SHU",
-                "icon": "ri-p2p-line",
-                "url": "#/shu",
-                "perm": "keuangan.laba_rugi"
-            },
-            {
-                "id": 41,
-                "nama": "Proses Akhir Tahun",
-                "icon": "ri-calendar-check-line",
-                "url": "#/akhir-tahun",
-                "perm": "keuangan.laba_rugi"
-            },
-            {
-                "id": 40,
-                "nama": "Pengundian RAT",
-                "icon": "ri-gift-line",
-                "url": "#/pengundian-rat",
-                "perm": "dashboard.view"
-            },
-            {
-                "id": 44,
-                "nama": "Manajemen RAT",
-                "icon": "ri-slideshow-view",
-                "url": "#/rat",
-                "perm": "rat.view"
+                "id": 60,
+                "nama": "RAT & Akhir Tahun",
+                "icon": "ri-calendar-event-line",
+                "children": [
+                    {
+                        "id": 44,
+                        "nama": "Manajemen RAT",
+                        "icon": "ri-slideshow-view",
+                        "url": "#/rat",
+                        "perm": "rat.view"
+                    },
+                    {
+                        "id": 40,
+                        "nama": "Pengundian RAT",
+                        "icon": "ri-gift-line",
+                        "url": "#/pengundian-rat",
+                        "perm": "dashboard.view"
+                    },
+                    {
+                        "id": 34,
+                        "nama": "Pembagian SHU",
+                        "icon": "ri-p2p-line",
+                        "url": "#/shu",
+                        "perm": "keuangan.laba_rugi"
+                    },
+                    {
+                        "id": 41,
+                        "nama": "Proses Akhir Tahun",
+                        "icon": "ri-calendar-check-line",
+                        "url": "#/akhir-tahun",
+                        "perm": "keuangan.laba_rugi"
+                    }
+                ]
             },
             {
                 "id": 50,

@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/config/env.php';
 require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/redis.php';
 require_once __DIR__ . '/middleware/auth.php';
 require_once __DIR__ . '/middleware/rbac.php';
 require_once __DIR__ . '/middleware/csrf.php';
