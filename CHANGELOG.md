@@ -6,6 +6,21 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v1.7.0] - 2026-05-03
+
+### ✨ Ditambahkan
+- **Sistem Reversal Transaksi (Non-Destruktif)**: Memungkinkan pembatalan transaksi Jurnal Umum, Simpanan, Angsuran, dan Pencairan Pinjaman tanpa menghapus data asli (audit-compliant).
+- Fitur **Pembalikan Jurnal Otomatis** (Contra Entry) dengan penanda `ref_tipe='reversal'`.
+- Label visual **REVERSED** pada tabel transaksi untuk memudahkan identifikasi data yang telah dibatalkan.
+- Tombol **Reverse** pada daftar dan detail transaksi (tergantung hak akses).
+- Integrasi **Redis Caching** terpusat pada modul keuangan dan kesehatan koperasi untuk performa maksimal.
+
+### 🔧 Diubah
+- **Optimasi UI Angsuran**: Penggabungan kolom No. Pinjaman, Nama Anggota, dan Urutan Angsuran menjadi satu kolom "Informasi Pinjaman" yang lebih efisien ruang.
+- Standarisasi data API: Menghapus format mata uang dari backend agar dashboard grafik dapat merender data numerik dengan benar.
+
+---
+
 ## [v1.6.0] - 2026-04-22
 
 ### ✨ Ditambahkan

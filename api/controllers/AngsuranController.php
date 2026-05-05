@@ -145,6 +145,59 @@ switch ($method) {
         break;
 
     case 'POST':
+        if ($id === 'reverse') {
+            checkPermission('angsuran.create');
+            $targetId = $params['id'] ?? null;
+            if (!$targetId) errorResponse('ID Angsuran diperlukan');
+
+            $angsuran = $db->fetch("SELECT * FROM angsuran WHERE id = ?", [$targetId]);
+            if (!$angsuran) errorResponse('Angsuran tidak ditemukan');
+            if ($angsuran['status'] === 'belum') errorResponse('Angsuran belum dibayar, tidak bisa direversal');
+
+            $pinjaman = $db->fetch("SELECT * FROM pinjaman WHERE id = ?", [$angsuran['pinjaman_id']]);
+
+            $db->beginTransaction();
+            try {
+                // 1. Revert angsuran status
+                $db->execute(
+                    "UPDATE angsuran SET status = 'belum', tgl_bayar = NULL, denda = 0 WHERE id = ?",
+                    [$targetId]
+                );
+
+                // 2. Update pinjaman balance (add back principal)
+                $db->execute(
+                    "UPDATE pinjaman SET sisa_pinjaman = sisa_pinjaman + ?, status = 'cair' WHERE id = ?",
+                    [$angsuran['pokok'], $angsuran['pinjaman_id']]
+                );
+
+                // 3. Reverse Jurnal
+                $oldJurnal = $db->fetch("SELECT id, no_bukti, keterangan FROM jurnal WHERE ref_tipe='angsuran' AND ref_id=?", [$targetId]);
+                if ($oldJurnal) {
+                    $noBukti = generateNo('REV', 'jurnal', 'no_bukti');
+                    $jurnalId = $db->insert(
+                        "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by)
+                         VALUES (?,CURDATE(),?, 'reversal', ?, ?, ?, ?)",
+                        [$noBukti, "[REVERSAL] " . $oldJurnal['keterangan'], $oldJurnal['id'], $angsuran['total'], $angsuran['total'], $_SESSION['user_id']]
+                    );
+                    
+                    $oldDetails = $db->fetchAll("SELECT * FROM jurnal_detail WHERE jurnal_id = ?", [$oldJurnal['id']]);
+                    foreach ($oldDetails as $od) {
+                        $db->execute(
+                            "INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?,?,?,?,?)",
+                            [$jurnalId, $od['akun_id'], $od['kredit'], $od['debit'], $od['keterangan']]
+                        );
+                    }
+                }
+
+                $db->commit();
+                clearCache(['loan', 'finance', 'audit', 'member' => $pinjaman['anggota_id']]);
+                successResponse(null, 'Reversal angsuran berhasil');
+            } catch (Exception $e) {
+                $db->rollBack();
+                errorResponse('Gagal melakukan reversal: ' . $e->getMessage());
+            }
+        }
+
         checkPermission('angsuran.create');
         $angsuranId = $params['angsuran_id'] ?? '';
         $pinjamanId = $params['pinjaman_id'] ?? '';
@@ -253,6 +306,9 @@ switch ($method) {
                 $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4200'), 0, ?)", [$jurnalId, $denda]);
 
             $db->commit();
+            
+            // Clear caches via central helper
+            clearCache(['member' => $angsuran['anggota_id'], 'loan']);
 
             // Log Activity (Payment)
             logActivity('create', 'angsuran', $angsuranId, null, [
@@ -361,6 +417,9 @@ switch ($method) {
                     $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4200'), 0, ?)", [$jurnalId, $dendaBerjalan]);
 
                 $db->commit();
+                
+                // Clear caches via central helper
+                clearCache(['member' => $pinjaman['anggota_id'], 'loan']);
 
                 // Log Activity (Payoff)
                 logActivity('update', 'pinjaman', $pinjamanId, [

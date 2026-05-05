@@ -15,10 +15,16 @@
                         Kewajiban & Angsuran</p>
                 </div>
             </div>
-            <button onclick="Portal.tab('home')"
-                class="w-9 h-9 rounded-full bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-obsidian-200 transition-colors">
-                <i class="bi bi-house-fill text-sm"></i>
-            </button>
+            <div class="flex items-center gap-2">
+                <button onclick="Portal.togglePrivacy()" 
+                    class="w-9 h-9 rounded-full bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-obsidian-200 transition-all active:scale-90">
+                    <i class="privacy-toggle-icon bi bi-eye-fill"></i>
+                </button>
+                <button onclick="Portal.tab('home')"
+                    class="w-9 h-9 rounded-full bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-obsidian-200 transition-colors">
+                    <i class="bi bi-house-fill text-sm"></i>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -85,9 +91,9 @@
     </div>
 </div>
 
-<!-- FAB -->
+<!-- FAB (Floating Action Button) -->
 <button onclick="Portal.tab('pengajuan_pinjaman')"
-    class="fixed bottom-24 right-6 w-14 h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-lg shadow-rose-500/30 transition-transform active:scale-90 z-40">
+    class="fixed bottom-[96px] right-6 w-14 h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl flex items-center justify-center shadow-2xl shadow-rose-500/40 transition-all active:scale-90 z-40 border-2 border-white/20 backdrop-blur-sm">
     <i class="bi bi-plus-lg text-2xl"></i>
 </button>
 

@@ -28,17 +28,30 @@ function checkPermission($permissionCode)
 
 function getUserPermissions($roleId)
 {
+    $redis = RedisManager::getInstance();
+    $cacheKey = "rbac_perms_{$roleId}";
+    $cached = $redis->get($cacheKey);
+    if ($cached) return $cached;
+
     $db = Database::getInstance();
-    return $db->fetchAll(
+    $perms = $db->fetchAll(
         "SELECT p.kode FROM role_permissions rp 
          JOIN permissions p ON rp.permission_id = p.id 
          WHERE rp.role_id = ?",
         [$roleId]
     );
+    
+    $redis->set($cacheKey, $perms, 3600);
+    return $perms;
 }
 
 function getUserMenus($roleId)
 {
+    $redis = RedisManager::getInstance();
+    $cacheKey = "rbac_menus_{$roleId}";
+    $cached = $redis->get($cacheKey);
+    if ($cached) return $cached;
+
     $jsonPath = __DIR__ . '/../config/menus.json';
     if (!file_exists($jsonPath))
         return [];
@@ -74,7 +87,9 @@ function getUserMenus($roleId)
         return $result;
     };
 
-    return $filter($allMenus);
+    $filteredMenus = $filter($allMenus);
+    $redis->set($cacheKey, $filteredMenus, 3600);
+    return $filteredMenus;
 }
 
 // buildMenuTree is no longer needed as JSON is already structured

@@ -65,6 +65,24 @@ class RedisManager
     public function delete($key)
     {
         if (!$this->connected) return false;
+        
+        if (strpos($key, '*') !== false) {
+            $keys = $this->redis->keys($key);
+            if (!empty($keys)) {
+                // phpredis del() can take an array
+                // but since we have a prefix, keys() returns keys WITH prefix
+                // and del() automatically adds prefix IF OPT_PREFIX is set.
+                // This can be tricky. 
+                // However, setOption(Redis::OPT_PREFIX, ...) makes keys() return keys WITHOUT prefix.
+                // Wait, actually phpredis with OPT_PREFIX:
+                // keys('*') returns keys WITHOUT prefix.
+                // del('key') expects key WITHOUT prefix.
+                // So it should work.
+                return $this->redis->del($keys);
+            }
+            return true;
+        }
+        
         return $this->redis->del($key);
     }
 
@@ -84,5 +102,33 @@ class RedisManager
     {
         if (!$this->connected) return [];
         return $this->redis->info();
+    }
+
+    public function initSession()
+    {
+        if (!$this->connected) return false;
+
+        try {
+            ini_set('session.save_handler', 'redis');
+            
+            // Format for phpredis session save_path
+            if (strpos(REDIS_HOST, '/') === 0) {
+                // Unix socket
+                $savePath = "unix://" . REDIS_HOST . "?prefix=" . REDIS_PREFIX . "session:";
+            } else {
+                // TCP
+                $savePath = "tcp://" . REDIS_HOST . ":" . REDIS_PORT . "?prefix=" . REDIS_PREFIX . "session:";
+            }
+            
+            if (REDIS_PASS) {
+                $savePath .= "&auth=" . urlencode(REDIS_PASS);
+            }
+
+            ini_set('session.save_path', $savePath);
+            return true;
+        } catch (Exception $e) {
+            error_log("Failed to set Redis session handler: " . $e->getMessage());
+            return false;
+        }
     }
 }

@@ -15,6 +15,7 @@ const Portal = {
     html5QrCode: null, // For QR scanner instance
     searchTimeout: null,
     currentTab: 'home',
+    privacyMode: localStorage.getItem('kop_privacy_mode') === 'true',
     tabOrder: ['home', 'simpanan', 'pinjaman', 'rat', 'profil'],
     getFirstName(name) {
         if (!name) return 'Anggota';
@@ -1082,6 +1083,7 @@ const Portal = {
                         return res.text();
                     });
                     activeContent.innerHTML = html;
+                    this.updatePrivacyIcons();
                 } catch (e) {
                     activeContent.innerHTML = '<div class="text-center py-20 text-gray-500 text-xs">Gagal memuat tampilan</div>';
                 }
@@ -1872,7 +1874,31 @@ const Portal = {
         }
     },
 
-    rp(n) { return 'Rp ' + new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(n || 0); },
+    rp(n) { 
+        if (this.privacyMode) return 'Rp ••••••';
+        return 'Rp ' + new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(n || 0); 
+    },
+
+    updatePrivacyIcons() {
+        const icons = document.querySelectorAll('.privacy-toggle-icon');
+        icons.forEach(icon => {
+            icon.className = 'privacy-toggle-icon bi ' + (this.privacyMode ? 'bi-eye-slash-fill' : 'bi-eye-fill');
+        });
+    },
+
+    togglePrivacy() {
+        this.privacyMode = !this.privacyMode;
+        localStorage.setItem('kop_privacy_mode', this.privacyMode);
+        
+        this.updatePrivacyIcons();
+
+        // Re-render current data
+        if (this.currentTab === 'home') this.loadDashboardData();
+        if (this.currentTab === 'simpanan') this.loadSimpanan(document.getElementById('p-content-simpanan'));
+        if (this.currentTab === 'pinjaman') this.loadPinjaman(document.getElementById('p-content-pinjaman'));
+        if (this.currentTab === 'laporan') this.loadLaporan();
+    },
+
     fdate(d) { return d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'; },
 
     async openSimpananDetail(jenisId, namaJenis, saldoJenis) {
@@ -2178,7 +2204,7 @@ const Portal = {
             loanConfig.forEach(j => {
                 const opt = document.createElement('option');
                 opt.value = j.id;
-                opt.textContent = `${j.nama} (Bunga ${j.bunga_persen}%/thn)`;
+                opt.textContent = `${j.nama} (Bunga ${j.bunga_persen}%/bln)`;
                 selJenis.appendChild(opt);
             });
         } catch (e) {

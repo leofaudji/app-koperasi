@@ -4,11 +4,20 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [1.4.4] - 2026-05-04
+### Improvements
+- **UI Fix:** Memperbaiki tampilan ikon Privacy Toggle yang sebelumnya tidak muncul karena kesalahan sintaksis pada template HTML.
+- **Optimization:** Sinkronisasi status ikon privasi secara real-time saat berpindah tab.
+
+---
+
+## [1.4.3] - 2026-05-04
+
+## [1.4.2] - 2026-05-04
+
+## [1.4.1] - 2026-05-04
+
 ## [1.4.0] - 2026-04-30
-### Smart Login & Bug Fixes
-- **Smart Login:** Anggota kini dapat login hanya dengan mengetikkan angka (misal: 0007), sistem akan otomatis melengkapinya.
-- **Bug Fix:** Memperbaiki masalah halaman yang otomatis me-*refresh* saat terjadi kesalahan ketik pada Ganti Password.
-- **Pembaruan Sistem:** Sinkronisasi pembaruan *cache* versi ke-50 untuk *production*.
 
 ---
 ## [1.3.9] - 2026-04-27

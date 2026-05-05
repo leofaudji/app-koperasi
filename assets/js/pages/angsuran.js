@@ -33,19 +33,34 @@ const AngsuranPage = {
                 </div>
             </div>
             <div class="table-wrapper"><table class="data-table w-full text-sm">
-                <thead><tr class="bg-gray-50"><th class="px-4 py-3 text-left font-medium text-gray-500">No. Pinjaman</th><th class="px-4 py-3 text-left font-medium text-gray-500">Anggota</th><th class="px-4 py-3 text-center font-medium text-gray-500">Ke-</th><th class="px-4 py-3 text-left font-medium text-gray-500">Jatuh Tempo</th><th class="px-4 py-3 text-right font-medium text-gray-500">Pokok</th><th class="px-4 py-3 text-right font-medium text-gray-500">Bunga</th><th class="px-4 py-3 text-right font-medium text-gray-500">Total</th><th class="px-4 py-3 text-center font-medium text-gray-500">Status</th><th class="px-4 py-3 text-center font-medium text-gray-500">Aksi</th></tr></thead>
+                <thead><tr class="bg-gray-50"><th class="px-4 py-3 text-left font-medium text-gray-500">Informasi Pinjaman</th><th class="px-4 py-3 text-left font-medium text-gray-500">Jatuh Tempo</th><th class="px-4 py-3 text-right font-medium text-gray-500">Pokok</th><th class="px-4 py-3 text-right font-medium text-gray-500">Bunga</th><th class="px-4 py-3 text-right font-medium text-gray-500">Total</th><th class="px-4 py-3 text-center font-medium text-gray-500">Status</th><th class="px-4 py-3 text-center font-medium text-gray-500">Aksi</th></tr></thead>
                 <tbody>${res.data.map(a => `<tr class="border-t border-gray-50">
-                    <td class="px-4 py-3 font-mono text-xs text-primary-600">${a.no_pinjaman}</td>
-                    <td class="px-4 py-3 font-medium">${a.anggota_nama}</td>
-                    <td class="px-4 py-3 text-center">${a.angsuran_ke}</td>
+                    <td class="px-4 py-3">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-800">${a.anggota_nama}</span>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="font-mono text-[10px] text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded border border-primary-100">${a.no_pinjaman}</span>
+                                <span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">KE-${a.angsuran_ke}</span>
+                            </div>
+                        </div>
+                    </td>
                     <td class="px-4 py-3 text-gray-500">${App.formatDate(a.tgl_jatuh_tempo)}</td>
                     <td class="px-4 py-3 text-right">${App.formatRupiah(a.pokok)}</td>
                     <td class="px-4 py-3 text-right">${App.formatRupiah(a.bunga)}</td>
                     <td class="px-4 py-3 text-right font-semibold">${App.formatRupiah(a.total)}</td>
                     <td class="px-4 py-3 text-center">${App.statusBadge(a.status)}</td>
-                    <td class="px-4 py-3 text-center">${a.status === 'belum' && App.hasPerm('angsuran.create') ? `<button onclick="AngsuranPage.form(${a.pinjaman_id})" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium"><i class="ri-money-dollar-circle-line mr-1"></i>Bayar</button>` : a.tgl_bayar ? App.formatDate(a.tgl_bayar) : '-'}</td>
+                    <td class="px-4 py-3 text-center">
+                        ${a.status === 'belum' && App.hasPerm('angsuran.create') ? `
+                            <button onclick="AngsuranPage.form(${a.pinjaman_id})" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium"><i class="ri-money-dollar-circle-line mr-1"></i>Bayar</button>
+                        ` : (a.tgl_bayar ? `
+                            <div class="flex items-center justify-center gap-2">
+                                <span class="text-xs text-gray-500">${App.formatDate(a.tgl_bayar)}</span>
+                                <button onclick="AngsuranPage.confirmReverse(${a.id}, '${a.no_pinjaman}', ${a.angsuran_ke})" class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-all" title="Reverse Pembayaran"><i class="ri-arrow-go-back-line"></i></button>
+                            </div>
+                        ` : '-')}
+                    </td>
                 </tr>`).join('')}
-                ${res.data.length === 0 ? '<tr><td colspan="9" class="text-center py-8 text-gray-400">Tidak ada data</td></tr>' : ''}</tbody></table></div>
+                ${res.data.length === 0 ? '<tr><td colspan="7" class="text-center py-8 text-gray-400">Tidak ada data</td></tr>' : ''}</tbody></table></div>
             ${App.renderPagination(res.pagination, 'AngsuranPage.paginate')}</div>`;
     },
 
@@ -237,6 +252,24 @@ const AngsuranPage = {
     },
 
     paginate(p) { this.loadList(this.container, p); },
+
+    async confirmReverse(id, noPinjaman, ke) {
+        const ok = await App.confirm(`Konfirmasi Reversal`, `Apakah Anda yakin ingin membatalkan (reverse) pembayaran angsuran <b>${noPinjaman}</b> ke-<b>${ke}</b>? Baki debet pinjaman akan dikembalikan.`, 'warning');
+        if (ok) this.reverse(id);
+    },
+
+    async reverse(id) {
+        const res = await App.api(`angsuran/reverse`, {
+            method: 'POST',
+            body: { id }
+        });
+        if (res?.success) {
+            App.toast(res.message, 'success');
+            this.loadList(this.container, this.page);
+        } else {
+            App.toast(res?.message || 'Gagal melakukan reversal', 'error');
+        }
+    },
 
     async export(type) {
         const search = document.getElementById('ags-search')?.value || '';

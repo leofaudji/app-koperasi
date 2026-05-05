@@ -7,21 +7,24 @@ switch ($method) {
     case 'GET':
         if ($id === 'laporan-saldo') {
             checkPermission('laporan.simpanan_saldo');
-            $data = $db->fetchAll(
-                "SELECT a.no_anggota, a.nama as anggota_nama, 
-                        COALESCE(SUM(CASE WHEN js.kode = 'SP' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as pokok,
-                        COALESCE(SUM(CASE WHEN js.kode = 'SW' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as wajib,
-                        COALESCE(SUM(CASE WHEN js.kode = 'SS' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as sukarela,
-                        COALESCE(SUM(CASE WHEN js.kode = 'SPF' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as partisipatif,
-                        COALESCE(SUM(CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END), 0) as total_saldo
-                 FROM anggota a
-                 LEFT JOIN simpanan s ON a.id = s.anggota_id
-                 LEFT JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
-                 LEFT JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
-                 WHERE a.status = 'aktif'
-                 GROUP BY a.id, a.no_anggota, a.nama
-                 ORDER BY a.nama"
-            );
+            $cacheKey = 'rep_simpanan_saldo';
+            $data = getCachedData($cacheKey, function() use ($db) {
+                return $db->fetchAll(
+                    "SELECT a.no_anggota, a.nama as anggota_nama, 
+                            COALESCE(SUM(CASE WHEN js.kode = 'SP' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as pokok,
+                            COALESCE(SUM(CASE WHEN js.kode = 'SW' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as wajib,
+                            COALESCE(SUM(CASE WHEN js.kode = 'SS' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as sukarela,
+                            COALESCE(SUM(CASE WHEN js.kode = 'SPF' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as partisipatif,
+                            COALESCE(SUM(CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END), 0) as total_saldo
+                    FROM anggota a
+                    LEFT JOIN simpanan s ON a.id = s.anggota_id
+                    LEFT JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
+                    LEFT JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                    WHERE a.status = 'aktif'
+                    GROUP BY a.id, a.no_anggota, a.nama
+                    ORDER BY a.nama"
+                );
+            });
             successResponse($data);
         }
 
@@ -196,6 +199,100 @@ switch ($method) {
         break;
 
     case 'POST':
+        if ($id === 'reverse') {
+            checkPermission('simpanan.create');
+            $targetId = $params['id'] ?? null;
+            if (!$targetId) errorResponse('ID Transaksi diperlukan');
+
+            $original = $db->fetch(
+                "SELECT s.*, kt.dk, js.nama as jenis_nama, js.akun_id as akun_simpanan_id,
+                        kt.akun_debit_id, kt.akun_kredit_id, kt.nama as kt_nama
+                 FROM simpanan s
+                 JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                 JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
+                 WHERE s.id = ?",
+                [$targetId]
+            );
+            if (!$original) errorResponse('Transaksi tidak ditemukan');
+            
+            // Check if already reversed
+            $exists = $db->fetch("SELECT id FROM simpanan WHERE keterangan LIKE ?", ["%REVERSAL OF {$original['no_transaksi']}%"]);
+            if ($exists) errorResponse('Transaksi ini sudah pernah direversal');
+
+            // Current balance
+            if ($original['rekening_id']) {
+                $rekening = $db->fetch("SELECT saldo FROM rekening_simpanan WHERE id = ?", [$original['rekening_id']]);
+                $saldoSekarang = (float) $rekening['saldo'];
+            } else {
+                $currentSaldo = $db->fetch(
+                    "SELECT COALESCE(SUM(CASE WHEN kt.dk='D' THEN s.jumlah ELSE -s.jumlah END),0) as saldo
+                     FROM simpanan s
+                     JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                     WHERE s.anggota_id = ? AND s.jenis_simpanan_id = ?",
+                    [$original['anggota_id'], $original['jenis_simpanan_id']]
+                );
+                $saldoSekarang = (float) $currentSaldo['saldo'];
+            }
+
+            $db->beginTransaction();
+            try {
+                $noTrx = generateNo('REV', 'simpanan', 'no_transaksi');
+                $jumlah = $original['jumlah'];
+                
+                // Opposite effect
+                if ($original['dk'] === 'D') {
+                    // Original was Deposit, reversal is Withdrawal
+                    $saldoSesudah = $saldoSekarang - $jumlah;
+                    $kodeTrxRev = $db->fetch("SELECT id FROM kode_transaksi_simpanan WHERE kode = 'KRK' LIMIT 1")['id'] ?? $original['kode_transaksi_id'];
+                } else {
+                    // Original was Withdrawal, reversal is Deposit
+                    $saldoSesudah = $saldoSekarang + $jumlah;
+                    $kodeTrxRev = $db->fetch("SELECT id FROM kode_transaksi_simpanan WHERE kode = 'KRD' LIMIT 1")['id'] ?? $original['kode_transaksi_id'];
+                }
+
+                $revId = $db->insert(
+                    "INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by)
+                     VALUES (?,?,?,?,?,CURDATE(),?,?,?,?,?)",
+                    [
+                        $noTrx, $original['anggota_id'], $original['jenis_simpanan_id'], $original['rekening_id'],
+                        $kodeTrxRev, $jumlah, $saldoSekarang, $saldoSesudah,
+                        "REVERSAL OF {$original['no_transaksi']}: {$original['keterangan']}",
+                        $_SESSION['user_id']
+                    ]
+                );
+
+                if ($original['rekening_id']) {
+                    $db->execute("UPDATE rekening_simpanan SET saldo = ? WHERE id = ?", [$saldoSesudah, $original['rekening_id']]);
+                }
+
+                // Reverse Jurnal
+                $oldJurnal = $db->fetch("SELECT id, no_bukti, keterangan FROM jurnal WHERE ref_tipe='simpanan' AND ref_id=?", [$targetId]);
+                if ($oldJurnal) {
+                    $noBukti = generateNo('REV', 'jurnal', 'no_bukti');
+                    $jurnalId = $db->insert(
+                        "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by)
+                         VALUES (?,CURDATE(),?, 'reversal', ?, ?, ?, ?)",
+                        [$noBukti, "[REVERSAL] " . $oldJurnal['keterangan'], $oldJurnal['id'], $jumlah, $jumlah, $_SESSION['user_id']]
+                    );
+                    
+                    $oldDetails = $db->fetchAll("SELECT * FROM jurnal_detail WHERE jurnal_id = ?", [$oldJurnal['id']]);
+                    foreach ($oldDetails as $od) {
+                        $db->execute(
+                            "INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?,?,?,?,?)",
+                            [$jurnalId, $od['akun_id'], $od['kredit'], $od['debit'], $od['keterangan']]
+                        );
+                    }
+                }
+
+                $db->commit();
+                clearCache(['member' => $original['anggota_id'], 'saving', 'finance']);
+                successResponse(['id' => $revId, 'no_transaksi' => $noTrx], 'Reversal simpanan berhasil');
+            } catch (Exception $e) {
+                $db->rollBack();
+                errorResponse('Gagal melakukan reversal: ' . $e->getMessage());
+            }
+        }
+
         checkPermission('simpanan.create');
 
         $anggotaId = $params['anggota_id'] ?? '';
@@ -305,6 +402,9 @@ switch ($method) {
             }
 
             $db->commit();
+
+            // Clear caches via central helper
+            clearCache(['member' => $anggotaId, 'saving']);
 
             // Log Activity
             logActivity('create', 'simpanan', $simpananId, null, [

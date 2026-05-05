@@ -100,6 +100,13 @@ switch ($method) {
 
         if ($id === 'laporan-saldo') {
             checkPermission('laporan.pinjaman_saldo');
+            $redis = RedisManager::getInstance();
+            $cacheKey = 'rep_pinjaman_saldo';
+            $cached = $redis->get($cacheKey);
+            if ($cached) {
+                successResponse($cached);
+            }
+
             $data = $db->fetchAll(
                 "SELECT a.no_anggota, a.nama as anggota_nama, 
                         SUM(p.jumlah) as total_pinjaman, 
@@ -111,10 +118,18 @@ switch ($method) {
                  GROUP BY a.id, a.no_anggota, a.nama 
                  ORDER BY a.nama"
             );
+            $redis->set($cacheKey, $data, 3600);
             successResponse($data);
         }
         if ($id === 'laporan-baki-debet') {
             checkPermission('laporan.pinjaman_baki_debet');
+            $redis = RedisManager::getInstance();
+            $cacheKey = 'rep_pinjaman_bakidebet';
+            $cached = $redis->get($cacheKey);
+            if ($cached) {
+                successResponse($cached);
+            }
+
             $data = $db->fetchAll(
                 "SELECT p.no_pinjaman, a.nama as anggota_nama, p.tgl_pencairan, p.jumlah, p.tenor, p.sisa_pinjaman 
                  FROM pinjaman p 
@@ -122,6 +137,7 @@ switch ($method) {
                  WHERE p.status = 'cair'
                  ORDER BY p.tgl_pencairan DESC"
             );
+            $redis->set($cacheKey, $data, 3600);
             successResponse($data);
         }
         if ($id === 'laporan-jasa-anggota') {
@@ -258,6 +274,55 @@ switch ($method) {
         break;
 
     case 'POST':
+        if ($id === 'reverse') {
+            checkPermission('pinjaman.approve');
+            $targetId = $params['id'] ?? null;
+            if (!$targetId) errorResponse('ID Pinjaman diperlukan');
+
+            $pinjaman = $db->fetch("SELECT * FROM pinjaman WHERE id = ?", [$targetId]);
+            if (!$pinjaman) errorResponse('Pinjaman tidak ditemukan');
+            if ($pinjaman['status'] !== 'cair') errorResponse('Hanya pinjaman status CAIR yang bisa direversal pencairannya');
+
+            // Check if any installments paid
+            $paidCount = $db->count("SELECT COUNT(*) FROM angsuran WHERE pinjaman_id = ? AND status != 'belum'", [$targetId]);
+            if ($paidCount > 0) errorResponse('Tidak bisa direversal karena sudah ada angsuran yang dibayar. Reversal angsuran terlebih dahulu.');
+
+            $db->beginTransaction();
+            try {
+                // 1. Revert pinjaman status
+                $db->execute(
+                    "UPDATE pinjaman SET status = 'disetujui', tgl_pencairan = NULL, sisa_pinjaman = 0 WHERE id = ?",
+                    [$targetId]
+                );
+
+                // 2. Reverse Jurnal
+                $oldJurnal = $db->fetch("SELECT id, no_bukti, keterangan FROM jurnal WHERE ref_tipe='pinjaman' AND ref_id=?", [$targetId]);
+                if ($oldJurnal) {
+                    $noBukti = generateNo('REV', 'jurnal', 'no_bukti');
+                    $jurnalId = $db->insert(
+                        "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by)
+                         VALUES (?,CURDATE(),?, 'reversal', ?, ?, ?, ?)",
+                        [$noBukti, "[REVERSAL] " . $oldJurnal['keterangan'], $oldJurnal['id'], $pinjaman['jumlah'], $pinjaman['jumlah'], $_SESSION['user_id']]
+                    );
+                    
+                    $oldDetails = $db->fetchAll("SELECT * FROM jurnal_detail WHERE jurnal_id = ?", [$oldJurnal['id']]);
+                    foreach ($oldDetails as $od) {
+                        $db->execute(
+                            "INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?,?,?,?,?)",
+                            [$jurnalId, $od['akun_id'], $od['kredit'], $od['debit'], $od['keterangan']]
+                        );
+                    }
+                }
+
+                $db->commit();
+                clearCache(['loan', 'finance', 'audit', 'member' => $pinjaman['anggota_id']]);
+                successResponse(null, 'Reversal pencairan pinjaman berhasil');
+            } catch (Exception $e) {
+                $db->rollBack();
+                errorResponse('Gagal melakukan reversal: ' . $e->getMessage());
+            }
+        }
+
         checkPermission('pinjaman.create');
 
         $anggotaId = $params['anggota_id'] ?? '';
@@ -455,6 +520,9 @@ switch ($method) {
 
         $db->commit();
 
+        // Clear caches via central helper
+        clearCache(['member' => $anggotaId, 'loan']);
+
         logActivity('create', 'pinjaman', $pinjamanId, null, [
             'no_pinjaman' => $noPinjaman,
             'anggota' => $anggota['nama'],
@@ -626,6 +694,10 @@ switch ($method) {
                 }
 
                 $db->commit();
+
+                // Clear caches
+                // Clear caches via central helper
+                clearCache(['member' => $pinjaman['anggota_id'], 'loan']);
 
                 logActivity('update', 'pinjaman', $id, [
                     'status' => 'pending'

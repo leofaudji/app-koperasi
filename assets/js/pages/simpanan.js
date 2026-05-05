@@ -26,7 +26,7 @@ const SimpananPage = {
             </div>
             <div class="table-wrapper">
                 <table class="data-table w-full text-sm">
-                    <thead><tr class="bg-gray-50"><th class="px-4 py-3 text-left font-medium text-gray-500">No. Transaksi</th><th class="px-4 py-3 text-left font-medium text-gray-500">Tanggal</th><th class="px-4 py-3 text-left font-medium text-gray-500">Anggota</th><th class="px-4 py-3 text-left font-medium text-gray-500">Jenis</th><th class="px-4 py-3 text-left font-medium text-gray-500">Kode Transaksi</th><th class="px-4 py-3 text-center font-medium text-gray-500">D/K</th><th class="px-4 py-3 text-right font-medium text-gray-500">Jumlah</th></tr></thead>
+                    <thead><tr class="bg-gray-50"><th class="px-4 py-3 text-left font-medium text-gray-500">No. Transaksi</th><th class="px-4 py-3 text-left font-medium text-gray-500">Tanggal</th><th class="px-4 py-3 text-left font-medium text-gray-500">Anggota</th><th class="px-4 py-3 text-left font-medium text-gray-500">Jenis</th><th class="px-4 py-3 text-left font-medium text-gray-500">Kode Transaksi</th><th class="px-4 py-3 text-center font-medium text-gray-500">D/K</th><th class="px-4 py-3 text-right font-medium text-gray-500">Jumlah</th><th class="px-4 py-3 text-center font-medium text-gray-500">Aksi</th></tr></thead>
                     <tbody>${res.data.map(s => `<tr class="border-t border-gray-50">
                         <td class="px-4 py-3 font-mono text-xs text-primary-600">${s.no_transaksi}</td>
                         <td class="px-4 py-3 text-gray-500">${App.formatDate(s.tgl_transaksi)}</td>
@@ -38,8 +38,13 @@ const SimpananPage = {
                         <td class="px-4 py-3"><span class="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">${s.kode_transaksi}</span> ${s.nama_transaksi}</td>
                         <td class="px-4 py-3 text-center">${App.dkBadge(s.dk)}</td>
                         <td class="px-4 py-3 text-right font-semibold ${s.dk === 'D' ? 'text-emerald-600' : 'text-red-500'}">${s.dk === 'D' ? '+' : '-'}${App.formatRupiah(s.jumlah)}</td>
+                        <td class="px-4 py-3 text-center">
+                            ${s.keterangan?.includes('REVERSAL') ? `<span class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded font-bold uppercase">Reversed</span>` : `
+                            <button onclick="SimpananPage.confirmReverse(${s.id}, '${s.no_transaksi}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Reverse Transaksi"><i class="ri-arrow-go-back-line"></i></button>
+                            `}
+                        </td>
                     </tr>`).join('')}
-                    ${res.data.length === 0 ? '<tr><td colspan="7" class="text-center py-8 text-gray-400">Tidak ada transaksi</td></tr>' : ''}</tbody>
+                    ${res.data.length === 0 ? '<tr><td colspan="8" class="text-center py-8 text-gray-400">Tidak ada transaksi</td></tr>' : ''}</tbody>
                 </table>
             </div>
             ${App.renderPagination(res.pagination, 'SimpananPage.paginate')}
@@ -216,7 +221,25 @@ const SimpananPage = {
         });
     },
 
-    paginate(p) { this.loadList(this.container, p); }
+    paginate(p) { this.loadList(this.container, p); },
+
+    async confirmReverse(id, noTrx) {
+        const ok = await App.confirm(`Konfirmasi Reversal`, `Apakah Anda yakin ingin membatalkan (reverse) transaksi <b>${noTrx}</b>? Saldo anggota akan disesuaikan kembali.`, 'warning');
+        if (ok) this.reverse(id);
+    },
+
+    async reverse(id) {
+        const res = await App.api(`simpanan/reverse`, {
+            method: 'POST',
+            body: { id }
+        });
+        if (res?.success) {
+            App.toast(res.message, 'success');
+            this.loadList(this.container, this.page);
+        } else {
+            App.toast(res?.message || 'Gagal melakukan reversal', 'error');
+        }
+    }
 
 };
 

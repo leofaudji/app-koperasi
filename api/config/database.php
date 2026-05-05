@@ -79,4 +79,5 @@ class Database {
     public function beginTransaction() { $this->pdo->beginTransaction(); }
     public function commit() { $this->pdo->commit(); }
     public function rollBack() { $this->pdo->rollBack(); }
+    public function inTransaction() { return $this->pdo->inTransaction(); }
 }

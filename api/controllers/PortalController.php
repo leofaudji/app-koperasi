@@ -83,12 +83,20 @@ switch ($id) {
 
     case 'pengumuman':
         portalAuthCheck();
+        $redis = RedisManager::getInstance();
+        $cacheKey = 'portal_pengumuman';
+        $cached = $redis->get($cacheKey);
+        if ($cached) {
+            successResponse($cached);
+        }
+
         $pengumuman = $db->fetchAll(
             "SELECT id, judul, konten, tipe, created_at 
              FROM pengumuman 
              WHERE is_active = 1 
              ORDER BY created_at DESC"
         );
+        $redis->set($cacheKey, $pengumuman, 3600);
         successResponse($pengumuman);
         break;
 
@@ -111,6 +119,13 @@ switch ($id) {
 
     case 'saldo':
         $anggotaId = portalAuthCheck();
+        $redis = RedisManager::getInstance();
+        $cacheKey = "portal_saldo_{$anggotaId}";
+        $cached = $redis->get($cacheKey);
+        if ($cached) {
+            successResponse($cached);
+        }
+
         $saldo = $db->fetchAll(
             "SELECT js.id, js.nama, js.kode,
                 COALESCE(rs.saldo, 0) as saldo,
@@ -124,6 +139,7 @@ switch ($id) {
             [$anggotaId]
         );
         logPortalActivity('Cek Saldo Simpanan');
+        $redis->set($cacheKey, $saldo, 3600);
         successResponse($saldo);
         break;
 
@@ -150,6 +166,13 @@ switch ($id) {
 
     case 'pinjaman':
         $anggotaId = portalAuthCheck();
+        $redis = RedisManager::getInstance();
+        $cacheKey = "portal_loan_{$anggotaId}";
+        $cached = $redis->get($cacheKey);
+        if ($cached) {
+            successResponse($cached);
+        }
+
         $data = $db->fetchAll(
             "SELECT p.id, p.no_pinjaman, p.jumlah, p.tenor, p.bunga_persen, p.total_bayar,
                     p.sisa_pinjaman, p.status, p.tgl_pengajuan, p.tgl_pencairan, p.keterangan,
@@ -158,6 +181,7 @@ switch ($id) {
              WHERE p.anggota_id = ? ORDER BY p.tgl_pengajuan DESC",
             [$anggotaId]
         );
+        $redis->set($cacheKey, $data, 3600);
         successResponse($data);
         break;
 
@@ -202,6 +226,13 @@ switch ($id) {
 
     case 'notifications':
         $anggotaId = portalAuthCheck();
+        $redis = RedisManager::getInstance();
+        $cacheKey = "portal_notif_{$anggotaId}";
+        $cached = $redis->get($cacheKey);
+        if ($cached) {
+            successResponse($cached);
+        }
+
         $notifications = [];
 
         // 1. Upcoming Loan Installments (next 7 days)
@@ -266,6 +297,7 @@ switch ($id) {
             return strcmp($b['raw_date'], $a['raw_date']);
         });
 
+        $redis->set($cacheKey, $notifications, 3600);
         successResponse($notifications);
         break;
 
@@ -391,12 +423,10 @@ switch ($id) {
             [$jenisId]
         );
 
-        // Kalkulasi Simulasi Angsuran Flat Sederhana
-        $bungaTahunan = (float) $jenisData['bunga_persen'];
-        $bungaPerBulan = $bungaTahunan / 12 / 100;
-
+        // Kalkulasi Simulasi Angsuran Flat (Bunga per bulan dari DB)
+        $persenBungaBulanan = (float) $jenisData['bunga_persen'];
         $pokokBulan = $jumlah / $tenor;
-        $bungaBulan = $jumlah * $bungaPerBulan; // Flat
+        $bungaBulan = $jumlah * ($persenBungaBulanan / 100); 
 
         $totalAngsuranBulan = $pokokBulan + $bungaBulan;
         $totalBungaAll = $bungaBulan * $tenor;
@@ -467,12 +497,23 @@ switch ($id) {
         );
 
         logPortalActivity('Mengajukan Pinjaman: ' . $noPinjaman);
+        
+        // Clear portal cache for this member
+        $redis = RedisManager::getInstance();
+        $redis->delete("portal_loan_{$anggotaId}");
+        $redis->delete("portal_notif_{$anggotaId}");
 
         successResponse(null, 'Pengajuan pinjaman berhasil dikirim!');
         break;
 
     case 'laporan-genggaman':
         $anggotaId = portalAuthCheck();
+        $redis = RedisManager::getInstance();
+        $cacheKey = "portal_genggaman_{$anggotaId}";
+        $cached = $redis->get($cacheKey);
+        if ($cached) {
+            successResponse($cached);
+        }
 
         // 1. Total Simpanan
         $simpananTotal = $db->fetch(
@@ -517,7 +558,7 @@ switch ($id) {
         } catch (Exception $e) { /* Abaikan jika tabel blm ada */
         }
 
-        successResponse([
+        $response = [
             'total_aset' => (float) $simpananTotal + (float) $totalSHU,
             'rincian_aset' => [
                 'simpanan' => (float) $simpananTotal,
@@ -525,7 +566,10 @@ switch ($id) {
             ],
             'total_kewajiban' => (float) $totalHutang,
             'last_sync' => date('Y-m-d H:i:s')
-        ]);
+        ];
+
+        $redis->set($cacheKey, $response, 3600);
+        successResponse($response);
         break;
 
     default:

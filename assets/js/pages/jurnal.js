@@ -58,7 +58,10 @@ const JurnalPage = {
                                 <span class="font-mono text-xs font-bold text-primary-600 bg-white border border-primary-100 px-2.5 py-1 rounded-lg">${j.no_bukti}</span>
                                 <span class="text-sm font-medium text-gray-500 flex items-center gap-1.5"><i class="ri-calendar-line text-gray-400"></i> ${App.formatDate(j.tgl_transaksi)}</span>
                             </div>
-                            <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider ${j.ref_tipe === 'manual' ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50'} px-2.5 py-1 rounded-full">${j.ref_tipe || 'manual'}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider ${j.ref_tipe === 'manual' ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50'} px-2.5 py-1 rounded-full">${j.ref_tipe || 'manual'}</span>
+                                ${j.ref_tipe !== 'reversal' ? `<button onclick="JurnalPage.confirmReverse(${j.id}, '${j.no_bukti}')" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Reverse Jurnal"><i class="ri-arrow-go-back-line"></i></button>` : ''}
+                            </div>
                         </div>
                         <div class="px-5 py-3 text-sm text-gray-700 italic border-b border-gray-50/50">${j.keterangan || '-'}</div>
                         <div class="overflow-x-auto">
@@ -275,6 +278,24 @@ const JurnalPage = {
             App.toast(res.message, 'success');
             document.querySelector('.fixed').remove();
             this.load();
+        }
+    },
+
+    async confirmReverse(id, noBukti) {
+        const ok = await App.confirm(`Konfirmasi Reversal`, `Apakah Anda yakin ingin membatalkan (reverse) jurnal <b>${noBukti}</b>? Tindakan ini akan membuat jurnal pembalik baru.`, 'warning');
+        if (ok) this.reverse(id);
+    },
+
+    async reverse(id) {
+        const res = await App.api(`keuangan/jurnal/reverse`, {
+            method: 'POST',
+            body: { id }
+        });
+        if (res?.success) {
+            App.toast(res.message, 'success');
+            this.load();
+        } else {
+            App.toast(res?.message || 'Gagal melakukan reversal', 'error');
         }
     },
 

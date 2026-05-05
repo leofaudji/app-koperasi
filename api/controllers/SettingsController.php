@@ -6,17 +6,19 @@ $db = Database::getInstance();
 switch ($method) {
     case 'GET':
         // Any logged-in user can read settings
-        $rows = $db->fetchAll("SELECT setting_key, setting_value, setting_label, setting_group FROM app_settings ORDER BY setting_group, id");
-
-        // Return as flat key->value object for convenience
-        $flat = [];
-        foreach ($rows as $r) {
-            $flat[$r['setting_key']] = [
-                'value' => $r['setting_value'],
-                'label' => $r['setting_label'],
-                'group' => $r['setting_group'],
-            ];
-        }
+        $cacheKey = 'app_settings_flat';
+        $flat = getCachedData($cacheKey, function() use ($db) {
+            $rows = $db->fetchAll("SELECT setting_key, setting_value, setting_label, setting_group FROM app_settings ORDER BY setting_group, id");
+            $flat = [];
+            foreach ($rows as $r) {
+                $flat[$r['setting_key']] = [
+                    'value' => $r['setting_value'],
+                    'label' => $r['setting_label'],
+                    'group' => $r['setting_group'],
+                ];
+            }
+            return $flat;
+        }, 86400);
         successResponse($flat);
         break;
 
@@ -63,6 +65,9 @@ switch ($method) {
 
         // Re-generate manifest.json after updates
         regenerateManifest($db);
+        
+        // Clear settings cache
+        clearCache(['settings']);
 
         successResponse(null, 'Pengaturan berhasil disimpan');
         break;

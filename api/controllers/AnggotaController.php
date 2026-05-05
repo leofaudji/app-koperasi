@@ -15,32 +15,35 @@ switch ($method) {
             checkPermission('anggota.view');
         }
         if ($id) {
-            $data = $db->fetch("SELECT * FROM anggota WHERE id = ?", [$id]);
-            if (!$data)
-                errorResponse('Anggota tidak ditemukan', 404);
+            $cacheKey = "rep_mem_detail_{$id}";
+            $data = getCachedData($cacheKey, function () use ($db, $id) {
+                $data = $db->fetch("SELECT * FROM anggota WHERE id = ?", [$id]);
+                if (!$data)
+                    errorResponse('Anggota tidak ditemukan', 404);
 
-            // Get saldo simpanan
-            $saldo = $db->fetchAll(
-                "SELECT js.nama, js.kode,
-                    COALESCE(SUM(CASE WHEN kt.dk='D' THEN s.jumlah ELSE -s.jumlah END),0) as saldo
-                 FROM jenis_simpanan js
-                 LEFT JOIN simpanan s ON js.id = s.jenis_simpanan_id AND s.anggota_id = ?
-                 LEFT JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
-                 GROUP BY js.id, js.nama, js.kode ORDER BY js.kode",
-                [$id]
-            );
-            $data['saldo_simpanan'] = $saldo;
+                // Get saldo simpanan
+                $saldo = $db->fetchAll(
+                    "SELECT js.nama, js.kode,
+                        COALESCE(SUM(CASE WHEN kt.dk='D' THEN s.jumlah ELSE -s.jumlah END),0) as saldo
+                    FROM jenis_simpanan js
+                    LEFT JOIN simpanan s ON js.id = s.jenis_simpanan_id AND s.anggota_id = ?
+                    LEFT JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                    GROUP BY js.id, js.nama, js.kode ORDER BY js.kode",
+                    [$id]
+                );
+                $data['saldo_simpanan'] = $saldo;
 
-            // Get pinjaman aktif
-            $pinjamanAktif = $db->fetchAll(
-                "SELECT p.*, jp.nama as jenis_pinjaman FROM pinjaman p
-                 JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
-                 WHERE p.anggota_id = ? AND p.status IN ('disetujui','cair')
-                 ORDER BY p.tgl_pengajuan DESC",
-                [$id]
-            );
-            $data['pinjaman_aktif'] = $pinjamanAktif;
-
+                // Get pinjaman aktif
+                $pinjamanAktif = $db->fetchAll(
+                    "SELECT p.*, jp.nama as jenis_pinjaman FROM pinjaman p
+                    JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+                    WHERE p.anggota_id = ? AND p.status IN ('disetujui','cair')
+                    ORDER BY p.tgl_pengajuan DESC",
+                    [$id]
+                );
+                $data['pinjaman_aktif'] = $pinjamanAktif;
+                return $data;
+            });
             successResponse($data);
         } else {
             $search = $params['search'] ?? '';
@@ -48,27 +51,37 @@ switch ($method) {
             $page = $params['page'] ?? 1;
             $perPage = $params['per_page'] ?? PER_PAGE;
 
-            $where = "WHERE 1=1";
-            $binds = [];
+            $cacheKey = "rep_mem_list_{$page}_{$perPage}_" . md5($search . $status);
+            $responseData = getCachedData($cacheKey, function () use ($db, $search, $status, $page, $perPage) {
+                $where = "WHERE 1=1";
+                $binds = [];
 
-            if ($search) {
-                $where .= " AND (nama LIKE ? OR no_anggota LIKE ? OR nik LIKE ?)";
-                $binds[] = "%$search%";
-                $binds[] = "%$search%";
-                $binds[] = "%$search%";
-            }
-            if ($status) {
-                $where .= " AND status = ?";
-                $binds[] = $status;
-            }
+                if ($search) {
+                    $where .= " AND (nama LIKE ? OR no_anggota LIKE ? OR nik LIKE ?)";
+                    $binds[] = "%$search%";
+                    $binds[] = "%$search%";
+                    $binds[] = "%$search%";
+                }
+                if ($status) {
+                    $where .= " AND status = ?";
+                    $binds[] = $status;
+                }
 
-            paginatedResponse(
-                "SELECT * FROM anggota $where ORDER BY no_anggota",
-                "SELECT COUNT(*) FROM anggota $where",
-                $binds,
-                $page,
-                $perPage
-            );
+                $offset = ($page - 1) * $perPage;
+                $total = $db->count("SELECT COUNT(*) FROM anggota $where", $binds);
+                $data = $db->fetchAll("SELECT * FROM anggota $where ORDER BY no_anggota LIMIT $perPage OFFSET $offset", $binds);
+
+                return [
+                    'data' => $data,
+                    'pagination' => [
+                        'page' => (int) $page,
+                        'per_page' => (int) $perPage,
+                        'total' => (int) $total,
+                        'total_pages' => ceil($total / $perPage)
+                    ]
+                ];
+            });
+            jsonResponse(array_merge(['success' => true], $responseData));
         }
         break;
 
@@ -98,6 +111,10 @@ switch ($method) {
                 $db->execute("DELETE FROM jurnal");
                 $db->execute("DELETE FROM simpanan");
                 $db->execute("DELETE FROM rekening_simpanan");
+                $db->execute("DELETE FROM angsuran");
+                $db->execute("DELETE FROM agunan");
+                $db->execute("DELETE FROM biaya_pencairan");
+                $db->execute("DELETE FROM pinjaman");
                 $db->execute("DELETE FROM users WHERE role_id = 3");
                 $db->execute("DELETE FROM anggota");
                 $db->execute("SET FOREIGN_KEY_CHECKS = 1");
@@ -108,9 +125,82 @@ switch ($method) {
                 $jsManasuka = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = 'SS' OR nama LIKE '%Manasuka%' OR nama LIKE '%Sukarela%'")['id'] ?? null;
                 $jsPartisipasif = $db->fetch("SELECT id FROM jenis_simpanan WHERE nama LIKE '%Partisipatif%' OR nama LIKE '%Partisipatif%'")['id'] ?? null;
 
+                // 3. Ensure & Map Jenis Pinjaman IDs
+                $loanProducts = [
+                    ['kode' => 'PB1', 'nama' => 'Pinjaman Berjangka 1', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '31'],
+                    ['kode' => 'PB2', 'nama' => 'Pinjaman Berjangka 2', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '32'],
+                    ['kode' => 'PINS', 'nama' => 'Pinjaman Insidental', 'bunga' => 1.0, 'tipe' => 'insidental', 'numerik' => '33'],
+                    ['kode' => 'PBRG', 'nama' => 'Pinjaman Barang', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '34'],
+                ];
+
+                $akunPiutang = $db->fetch("SELECT id FROM akun WHERE kode = '1200' LIMIT 1")['id'] ?? null;
+
+                $jpIds = [];
+                foreach ($loanProducts as $lp) {
+                    $exist = $db->fetch("SELECT id FROM jenis_pinjaman WHERE kode = ?", [$lp['kode']]);
+                    if (!$exist) {
+                        $jpIds[$lp['kode']] = $db->insert(
+                            "INSERT INTO jenis_pinjaman (kode, nama, bunga_persen, max_tenor, is_active, kode_numerik, akun_id) VALUES (?, ?, ?, 60, 1, ?, ?)",
+                            [$lp['kode'], $lp['nama'], $lp['bunga'], $lp['numerik'], $akunPiutang]
+                        );
+                    } else {
+                        $jpIds[$lp['kode']] = $exist['id'];
+                        // Update existing to ensure account is set
+                        $db->execute("UPDATE jenis_pinjaman SET kode_numerik = ?, akun_id = ? WHERE id = ?", [$lp['numerik'], $akunPiutang, $exist['id']]);
+                    }
+                }
+
                 $ktSetoran = $db->fetch("SELECT * FROM kode_transaksi_simpanan WHERE kode = 'STR'") ?? null;
                 if (!$ktSetoran)
                     throw new Exception("Kode transaksi 'STR' (Setoran) tidak ditemukan.");
+
+                $parseAmount = function ($val) {
+                    $valStr = trim($val ?? '0');
+                    $valStr = str_replace([' ', 'Rp', 'rp'], '', $valStr);
+                    if (strpos($valStr, '.') !== false && strpos($valStr, ',') !== false) {
+                        return (strrpos($valStr, '.') > strrpos($valStr, ',')) ? (float) str_replace(',', '', $valStr) : (float) str_replace(['.', ','], ['', '.'], $valStr);
+                    }
+                    return (strpos($valStr, ',') !== false) ? (float) str_replace(['.', ','], ['', '.'], $valStr) : (float) $valStr;
+                };
+
+                $parseIndoDate = function ($val) {
+                    $val = trim($val ?? '');
+                    if (empty($val))
+                        return date('Y-m-d');
+
+                    // Already YYYY-MM-DD?
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $val))
+                        return $val;
+
+                    $months = [
+                        'Januari' => '01',
+                        'Februari' => '02',
+                        'Maret' => '03',
+                        'April' => '04',
+                        'Mei' => '05',
+                        'Juni' => '06',
+                        'Juli' => '07',
+                        'Agustus' => '08',
+                        'September' => '09',
+                        'Oktober' => '10',
+                        'November' => '11',
+                        'Desember' => '12'
+                    ];
+
+                    // Handle "11 Februari 2025"
+                    $parts = explode(' ', $val);
+                    if (count($parts) === 3) {
+                        $d = str_pad($parts[0], 2, '0', STR_PAD_LEFT);
+                        $monthName = ucfirst(strtolower($parts[1])); // Normalisasi ke "Mei", "Februari", dll
+                        $m = $months[$monthName] ?? '01';
+                        $y = $parts[2];
+                        return "$y-$m-$d";
+                    }
+
+                    // Fallback to strtotime if possible
+                    $timestamp = strtotime($val);
+                    return $timestamp ? date('Y-m-d', $timestamp) : date('Y-m-d');
+                };
 
                 $count = 0;
                 while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
@@ -121,25 +211,20 @@ switch ($method) {
                     if (empty($nama))
                         continue;
 
-                    // Generate NEW no_anggota
                     $no_anggota_new = 'AGT-' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
-
-                    // Insert Anggota
                     $anggotaId = $db->insert(
                         "INSERT INTO anggota (no_anggota, nama, nik, tempat_lahir, tanggal_lahir, jenis_kelamin, alamat, telepon, email, pekerjaan, tgl_daftar, status)
                          VALUES (?, ?, '1234567890', 'Malang', '2000-10-10', 'L', 'Alamat Import', '081123456789', 'info@abc.com', 'Swasta', ?, 'aktif')",
                         [$no_anggota_new, $nama, date('Y-m-d')]
                     );
 
-                    // Create Portal User
                     $password = password_hash('10102000', PASSWORD_DEFAULT);
                     $db->insert(
                         "INSERT INTO users (username, password, nama_lengkap, email, role_id, anggota_id, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
                         [$no_anggota_new, $password, $nama, 'info@abc.com', 3, $anggotaId, 1]
                     );
 
-                    // Process Savings Balances
-                    // Column mapping: 2:Pokok, 3:Wajib, 4:Manasuka, 5:Partisipasif
+                    // A. SAVINGS
                     $rawBalances = [
                         ['id' => $jsPokok, 'val' => $data[2] ?? '0'],
                         ['id' => $jsWajib, 'val' => $data[3] ?? '0'],
@@ -149,79 +234,97 @@ switch ($method) {
 
                     foreach ($rawBalances as $b) {
                         if ($b['id']) {
-                            // Robust number parsing
-                            $valStr = trim($b['val']);
-                            $valStr = str_replace([' ', 'Rp', 'rp'], '', $valStr);
-
-                            if (strpos($valStr, '.') !== false && strpos($valStr, ',') !== false) {
-                                if (strrpos($valStr, '.') > strrpos($valStr, ',')) {
-                                    $jumlah = (float) str_replace(',', '', $valStr);
-                                } else {
-                                    $jumlah = (float) str_replace(['.', ','], ['', '.'], $valStr);
-                                }
-                            } elseif (strpos($valStr, ',') !== false) {
-                                $jumlah = (float) str_replace(['.', ','], ['', '.'], $valStr);
-                            } else {
-                                $jumlah = (float) $valStr;
-                            }
-
+                            $jumlah = $parseAmount($b['val']);
                             if ($jumlah > 0) {
-                                $jenisId = $b['id'];
-                                $jenis = $db->fetch("SELECT id, kode, nama, kode_numerik, akun_id FROM jenis_simpanan WHERE id = ?", [$jenisId]);
+                                $jenis = $db->fetch("SELECT id, kode, nama, kode_numerik, akun_id FROM jenis_simpanan WHERE id = ?", [$b['id']]);
+                                $noRekening = date('y') . "." . str_pad($jenis['kode_numerik'] ?: '00', 2, '0', STR_PAD_LEFT) . "." . str_pad($count + 1, 7, '0', STR_PAD_LEFT) . ".01";
+                                $rekeningId = $db->insert("INSERT INTO rekening_simpanan (no_rekening, anggota_id, jenis_simpanan_id, tgl_buka, saldo, status) VALUES (?,?,?,?,?,?)", [$noRekening, $anggotaId, $b['id'], date('Y-m-d'), $jumlah, 'aktif']);
 
-                                // Generate No Rekening: YY.JS.AAAAAAA.NN
-                                $yy = date('y');
-                                $jsCode = str_pad($jenis['kode_numerik'] ?: '00', 2, '0', STR_PAD_LEFT);
-                                $aaaaaaa = str_pad($count + 1, 7, '0', STR_PAD_LEFT);
-                                $noRekening = "$yy.$jsCode.$aaaaaaa.01";
-
-                                $rekeningId = $db->insert(
-                                    "INSERT INTO rekening_simpanan (no_rekening, anggota_id, jenis_simpanan_id, tgl_buka, saldo, status) VALUES (?,?,?,?,?,?)",
-                                    [$noRekening, $anggotaId, $jenisId, date('Y-m-d'), $jumlah, 'aktif']
-                                );
-
-                                // Create Transaction (Setoran Awal)
                                 $noTransaksi = 'SMP' . date('Ymd') . str_pad($db->count("SELECT COUNT(*) FROM simpanan WHERE tgl_transaksi = ?", [date('Y-m-d')]) + 1, 4, '0', STR_PAD_LEFT);
-                                $simpananId = $db->insert(
-                                    "INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by)
-                                     VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                                    [$noTransaksi, $anggotaId, $jenisId, $rekeningId, $ktSetoran['id'], date('Y-m-d'), $jumlah, 0, $jumlah, 'Saldo Awal Import', $_SESSION['user_id'] ?? 1]
-                                );
+                                $simpananId = $db->insert("INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)", [$noTransaksi, $anggotaId, $b['id'], $rekeningId, $ktSetoran['id'], date('Y-m-d'), $jumlah, 0, $jumlah, 'Saldo Awal Import', 1]);
 
-                                // Create Journal
                                 $noBukti = 'JRN' . date('Ymd') . str_pad($db->count("SELECT COUNT(*) FROM jurnal WHERE tgl_transaksi = ?", [date('Y-m-d')]) + 1, 4, '0', STR_PAD_LEFT);
-                                $keterangan = "Saldo Awal " . $jenis['nama'] . " - " . $nama;
+                                $jurnalId = $db->insert("INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by) VALUES (?,?,?,?,?,?,?,?)", [$noBukti, date('Y-m-d'), "Saldo Awal " . $jenis['nama'] . " - " . $nama, 'simpanan', $simpananId, $jumlah, $jumlah, 1]);
 
-                                $jurnalId = $db->insert(
-                                    "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by)
-                                     VALUES (?,?,?,?,?,?,?,?)",
-                                    [$noBukti, date('Y-m-d'), $keterangan, 'simpanan', $simpananId, $jumlah, $jumlah, $_SESSION['user_id'] ?? 1]
-                                );
-
-                                $akunSimpanan = $jenis['akun_id'];
-                                $akunDebit = $ktSetoran['akun_debit_id'];
-                                if (!$akunDebit) {
-                                    $kas = $db->fetch("SELECT id FROM akun WHERE kode = '1000' OR nama LIKE 'Kas%' LIMIT 1");
-                                    if ($kas)
-                                        $akunDebit = $kas['id'];
-                                }
-
-                                if ($akunSimpanan && $akunDebit) {
+                                $akunDebit = $ktSetoran['akun_debit_id'] ?: ($db->fetch("SELECT id FROM akun WHERE kode = '1000' LIMIT 1")['id'] ?? null);
+                                if ($jenis['akun_id'] && $akunDebit) {
                                     $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnalId, $akunDebit, $jumlah]);
-                                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunSimpanan, $jumlah]);
+                                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $jenis['akun_id'], $jumlah]);
                                 }
                             }
                         }
                     }
 
+                    // B. LOANS (Indices 7-22)
+                    $rawAgunan = trim($data[6] ?? '');
+                    $tipeAgunan = (preg_match('/BPKB|Motor|Mobil|Kendaraan/i', $rawAgunan)) ? 'BPKB' : ((preg_match('/SHM|Sertifikat|Tanah|Rumah/i', $rawAgunan)) ? 'SHM' : 'Lainnya');
+
+                    $loanDataMap = [
+                        ['id' => $jpIds['PB1'], 'idx' => 7, 'tipe' => 'flat', 'numerik' => '31'],
+                        ['id' => $jpIds['PB2'], 'idx' => 11, 'tipe' => 'flat', 'numerik' => '32'],
+                        ['id' => $jpIds['PINS'], 'idx' => 15, 'tipe' => 'insidental', 'numerik' => '33'],
+                        ['id' => $jpIds['PBRG'], 'idx' => 19, 'tipe' => 'flat', 'numerik' => '34'],
+                    ];
+
+                    foreach ($loanDataMap as $ld) {
+                        $plafond = $parseAmount($data[$ld['idx']] ?? '0');
+                        $bakiDebet = $parseAmount($data[$ld['idx'] + 1] ?? '0');
+                        $tglReal = $parseIndoDate($data[$ld['idx'] + 2] ?? date('Y-m-d'));
+                        $tenor = max(1, (int) ($data[$ld['idx'] + 3] ?? 12));
+
+                        if ($plafond > 0) {
+                            $totalBunga = $plafond * (1.0 / 100) * $tenor;
+                            $noPinjaman = date('y', strtotime($tglReal)) . "." . str_pad($ld['numerik'], 2, '0', STR_PAD_LEFT) . "." . str_pad($count + 1, 7, '0', STR_PAD_LEFT) . ".01";
+
+                            $pinjamanId = $db->insert(
+                                "INSERT INTO pinjaman (no_pinjaman, anggota_id, jenis_pinjaman_id, tgl_pengajuan, tgl_pencairan, jumlah, tenor, bunga_persen, total_bunga, total_bayar, sisa_pinjaman, status, agunan, keterangan, created_by)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, 1.0, ?, ?, ?, 'cair', ?, 'Migrasi Saldo Awal', 1)",
+                                [$noPinjaman, $anggotaId, $ld['id'], $tglReal, $tglReal, $plafond, $tenor, $totalBunga, $plafond + $totalBunga, $bakiDebet, $rawAgunan]
+                            );
+
+                            if (!empty($rawAgunan)) {
+                                $db->insert(
+                                    "INSERT INTO agunan (pinjaman_id, tipe_agunan, deskripsi, tgl_terima, status, created_by) VALUES (?, ?, ?, ?, 'aktif', 1)",
+                                    [$pinjamanId, $tipeAgunan, $rawAgunan, $tglReal]
+                                );
+                            }
+
+                            // Generate Installments
+                            $pokokPerBulan = $plafond / $tenor;
+                            $bungaPerBulan = $plafond * (1.0 / 100);
+                            $lunasCount = ($ld['tipe'] === 'flat') ? round(($plafond - $bakiDebet) / $pokokPerBulan) : 0;
+
+                            for ($i = 1; $i <= $tenor; $i++) {
+                                $jt = date('Y-m-d', strtotime("$tglReal +$i month"));
+                                $status = ($i <= $lunasCount) ? 'lunas' : 'belum';
+
+                                if ($ld['tipe'] === 'insidental') {
+                                    $p = ($i == $tenor) ? $plafond : 0;
+                                    $status = ($bakiDebet == 0) ? 'lunas' : 'belum';
+                                } else {
+                                    $p = $pokokPerBulan;
+                                }
+
+                                $db->execute(
+                                    "INSERT INTO angsuran (no_transaksi, pinjaman_id, angsuran_ke, tgl_jatuh_tempo, tgl_bayar, pokok, bunga, total, status)
+                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                    ['AGS-' . $pinjamanId . '-' . $i, $pinjamanId, $i, $jt, ($status == 'lunas' ? $jt : null), $p, $bungaPerBulan, $p + $bungaPerBulan, $status]
+                                );
+                            }
+                        }
+                    }
                     $count++;
                 }
                 $db->commit();
                 fclose($handle);
-                successResponse(['imported' => $count], "Berhasil mengimpor $count anggota, membuat rekening tabungan, dan mencatat saldo awal.");
+
+                clearCache(['member', 'loan']);
+                successResponse(['imported' => $count], "Berhasil mengimpor $count anggota dengan data simpanan dan 4 produk pinjaman.");
             } catch (Exception $e) {
-                $db->rollBack();
-                fclose($handle);
+                if ($db->inTransaction())
+                    $db->rollBack();
+                if ($handle)
+                    fclose($handle);
                 errorResponse('Gagal import: ' . $e->getMessage());
             }
             break;
@@ -277,6 +380,8 @@ switch ($method) {
             ]
         );
 
+        clearCache(['member']);
+
         successResponse(['id' => $id, 'no_anggota' => $noAnggota], 'Anggota dan User Portal berhasil ditambahkan', 201);
         break;
 
@@ -309,6 +414,8 @@ switch ($method) {
             ]
         );
 
+        clearCache(['member' => $id]);
+
         successResponse(null, 'Anggota berhasil diupdate');
         break;
 
@@ -328,6 +435,7 @@ switch ($method) {
         }
 
         $db->execute("DELETE FROM anggota WHERE id = ?", [$id]);
+        clearCache(['member' => $id]);
         successResponse(null, 'Anggota berhasil dihapus');
         break;
 

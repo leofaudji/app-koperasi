@@ -28,6 +28,7 @@ const PinjamanPage = {
                     ${App.statusBadge(p.status)}
                     ${p.status === 'pending' && App.hasPerm('pinjaman.approve') ? `<button onclick="PinjamanPage.approve(${p.id})" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium ml-2"><i class="ri-check-line mr-1"></i>Setujui</button><button onclick="PinjamanPage.reject(${p.id})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium"><i class="ri-close-line mr-1"></i>Tolak</button>` : ''}
                     ${p.status === 'cair' && App.hasPerm('angsuran.create') ? `<button onclick="PinjamanPage.pelunasan(${p.id})" class="bg-gradient-to-r from-violet-600 to-primary-600 hover:from-violet-700 hover:to-primary-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium ml-2 flex items-center gap-1.5 shadow-md"><i class="ri-checkbox-circle-line"></i>Lunasi Sekarang</button>` : ''}
+                    ${p.status === 'cair' && App.hasPerm('pinjaman.approve') ? `<button onclick="PinjamanPage.confirmReverse(${p.id}, '${p.no_pinjaman}')" class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg text-sm font-medium ml-2 flex items-center gap-1" title="Batalkan Pencairan (Reversal)"><i class="ri-arrow-go-back-line"></i> Reversal</button>` : ''}
                 </div>
             </div>
 
@@ -304,6 +305,7 @@ const PinjamanPage = {
                     <td class="px-4 py-3 text-center"><div class="flex justify-center gap-1">
                         <a href="#/pinjaman/${p.id}" class="p-1.5 hover:bg-blue-50 rounded-lg text-blue-500" title="Detail"><i class="ri-eye-line"></i></a>
                         ${p.status === 'pending' && App.hasPerm('pinjaman.approve') ? `<button onclick="PinjamanPage.approve(${p.id})" class="p-1.5 hover:bg-emerald-50 rounded-lg text-emerald-500" title="Approve"><i class="ri-check-line"></i></button><button onclick="PinjamanPage.reject(${p.id})" class="p-1.5 hover:bg-red-50 rounded-lg text-red-400" title="Tolak"><i class="ri-close-line"></i></button>` : ''}
+                        ${p.status === 'cair' && App.hasPerm('pinjaman.approve') ? `<button onclick="PinjamanPage.confirmReverse(${p.id}, '${p.no_pinjaman}')" class="p-1.5 hover:bg-red-50 rounded-lg text-red-500" title="Reverse Pencairan"><i class="ri-arrow-go-back-line"></i></button>` : ''}
                     </div></td></tr>`).join('')}
                 ${res.data.length === 0 ? '<tr><td colspan="8" class="text-center py-8 text-gray-400">Tidak ada data</td></tr>' : ''}</tbody></table></div>
             ${App.renderPagination(res.pagination, 'PinjamanPage.paginate')}</div>`;
@@ -1488,6 +1490,28 @@ const PinjamanPage = {
 
     paginate(p) {
         this.loadList(this.container, p);
+    },
+
+    async confirmReverse(id, noPinjaman) {
+        const ok = await App.confirm(`Konfirmasi Reversal Pencairan`, `Apakah Anda yakin ingin membatalkan (reverse) pencairan pinjaman <b>${noPinjaman}</b>? Status pinjaman akan kembali menjadi Disetujui (sebelum cair).`, 'warning');
+        if (ok) this.reverse(id);
+    },
+
+    async reverse(id) {
+        const res = await App.api(`pinjaman/reverse`, {
+            method: 'POST',
+            body: { id }
+        });
+        if (res?.success) {
+            App.toast(res.message, 'success');
+            if (location.hash.includes(`pinjaman/${id}`)) {
+                this.loadDetail(this.container, id);
+            } else {
+                this.loadList(this.container, this.page);
+            }
+        } else {
+            App.toast(res?.message || 'Gagal melakukan reversal', 'error');
+        }
     }
 };
 window.PinjamanPage = PinjamanPage;

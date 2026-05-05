@@ -24,6 +24,9 @@ require_once __DIR__ . '/middleware/csrf.php';
 
 // Start session
 if (session_status() === PHP_SESSION_NONE) {
+    // Use Redis for sessions if available
+    RedisManager::getInstance()->initSession();
+
     session_name(SESSION_NAME);
     ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
     session_set_cookie_params(SESSION_LIFETIME);
@@ -103,6 +106,108 @@ function generateNo($prefix, $table, $column)
         $newNum = 1;
     }
     return $prefix . $year . $month . str_pad($newNum, 4, '0', STR_PAD_LEFT);
+}
+
+/**
+ * Centralized Redis Cache Invalidation
+ * @param array $types List of cache groups to clear. 
+ *              Example: ['member' => 123, 'finance', 'loan', 'audit', 'settings']
+ */
+function clearCache(array $types)
+{
+    $redis = RedisManager::getInstance();
+    foreach ($types as $key => $val) {
+        $type = is_numeric($key) ? $val : $key;
+        $id = is_numeric($key) ? null : $val;
+
+        switch ($type) {
+            case 'member':
+                if ($id) {
+                    $redis->delete("portal_saldo_{$id}");
+                    $redis->delete("portal_loan_{$id}");
+                    $redis->delete("portal_genggaman_{$id}");
+                    $redis->delete("portal_notif_{$id}");
+                    $redis->delete("rep_mem_detail_{$id}");
+                }
+                $redis->delete('rep_mem_list_*');
+                break;
+            case 'finance':
+                $redis->delete('rep_neraca_*');
+                $redis->delete('rep_labarugi_*');
+                $redis->delete('rep_bukubesar_*');
+                $redis->delete('shu_preview_*');
+                $redis->delete('rep_audit_*');
+                $redis->delete('rep_tks_*');
+                break;
+            case 'loan':
+                $redis->delete('rep_npl');
+                $redis->delete('rep_pinjaman_saldo');
+                $redis->delete('rep_pinjaman_bakidebet');
+                $redis->delete('rep_audit_*');
+                $redis->delete('rep_tks_*');
+                break;
+            case 'saving':
+                $redis->delete('rep_simpanan_saldo');
+                $redis->delete('rep_audit_*');
+                $redis->delete('rep_tks_*');
+                break;
+            case 'audit':
+                $redis->delete('rep_audit_*');
+                $redis->delete('rep_tks_*');
+                break;
+            case 'settings':
+                $redis->delete('app_settings_flat');
+                break;
+            case 'rbac':
+                if ($id) {
+                    $redis->delete("rbac_menu_{$id}");
+                    $redis->delete("rbac_menus_{$id}"); // consistency with existing code
+                    $redis->delete("rbac_perms_{$id}");
+                } else {
+                    $redis->delete('rbac_menu_*');
+                    $redis->delete('rbac_menus_*');
+                    $redis->delete('rbac_perms_*');
+                }
+                break;
+            case 'coa':
+                $redis->delete('rep_coa_list');
+                if ($id) $redis->delete("rep_coa_{$id}");
+                break;
+        }
+    }
+}
+
+/**
+ * Get data from cache or fetch from DB via callback
+ * @param string $key Cache key
+ * @param callable $callback Function to fetch data if cache miss
+ * @param int $ttl Time to live in seconds
+ * @return mixed
+ */
+function getCachedData($key, $callback, $ttl = 3600)
+{
+    $redis = RedisManager::getInstance();
+    $cached = $redis->get($key);
+    
+    // phpredis returns false if key not found or connection failed
+    if ($cached !== false) {
+        return $cached;
+    }
+
+    $data = $callback();
+    // Only cache if data is not false (callback shouldn't return false on success)
+    if ($data !== false) {
+        $redis->set($key, $data, $ttl);
+    }
+    return $data;
+}
+
+/**
+ * Format number to Indonesian Rupiah
+ */
+function formatIDR($value)
+{
+    return "Rp " . number_format((float)$value, 0, ',', '.');
 }
 
 function logActivity($action, $tableName, $recordId, $oldData = null, $newData = null)

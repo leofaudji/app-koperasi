@@ -13,73 +13,76 @@ switch ($method) {
             $persenAnggota = $params['persen_anggota'] ?? 40;
             $paguSHU = $params['pagu_shu'] ?? $totalProfit;
 
-            // 1. Get total savings per member as "Jasa Modal" base
-            // For simplicity, we use current balance, but ideally use average balance
-            $modalData = $db->fetchAll(
-                "SELECT a.id as anggota_id, a.nama as anggota_nama, a.no_anggota,
-                        IFNULL(SUM(CASE WHEN kts.dk = 'D' THEN s.jumlah ELSE -s.jumlah END), 0) as total_simpanan
-                 FROM anggota a
-                 LEFT JOIN simpanan s ON a.id = s.anggota_id
-                 LEFT JOIN kode_transaksi_simpanan kts ON s.kode_transaksi_id = kts.id
-                 WHERE a.status = 'aktif'
-                 GROUP BY a.id"
-            );
+            $cacheKey = "shu_preview_{$tahun}_{$totalProfit}_{$persenModal}_{$persenAnggota}_{$paguSHU}";
+            $response = getCachedData($cacheKey, function() use ($db, $tahun, $totalProfit, $persenModal, $persenAnggota, $paguSHU) {
+                // 1. Get total savings per member as "Jasa Modal" base
+                $modalData = $db->fetchAll(
+                    "SELECT a.id as anggota_id, a.nama as anggota_nama, a.no_anggota,
+                            IFNULL(SUM(CASE WHEN kts.dk = 'D' THEN s.jumlah ELSE -s.jumlah END), 0) as total_simpanan
+                    FROM anggota a
+                    LEFT JOIN simpanan s ON a.id = s.anggota_id
+                    LEFT JOIN kode_transaksi_simpanan kts ON s.kode_transaksi_id = kts.id
+                    WHERE a.status = 'aktif'
+                    GROUP BY a.id"
+                );
 
-            // 2. Get total loan interest paid per member as "Jasa Anggota" base
-            $jasaData = $db->fetchAll(
-                "SELECT p.anggota_id, SUM(an.bunga) as total_jasa_paid
-                 FROM angsuran an
-                 JOIN pinjaman p ON an.pinjaman_id = p.id
-                 WHERE an.status IN ('lunas', 'terlambat') AND YEAR(an.tgl_bayar) = ?
-                 GROUP BY p.anggota_id",
-                [$tahun]
-            );
+                // 2. Get total loan interest paid per member as "Jasa Anggota" base
+                $jasaData = $db->fetchAll(
+                    "SELECT p.anggota_id, SUM(an.bunga) as total_jasa_paid
+                    FROM angsuran an
+                    JOIN pinjaman p ON an.pinjaman_id = p.id
+                    WHERE an.status IN ('lunas', 'terlambat') AND YEAR(an.tgl_bayar) = ?
+                    GROUP BY p.anggota_id",
+                    [$tahun]
+                );
 
-            // Map jasa data for easy lookup
-            $jasaLookup = [];
-            foreach ($jasaData as $jd) {
-                $jasaLookup[$jd['anggota_id']] = (float) $jd['total_jasa_paid'];
-            }
+                // Map jasa data for easy lookup
+                $jasaLookup = [];
+                foreach ($jasaData as $jd) {
+                    $jasaLookup[$jd['anggota_id']] = (float) $jd['total_jasa_paid'];
+                }
 
-            $totalSimpananAll = array_sum(array_column($modalData, 'total_simpanan'));
-            $totalJasaAll = array_sum(array_column($jasaData, 'total_jasa_paid'));
+                $totalSimpananAll = array_sum(array_column($modalData, 'total_simpanan'));
+                $totalJasaAll = array_sum(array_column($jasaData, 'total_jasa_paid'));
 
-            $paguJasaModal = $paguSHU * ($persenModal / 100);
-            $paguJasaAnggota = $paguSHU * ($persenAnggota / 100);
+                $paguJasaModal = $paguSHU * ($persenModal / 100);
+                $paguJasaAnggota = $paguSHU * ($persenAnggota / 100);
 
-            $results = [];
-            foreach ($modalData as $row) {
-                $anggotaId = $row['anggota_id'];
-                $simpanan = (float) $row['total_simpanan'];
-                $jasaPaid = $jasaLookup[$anggotaId] ?? 0;
+                $results = [];
+                foreach ($modalData as $row) {
+                    $anggotaId = $row['anggota_id'];
+                    $simpanan = (float) $row['total_simpanan'];
+                    $jasaPaid = $jasaLookup[$anggotaId] ?? 0;
 
-                $bagianModal = $totalSimpananAll > 0 ? ($simpanan / $totalSimpananAll) * $paguJasaModal : 0;
-                $bagianJasa = $totalJasaAll > 0 ? ($jasaPaid / $totalJasaAll) * $paguJasaAnggota : 0;
+                    $bagianModal = $totalSimpananAll > 0 ? ($simpanan / $totalSimpananAll) * $paguJasaModal : 0;
+                    $bagianJasa = $totalJasaAll > 0 ? ($jasaPaid / $totalJasaAll) * $paguJasaAnggota : 0;
 
-                $results[] = [
-                    'anggota_id' => $anggotaId,
-                    'no_anggota' => $row['no_anggota'],
-                    'anggota_nama' => $row['anggota_nama'],
-                    'simpanan_total' => $simpanan,
-                    'jasa_pinjaman_total' => $jasaPaid,
-                    'bagian_jasa_modal' => round($bagianModal, 2),
-                    'bagian_jasa_anggota' => round($bagianJasa, 2),
-                    'total_shu' => round($bagianModal + $bagianJasa, 2)
+                    $results[] = [
+                        'anggota_id' => $anggotaId,
+                        'no_anggota' => $row['no_anggota'],
+                        'anggota_nama' => $row['anggota_nama'],
+                        'simpanan_total' => $simpanan,
+                        'jasa_pinjaman_total' => $jasaPaid,
+                        'bagian_jasa_modal' => round($bagianModal, 2),
+                        'bagian_jasa_anggota' => round($bagianJasa, 2),
+                        'total_shu' => round($bagianModal + $bagianJasa, 2)
+                    ];
+                }
+
+                return [
+                    'tahun' => $tahun,
+                    'summary' => [
+                        'total_profit' => $totalProfit,
+                        'pagu_shu' => $paguSHU,
+                        'total_jasa_modal' => $paguJasaModal,
+                        'total_jasa_anggota' => $paguJasaAnggota,
+                        'basis_simpanan' => $totalSimpananAll,
+                        'basis_jasa' => $totalJasaAll
+                    ],
+                    'details' => $results
                 ];
-            }
-
-            successResponse([
-                'tahun' => $tahun,
-                'summary' => [
-                    'total_profit' => $totalProfit,
-                    'pagu_shu' => $paguSHU,
-                    'total_jasa_modal' => $paguJasaModal,
-                    'total_jasa_anggota' => $paguJasaAnggota,
-                    'basis_simpanan' => $totalSimpananAll,
-                    'basis_jasa' => $totalJasaAll
-                ],
-                'details' => $results
-            ]);
+            });
+            successResponse($response);
         }
         break;
 

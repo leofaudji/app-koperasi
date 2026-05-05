@@ -95,6 +95,10 @@ switch ($method) {
                 }
             }
             $db->commit();
+            
+            // Clear RBAC caches via central helper
+            clearCache(['rbac' => $id]);
+
             successResponse(null, 'Role berhasil diupdate');
         }
         catch (Exception $e) {
@@ -115,6 +119,10 @@ switch ($method) {
             errorResponse('Role masih digunakan oleh user');
 
         $db->execute("DELETE FROM roles WHERE id = ?", [$id]);
+        
+        // Clear RBAC caches via central helper
+        clearCache(['rbac' => $id]);
+
         successResponse(null, 'Role berhasil dihapus');
         break;
 

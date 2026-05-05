@@ -12,10 +12,16 @@
                     <p class="text-[10px] text-gray-500 dark:text-obsidian-500 font-medium uppercase tracking-wider">Produk & Saldo Dana</p>
                 </div>
             </div>
-            <button onclick="Portal.tab('home')"
-                class="w-9 h-9 rounded-full bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-obsidian-200 transition-colors">
-                <i class="bi bi-house-fill text-sm"></i>
-            </button>
+            <div class="flex items-center gap-2">
+                <button onclick="Portal.togglePrivacy()" 
+                    class="w-9 h-9 rounded-full bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-obsidian-200 transition-all active:scale-90">
+                    <i class="privacy-toggle-icon bi bi-eye-fill"></i>
+                </button>
+                <button onclick="Portal.tab('home')"
+                    class="w-9 h-9 rounded-full bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-obsidian-200 transition-colors">
+                    <i class="bi bi-house-fill text-sm"></i>
+                </button>
+            </div>
         </div>
     </div>
 
