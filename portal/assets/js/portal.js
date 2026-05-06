@@ -1,8 +1,18 @@
 const Portal = {
     member: null,
+    haptic(type = 'light') {
+        try {
+            if (navigator.vibrate) {
+                if (type === 'light') navigator.vibrate(10);
+                else if (type === 'medium') navigator.vibrate(20);
+                else if (type === 'success') navigator.vibrate([10, 30, 10]);
+            }
+        } catch (e) {}
+    },
     csrfToken: '',
     VERSION: window.PORTAL_VERSION || '1.3.3', // Dynamic version from index.php
     pwaName: '',
+    logoUrl: '',
     API: (() => {
         const path = window.location.pathname.replace(/\/[^\/]+\.[^\/]+$/, '/');
         const base = path.endsWith('/') ? path : path + '/';
@@ -17,6 +27,9 @@ const Portal = {
     currentTab: 'home',
     privacyMode: localStorage.getItem('kop_privacy_mode') === 'true',
     tabOrder: ['home', 'simpanan', 'pinjaman', 'rat', 'profil'],
+    idleTimer: null,
+    IDLE_TIMEOUT: 5 * 60 * 1000, // 5 Minutes
+    currentData: { type: null, header: {}, items: [] },
     getFirstName(name) {
         if (!name) return 'Anggota';
         let cleanName = name.trim();
@@ -43,22 +56,44 @@ const Portal = {
 
         try {
             const r = await fetch(this.API + '/' + ep, config);
+            const isLoginRequest = ['portal/login', 'portal/me'].includes(ep);
+            let json = null;
+            
+            try { json = await r.json(); } catch(e) {}
 
-            // Handle 401 (Unauthorized)
-            if (r.status === 401) {
-                const skipReload = ['portal/me', 'portal/login', 'portal/change-password'];
-                if (this.member && !skipReload.includes(ep)) {
-                    // Session expired while logged in
-                    this.member = null;
+            const wasLoggedIn = localStorage.getItem('kop_was_logged_in') === 'true';
+            
+            // Treat as unauthorized if 401 OR (success is false AND it's not a login attempt)
+            // We no longer treat empty arrays as expired because new members might have empty balances/loans.
+            const isUnauthorized = (r.status === 401) || (json && json.success === false && !isLoginRequest);
+
+            // Handle Unauthorized / Session Expired
+            if (isUnauthorized && wasLoggedIn) {
+                localStorage.removeItem('kop_was_logged_in');
+                this.member = null;
+                
+                if (window.Swal) {
+                    Swal.fire({
+                        title: 'Sesi Habis',
+                        text: 'Sesi Anda telah habis. Silakan masuk kembali.',
+                        icon: 'warning',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#2563eb',
+                        timer: 5000,
+                        timerProgressBar: true
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    alert('Sesi Anda telah habis. Silakan masuk kembali.');
                     location.reload();
-                    return null;
                 }
-                // For endpoints that handle their own 401, return the JSON normally
-                try { return await r.json(); } catch (e) { return { success: false }; }
+                return null;
             }
 
+            if (r.status === 401) return json;
             if (!r.ok) return null;
-            return await r.json();
+            return json;
         } catch (e) {
             if (!navigator.onLine) this.showOfflineToast();
             return null;
@@ -147,6 +182,9 @@ const Portal = {
         }
 
         // 2. System Initialization
+        this.initIdleMonitor();
+        this.initVisibilityCheck();
+
         if (splashText) {
             splashText.textContent = 'Initializing System...';
             splashText.classList.add('text-white/40', 'animate-pulse');
@@ -157,8 +195,10 @@ const Portal = {
         if (r?.data?.csrf_token) this.csrfToken = r.data.csrf_token;
 
         if (r?.success) {
+            localStorage.setItem('kop_was_logged_in', 'true');
             this.member = r.data.anggota;
             this.pwaName = r.data.pwa_name || '';
+            this.logoUrl = r.data.logo_url || '';
             // Prepare app while splash is still showing
             await this.showApp();
 
@@ -223,8 +263,10 @@ const Portal = {
         btn.disabled = false;
 
         if (r?.success) {
+            localStorage.setItem('kop_was_logged_in', 'true');
             this.member = r.data.anggota || r.data;
             this.pwaName = r.data.pwa_name || '';
+            this.logoUrl = r.data.logo_url || '';
             if (r.data.csrf_token) this.csrfToken = r.data.csrf_token;
             this.showSplash();
         }
@@ -279,10 +321,51 @@ const Portal = {
         });
 
         if (result.isConfirmed) {
+            localStorage.removeItem('kop_was_logged_in');
+            if (this.idleTimer) clearTimeout(this.idleTimer);
             await this.api('portal/logout', { method: 'POST' });
-            this.member = null;
             location.reload();
         }
+    },
+
+    initIdleMonitor() {
+        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+        const reset = () => this.resetIdleTimer();
+        events.forEach(name => document.addEventListener(name, reset, true));
+        this.resetIdleTimer();
+    },
+
+    resetIdleTimer() {
+        if (!this.member) return;
+        if (this.idleTimer) clearTimeout(this.idleTimer);
+        this.idleTimer = setTimeout(async () => {
+            if (this.member) {
+                // Perform real logout
+                localStorage.removeItem('kop_was_logged_in');
+                this.member = null;
+                
+                try {
+                    await this.api('portal/logout', { method: 'POST' });
+                } catch (e) {}
+
+                Swal.fire({
+                    title: 'Sesi Berakhir',
+                    text: 'Anda telah dikeluarkan otomatis karena tidak ada aktivitas selama 5 menit.',
+                    icon: 'info',
+                    confirmButtonText: 'Masuk Kembali',
+                    confirmButtonColor: '#2563eb'
+                }).then(() => location.reload());
+            }
+        }, this.IDLE_TIMEOUT);
+    },
+
+    initVisibilityCheck() {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && this.member) {
+                // Silently check session when coming back to tab
+                this.api('portal/me');
+            }
+        });
     },
 
     async loadRAT() {
@@ -763,6 +846,27 @@ const Portal = {
         if (activeTab === 'home') this.loadDashboardData();
     },
 
+    showSkeletonDashboard() {
+        const containers = ['h-simpanan-breakdown', 'h-notif-list', 'shu-total-estimasi'];
+        containers.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (id === 'shu-total-estimasi') el.innerHTML = '<div class="skeleton w-24 h-6"></div>';
+                else el.innerHTML = '<div class="space-y-3"><div class="skeleton w-full h-12"></div><div class="skeleton w-full h-12"></div></div>';
+            }
+        });
+    },
+
+    showSkeletonSimpanan() {
+        const el = document.getElementById('p-content-simpanan');
+        if (el) el.innerHTML = '<div class="space-y-3"><div class="skeleton w-full h-24"></div><div class="skeleton w-full h-24"></div><div class="skeleton w-full h-24"></div></div>';
+    },
+
+    showSkeletonPinjaman() {
+        const el = document.getElementById('p-content-pinjaman');
+        if (el) el.innerHTML = '<div class="space-y-4"><div class="skeleton w-full h-32"></div><div class="skeleton w-full h-32"></div></div>';
+    },
+
     async loadDashboardData() {
         // Initialize text values
         const displayName = this.member.nama;
@@ -1010,15 +1114,13 @@ const Portal = {
         }
     },
 
-    async tab(name) {
+    async tab(name, isManual = false) {
         // Return early if the clicked tab is already active to prevent redundant API calls
         const targetNav = document.getElementById('tab-' + name);
         if (targetNav && targetNav.classList.contains('active')) return;
 
-        // Add Haptic Feedback (Vibration)
-        if (navigator.vibrate) {
-            navigator.vibrate(15);
-        }
+        // Add Haptic Feedback (Vibration) - Only on manual tap
+        if (isManual) this.haptic('light');
 
         // Determine direction for animation
         const oldIndex = this.tabOrder.indexOf(this.currentTab);
@@ -1074,6 +1176,12 @@ const Portal = {
         if (activeContent) {
             activeContent.classList.remove('hidden');
             activeContent.classList.add(directionClass);
+            
+            // Clean up animation class after it finishes to restore 'fixed' positioning behavior
+            activeContent.onanimationend = () => {
+                activeContent.classList.remove(directionClass);
+                activeContent.onanimationend = null;
+            };
 
             if (activeContent.innerHTML.trim() === '') {
                 activeContent.innerHTML = '<div class="flex justify-center py-20"><i class="ri-loader-4-line text-4xl animate-spin text-blue-500"></i></div>';
@@ -1091,9 +1199,18 @@ const Portal = {
         }
 
         // Load appropriate data
-        if (name === 'home') await this.loadDashboardData();
-        else if (name === 'simpanan') await this.loadSimpanan(document.getElementById('p-content-simpanan'));
-        else if (name === 'pinjaman') await this.loadPinjaman(document.getElementById('p-content-pinjaman'));
+        if (name === 'home') {
+            this.showSkeletonDashboard();
+            await this.loadDashboardData();
+        }
+        else if (name === 'simpanan') {
+            this.showSkeletonSimpanan();
+            await this.loadSimpanan(document.getElementById('p-content-simpanan'));
+        }
+        else if (name === 'pinjaman') {
+            this.showSkeletonPinjaman();
+            await this.loadPinjaman(document.getElementById('p-content-pinjaman'));
+        }
         else if (name === 'pengajuan_pinjaman') this.loadPengajuanPinjaman();
         else if (name === 'rat') await this.loadRAT();
         else if (name === 'laporan') await this.loadLaporan();
@@ -1575,9 +1692,20 @@ const Portal = {
 
                     if (append) {
                         listEl.innerHTML += html;
+                        this.currentData.items = [...this.currentData.items, ...rm.data];
                     } else {
                         listEl.innerHTML = html;
                         listEl.scrollTop = 0;
+                        this.currentData = {
+                            type: 'simpanan',
+                            header: { 
+                                judul: namaJenis, 
+                                saldo: saldoJenis, 
+                                sub: 'Rekening Koran Simpanan',
+                                period: b !== 'all' ? `${selBulan.options[selBulan.selectedIndex].text} ${t}` : `Tahun ${t}`
+                            },
+                            items: rm.data
+                        };
                     }
                     
                     mPage++;
@@ -1735,8 +1863,16 @@ const Portal = {
                 this.openModal('pin-angsuran-modal');
 
                 const ra = await this.api('portal/angsuran?pinjaman_id=' + p.id);
+                if (!ra?.success) return;
+
+                this.currentData = {
+                    type: 'pinjaman',
+                    header: { judul: p.jenis_pinjaman, no: p.no_pinjaman, total: p.jumlah, bayar: parseFloat(p.jumlah) - parseFloat(p.sisa_pinjaman), sisa: p.sisa_pinjaman, sub: 'Rincian Angsuran Pinjaman' },
+                    items: ra.data
+                };
+
                 const listEl = document.getElementById('pin-ang-list');
-                if (!ra?.success || !ra.data.length) {
+                if (!ra.data.length) {
                     listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="bi bi-inbox text-2xl block mb-2"></i>Belum ada jadwal angsuran</div>';
                     return;
                 }
@@ -2430,6 +2566,152 @@ const Portal = {
             loading.classList.add('hidden');
             errorBox.classList.remove('hidden');
             console.error('Laporan error:', e);
+        }
+    },
+
+    async downloadStatement(type) {
+        if (!this.currentData || !this.currentData.items || this.currentData.items.length === 0) {
+            Swal.fire('Info', 'Tidak ada data untuk diunduh', 'info');
+            return;
+        }
+
+        Swal.fire({
+            title: 'Menyiapkan PDF...',
+            html: 'Mohon tunggu sebentar',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        const data = this.currentData;
+        const member = this.member;
+        const isSimpanan = data.type === 'simpanan';
+
+        // Create temporary container for PDF
+        const container = document.createElement('div');
+        container.style.padding = '40px';
+        container.style.color = '#1f2937';
+        container.style.fontFamily = "'Plus Jakarta Sans', sans-serif";
+
+        const itemsHtml = data.items.map((item, index) => {
+            if (isSimpanan) {
+                return `
+                <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px;">${this.fdate(item.tgl_transaksi)}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px;">
+                        <div style="font-weight: bold;">${item.nama_transaksi}</div>
+                        <div style="font-size: 9px; color: #6b7280;">${item.keterangan || '-'}</div>
+                    </td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-align: right; color: ${item.dk === 'D' ? '#059669' : '#dc2626'}">
+                        ${item.dk === 'D' ? '+' : '-'}${this.rp(item.jumlah)}
+                    </td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-align: right; font-weight: bold;">
+                        ${this.rp(item.saldo_sesudah)}
+                    </td>
+                </tr>`;
+            } else {
+                const isLunas = item.status === 'lunas';
+                return `
+                <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-align: center;">${item.angsuran_ke}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px;">${this.fdate(item.tgl_jatuh_tempo)}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-align: right;">${this.rp(item.pokok)}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-align: right;">${this.rp(item.bunga)}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-align: right; font-weight: bold;">${this.rp(item.total)}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; font-size: 10px; text-align: center;">
+                        <span style="padding: 2px 8px; border-radius: 99px; font-size: 8px; font-weight: bold; background-color: ${isLunas ? '#d1fae5' : '#fee2e2'}; color: ${isLunas ? '#065f46' : '#991b1b'};">
+                            ${item.status.toUpperCase()}
+                        </span>
+                    </td>
+                </tr>`;
+            }
+        }).join('');
+
+        const brandingHtml = this.logoUrl 
+            ? `<img src="${this.API.replace(/\/api\/?$/, '')}/${this.logoUrl}" style="width: 50px; height: 50px; object-contain; border-radius: 12px;">`
+            : `<div style="width: 50px; height: 50px; background: #4f46e5; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 24px;">${(this.pwaName || 'K').charAt(0).toUpperCase()}</div>`;
+
+        container.innerHTML = `
+            <div style="border-bottom: 3px double #e5e7eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    ${brandingHtml}
+                    <div>
+                        <h1 style="margin: 0; font-size: 20px; font-weight: 900; color: #111827; letter-spacing: -0.5px;">${(this.pwaName || 'KOPERASI KARYAWAN').toUpperCase()}</h1>
+                        <p style="margin: 0; font-size: 10px; color: #6b7280; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Member Financial Statement</p>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <p style="margin: 0; font-size: 10px; color: #9ca3af; font-weight: bold;">${data.header.sub}</p>
+                    <p style="margin: 0; font-size: 14px; font-weight: 900; color: #111827;">${data.header.judul}</p>
+                    ${data.header.period ? `<p style="margin: 0; font-size: 9px; color: #6b7280; font-weight: bold;">Periode: ${data.header.period}</p>` : ''}
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px;">
+                <div style="background: #f8fafc; padding: 20px; border-radius: 20px; border: 1px solid #f1f5f9;">
+                    <p style="margin: 0 0 10px 0; font-size: 10px; color: #94a3b8; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Informasi Anggota</p>
+                    <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
+                        <tr><td style="padding: 4px 0; color: #64748b;">No. Anggota</td><td style="padding: 4px 0; font-weight: 800; text-align: right;">${member.no_anggota}</td></tr>
+                        <tr><td style="padding: 4px 0; color: #64748b;">Nama Lengkap</td><td style="padding: 4px 0; font-weight: 800; text-align: right;">${member.nama}</td></tr>
+                        <tr><td style="padding: 4px 0; color: #64748b;">No. Rekening</td><td style="padding: 4px 0; font-weight: 800; text-align: right;">${data.header.no || '-'}</td></tr>
+                    </table>
+                </div>
+                <div style="background: #4f46e5; color: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);">
+                    <p style="margin: 0 0 10px 0; font-size: 10px; color: rgba(255,255,255,0.7); font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+                        ${isSimpanan ? 'Saldo Saat Ini' : 'Sisa Kewajiban'}
+                    </p>
+                    <h2 style="margin: 0; font-size: 24px; font-weight: 900;">${this.rp(isSimpanan ? data.header.saldo : data.header.sisa)}</h2>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; font-size: 9px; font-weight: bold; opacity: 0.8;">
+                        <span>Dicetak Pada</span>
+                        <span>${new Date().toLocaleString('id-ID')}</span>
+                    </div>
+                </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <thead>
+                    <tr style="background-color: #f1f5f9;">
+                        ${isSimpanan ? `
+                            <th style="padding: 12px 10px; text-align: left; font-size: 10px; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Tanggal</th>
+                            <th style="padding: 12px 10px; text-align: left; font-size: 10px; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Keterangan</th>
+                            <th style="padding: 12px 10px; text-align: right; font-size: 10px; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Mutasi</th>
+                            <th style="padding: 12px 10px; text-align: right; font-size: 10px; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Saldo</th>
+                        ` : `
+                            <th style="padding: 12px 10px; text-align: center; font-size: 10px; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Ke</th>
+                            <th style="padding: 12px 10px; text-align: left; font-size: 10px; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Jatuh Tempo</th>
+                            <th style="padding: 12px 10px; text-align: right; font-size: 10px; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Pokok</th>
+                            <th style="padding: 12px 10px; text-align: right; font-size: 10px; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Bunga</th>
+                            <th style="padding: 12px 10px; text-align: right; font-size: 10px; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Total</th>
+                            <th style="padding: 12px 10px; text-align: center; font-size: 10px; color: #475569; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Status</th>
+                        `}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+            </table>
+
+            <div style="margin-top: 50px; text-align: center; border-top: 1px solid #f1f5f9; pt-10;">
+                <p style="font-size: 9px; color: #94a3b8; font-weight: 500;">Dokumen ini dihasilkan secara otomatis oleh Portal Anggota Digital Koperasi.<br>Dicetak oleh ${member.nama} pada ${new Date().toLocaleString('id-ID')}.</p>
+            </div>
+        `;
+
+        const opt = {
+            margin: 0,
+            filename: `${data.header.sub}_${member.no_anggota}_${Date.now()}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        try {
+            const worker = html2pdf().set(opt).from(container);
+            const blobUrl = await worker.output('bloburl');
+            window.open(blobUrl, '_blank');
+            
+            Swal.close();
+        } catch (error) {
+            console.error('PDF Generation failed:', error);
+            Swal.fire('Error', 'Gagal membuat PDF. Silakan coba lagi.', 'error');
         }
     },
 

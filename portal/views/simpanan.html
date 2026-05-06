@@ -80,10 +80,16 @@
                 <p id="simp-mut-judul" class="font-black text-gray-900 dark:text-obsidian-100 text-lg tracking-tight"></p>
                 <p id="simp-mut-saldo" class="text-sm text-emerald-600 dark:text-emerald-400 font-bold mt-0.5 tracking-tight"></p>
             </div>
-            <button onclick="Portal.closeModal('simp-mutasi-modal')"
-                class="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 dark:text-obsidian-500 hover:bg-gray-100 dark:hover:bg-obsidian-700 transition-all active:scale-90">
-                <i class="bi bi-x-lg text-sm"></i>
-            </button>
+            <div class="flex items-center gap-2">
+                <button onclick="Portal.downloadStatement('simpanan')"
+                    class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all active:scale-90">
+                    <i class="bi bi-file-earmark-pdf text-sm"></i>
+                </button>
+                <button onclick="Portal.closeModal('simp-mutasi-modal')"
+                    class="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 dark:text-obsidian-500 hover:bg-gray-100 dark:hover:bg-obsidian-700 transition-all active:scale-90">
+                    <i class="bi bi-x-lg text-sm"></i>
+                </button>
+            </div>
         </div>
 
         <!-- Filter Bar -->

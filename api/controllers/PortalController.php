@@ -6,12 +6,13 @@ $db = Database::getInstance();
 // Portal auth check
 function portalAuthCheck()
 {
-    if (!isset($_SESSION['portal_anggota_id'])) {
+    $id = $_SESSION['portal_anggota_id'] ?? null;
+    if (!$id) {
         http_response_code(401);
-        echo json_encode(['success' => false, 'message' => 'Silakan login terlebih dahulu']);
+        echo json_encode(['success' => false, 'message' => 'Sesi habis, silakan login kembali']);
         exit;
     }
-    return $_SESSION['portal_anggota_id'];
+    return $id;
 }
 
 switch ($id) {
@@ -64,6 +65,9 @@ switch ($id) {
 
         logPortalActivity('Login ke Portal', $user['anggota_id']);
 
+        $pwaName = $db->fetch("SELECT setting_value FROM app_settings WHERE setting_key = 'pwa_name'")['setting_value'] ?? 'Portal Anggota Koperasi';
+        $logoUrl = $db->fetch("SELECT setting_value FROM app_settings WHERE setting_key = 'logo_url'")['setting_value'] ?? '';
+
         $token = getCsrfToken();
         successResponse([
             'anggota' => [
@@ -71,6 +75,8 @@ switch ($id) {
                 'nama' => $user['anggota_nama'],
                 'no_anggota' => $user['no_anggota']
             ],
+            'pwa_name' => $pwaName,
+            'logo_url' => $logoUrl,
             'csrf_token' => $token
         ], 'Login berhasil');
         break;
@@ -106,13 +112,21 @@ switch ($id) {
         if (!$anggota)
             errorResponse('Anggota tidak ditemukan');
 
-        // Fetch PWA Name from settings
-        $pwaName = $db->fetch("SELECT setting_value FROM app_settings WHERE setting_key = 'pwa_name'")['setting_value'] ?? 'Portal Anggota Koperasi';
+        // Fetch PWA branding from settings
+        $branding = $db->fetchAll("SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('pwa_name', 'logo_url')");
+        $settings = [];
+        foreach ($branding as $b) {
+            $settings[$b['setting_key']] = $b['setting_value'];
+        }
+        
+        $pwaName = $settings['pwa_name'] ?? 'Portal Anggota Koperasi';
+        $logoUrl = $settings['logo_url'] ?? '';
 
         $token = getCsrfToken();
         successResponse([
             'anggota' => $anggota,
             'pwa_name' => $pwaName,
+            'logo_url' => $logoUrl,
             'csrf_token' => $token
         ]);
         break;

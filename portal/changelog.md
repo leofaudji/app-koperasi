@@ -4,6 +4,25 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [1.6.2] - 2026-05-06
+### Added
+- **Dynamic Branding**:
+    - **Header Rekening Koran**: Header cetak mutasi dan laporan kini menggunakan nama aplikasi yang dikonfigurasi di menu pengaturan.
+    - **Logo & Identity**: Integrasi logo instansi/koperasi pada header PDF secara otomatis untuk identitas laporan yang lebih profesional.
+
+## [1.6.1] - 2026-05-05
+### Added
+- **Native Experience Engine**:
+    - **Skeleton Shimmer**: Pemuatan data visual yang lebih halus menggantikan loading spinner konvensional.
+    - **Haptic Feedback**: Getaran taktil pada navigasi untuk respon aplikasi yang lebih hidup.
+    - **Native Interactions**: Proteksi seleksi teks dan optimasi safe-area untuk perangkat layar penuh (Notch).
+- **Hardened Security**: Sesi logout otomatis di sisi server (Idle Monitor) dan validasi visibilitas real-time.
+
+### Fixed
+- **Header Lock**: Memastikan header (Nama & No Anggota) tetap terkunci di atas (fixed) dan tidak terpengaruh oleh tarikan scroll atau transisi tab.
+- **Data PDF Precision**: Sinkronisasi kolom Pokok & Bunga pada rincian pinjaman serta perbaikan filter periode cetak.
+
+
 ## [1.4.4] - 2026-05-04
 ### Improvements
 - **UI Fix:** Memperbaiki tampilan ikon Privacy Toggle yang sebelumnya tidak muncul karena kesalahan sintaksis pada template HTML.

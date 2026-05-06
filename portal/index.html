@@ -8,7 +8,9 @@
     <meta name="theme-color" content="#4F46E5">
     <meta name="description" content="Portal Anggota Koperasi Simpan Pinjam">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#08afa4">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Portal Anggota">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="icon" type="image/png" href="../assets/images/favicon.png">
@@ -48,6 +50,7 @@
     </script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
@@ -56,9 +59,21 @@
             background-color: #f1f5f9;
             font-family: 'Plus Jakarta Sans', sans-serif;
             -webkit-tap-highlight-color: transparent;
+            /* Native App Feel: Disable selection and callouts */
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            /* Prevent bounce scrolling on some browsers */
+            overscroll-behavior-y: contain;
             /* Hide scrollbar by default for a clean app-like feel */
             scrollbar-width: none;
             -ms-overflow-style: none;
+        }
+
+        /* Re-enable selection for inputs */
+        input, textarea {
+            user-select: text !important;
+            -webkit-user-select: text !important;
         }
 
         body::-webkit-scrollbar,
@@ -79,6 +94,9 @@
             position: relative;
             box-shadow: 0 0 40px rgba(0, 0, 0, 0.05);
             overflow-x: hidden;
+            /* Safe area for Notch/Home Indicator */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
             /* Hide scrollbar for internal scrolling if any */
             scrollbar-width: none;
             -ms-overflow-style: none;
@@ -369,6 +387,27 @@
             100% {
                 opacity: 1;
                 transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Skeleton Shimmer Effect */
+        .skeleton {
+            background: #e2e8f0;
+            background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+            border-radius: 5px;
+            background-size: 200% 100%;
+            animation: 1.5s shine linear infinite;
+        }
+
+        .dark .skeleton {
+            background: #1e293b;
+            background: linear-gradient(110deg, #1e293b 8%, #334155 18%, #1e293b 33%);
+            background-size: 200% 100%;
+        }
+
+        @keyframes shine {
+            to {
+                background-position-x: -200%;
             }
         }
 
@@ -767,13 +806,12 @@
             class="hidden min-h-screen bg-[#f8fafc] dark:bg-obsidian-950 pb-24 relative transition-colors duration-300">
 
             <!-- Global Header Overlay Elements -->
-            <div
-                class="fixed top-6 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 z-[60] flex justify-end pointer-events-none">
+            <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 py-6 z-[60] flex justify-end pointer-events-none">
                 <button onclick="Portal.toggleNotifications()" id="notif-bell"
-                    class="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-gray-200/50 border border-gray-100 relative group transition-all active:scale-95 pointer-events-auto">
-                    <i class="bi bi-bell text-gray-700 text-lg group-hover:text-blue-600"></i>
+                    class="w-10 h-10 bg-white/90 dark:bg-obsidian-900/90 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-obsidian-800 relative group transition-all active:scale-95 pointer-events-auto">
+                    <i class="bi bi-bell text-gray-700 dark:text-obsidian-200 text-lg group-hover:text-blue-600"></i>
                     <span id="notif-badge"
-                        class="hidden absolute -top-1 -right-1 w-4 h-4 bg-rose-500 border-2 border-white rounded-full text-[9px] text-white flex items-center justify-center font-bold"></span>
+                        class="hidden absolute -top-1 -right-1 w-4 h-4 bg-rose-500 border-2 border-white dark:border-obsidian-900 rounded-full text-[9px] text-white flex items-center justify-center font-bold"></span>
                 </button>
             </div>
 
@@ -842,25 +880,25 @@
             <!-- Bottom Nav -->
             <div
                 class="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-obsidian-950/95 backdrop-blur-md border-t border-gray-100 dark:border-obsidian-800 px-6 py-3 flex justify-between items-center max-w-[480px] mx-auto z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] transition-colors duration-300">
-                <button onclick="Portal.tab('home')" id="tab-home" class="nav-item flex flex-col items-center gap-1">
+                <button onclick="Portal.tab('home', true)" id="tab-home" class="nav-item flex flex-col items-center gap-1">
                     <i class="bi bi-grid text-xl mb-0.5"></i>
                     <span class="text-[10px] font-medium">Home</span>
                 </button>
-                <button onclick="Portal.tab('simpanan')" id="tab-simpanan"
+                <button onclick="Portal.tab('simpanan', true)" id="tab-simpanan"
                     class="nav-item flex flex-col items-center gap-1">
                     <i class="bi bi-piggy-bank text-xl mb-0.5"></i>
                     <span class="text-[10px] font-medium">Simpanan</span>
                 </button>
-                <button onclick="Portal.tab('pinjaman')" id="tab-pinjaman"
+                <button onclick="Portal.tab('pinjaman', true)" id="tab-pinjaman"
                     class="nav-item flex flex-col items-center gap-1">
                     <i class="bi bi-credit-card-2-front text-xl mb-0.5"></i>
                     <span class="text-[10px] font-medium">Pinjaman</span>
                 </button>
-                <button onclick="Portal.tab('rat')" id="tab-rat" class="nav-item flex flex-col items-center gap-1">
+                <button onclick="Portal.tab('rat', true)" id="tab-rat" class="nav-item flex flex-col items-center gap-1">
                     <i class="bi bi-megaphone text-xl mb-0.5"></i>
                     <span class="text-[10px] font-medium">RAT</span>
                 </button>
-                <button onclick="Portal.tab('profil')" id="tab-profil"
+                <button onclick="Portal.tab('profil', true)" id="tab-profil"
                     class="nav-item flex flex-col items-center gap-1">
                     <i class="bi bi-person text-xl mb-0.5"></i>
                     <span class="text-[10px] font-medium">Profil</span>
