@@ -6,6 +6,21 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v1.8.0] - 2026-05-07
+
+### ✨ Ditambahkan
+- **Analitik Produk Laporan Pinjaman**: Ringkasan total saldo per jenis produk di bagian atas laporan untuk akses cepat.
+- **Filter Produk Interaktif**: Memungkinkan pemfilteran tabel laporan hanya dengan mengklik kartu analitik produk.
+- **Peningkatan Laporan Baki Debet**: Pengelompokan data berdasarkan produk dan penambahan kartu analitik total baki debet per kategori.
+- **Sinkronisasi Data Agunan**: Sinkronisasi tipe agunan antara modul manajemen dan laporan daftar agunan.
+- **Kolom No. Rekening**: Penambahan informasi nomor pinjaman (rekening) pada Laporan Saldo Pinjaman yang bersifat context-aware terhadap filter produk.
+
+### 🔧 Diubah
+- **Optimasi SQL Laporan**: Sinkronisasi kriteria filter antara analitik dan tabel untuk memastikan total saldo selalu matching.
+- **Perbaikan Bug Cache**: Pembaruan mekanisme cache-busting (v1.8.0) untuk mengatasi error "TypeError" akibat script lama yang tersimpan di browser.
+
+---
+
 ## [v1.7.0] - 2026-05-03
 
 ### ✨ Ditambahkan

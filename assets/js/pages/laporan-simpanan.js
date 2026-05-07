@@ -4,6 +4,9 @@ const LaporanSimpananPage = {
     footer: null,
     sortKey: 'anggota_nama',
     sortDir: 1,
+    selectedProduk: null, // key like 'pokok', 'wajib', etc.
+    selectedProdukLabel: null,
+    searchQuery: '',
 
     async render(container) {
         App.setTitle('Laporan Saldo Simpanan', 'Rekapitulasi saldo simpanan per anggota');
@@ -89,15 +92,34 @@ const LaporanSimpananPage = {
 
         this.data = res.data;
         this.updateSummary();
-        this.renderTable(this.data);
+        this.applyFilters();
     },
 
     filter(query) {
-        const q = query.toLowerCase();
-        const filtered = this.data.filter(r => 
-            (r.anggota_nama || '').toLowerCase().includes(q) || 
-            (r.no_anggota || '').toLowerCase().includes(q)
-        );
+        this.searchQuery = query || '';
+        this.applyFilters();
+    },
+
+    filterByProduk(key, label = null) {
+        if (this.selectedProduk === key) {
+            this.selectedProduk = null;
+            this.selectedProdukLabel = null;
+        } else {
+            this.selectedProduk = key;
+            this.selectedProdukLabel = label;
+        }
+        this.updateSummary();
+        this.applyFilters();
+    },
+
+    applyFilters() {
+        const q = this.searchQuery.toLowerCase();
+        const filtered = this.data.filter(r => {
+            const matchSearch = (r.anggota_nama || '').toLowerCase().includes(q) || 
+                                (r.no_anggota || '').toLowerCase().includes(q);
+            const matchProduk = !this.selectedProduk || parseFloat(r[this.selectedProduk] || 0) > 0;
+            return matchSearch && matchProduk;
+        });
         this.renderTable(filtered);
     },
 
@@ -108,26 +130,32 @@ const LaporanSimpananPage = {
         const totalPartisipatif = this.data.reduce((a, b) => a + parseFloat(b.partisipatif || 0), 0);
         const totalSemua = this.data.reduce((a, b) => a + parseFloat(b.total_saldo || 0), 0);
 
-        this.footer = {
-            anggota_nama: 'TOTAL KESELURUHAN',
-            pokok: App.formatRupiah(totalPokok),
-            wajib: App.formatRupiah(totalWajib),
-            sukarela: App.formatRupiah(totalSukarela),
-            partisipatif: App.formatRupiah(totalPartisipatif),
-            total_saldo: App.formatRupiah(totalSemua)
-        };
+        const summaryData = [
+            { id: 'sum-pokok', key: 'pokok', label: 'Simp. Pokok', total: totalPokok },
+            { id: 'sum-wajib', key: 'wajib', label: 'Simp. Wajib', total: totalWajib },
+            { id: 'sum-sukarela', key: 'sukarela', label: 'Simp. Sukarela', total: totalSukarela },
+            { id: 'sum-partisipatif', key: 'partisipatif', label: 'Simp. Partisipatif', total: totalPartisipatif }
+        ];
 
-        const elP = document.getElementById('sum-pokok');
-        const elW = document.getElementById('sum-wajib');
-        const elS = document.getElementById('sum-sukarela');
-        const elPa = document.getElementById('sum-partisipatif');
-        const elG = document.getElementById('sum-grand');
+        let summaryHtml = '';
+        summaryData.forEach(item => {
+            const isSelected = this.selectedProduk === item.key;
+            summaryHtml += `
+            <div onclick="LaporanSimpananPage.filterByProduk('${item.key}', '${item.label}')" class="cursor-pointer transition-all ${isSelected ? 'bg-primary-50 border-primary-500 ring-2 ring-primary-500/10' : 'bg-white border-gray-100 hover:border-primary-200'} p-4 rounded-2xl border shadow-sm active:scale-95">
+                <p class="text-[10px] font-bold ${isSelected ? 'text-primary-600' : 'text-gray-400'} uppercase tracking-wider mb-1">${item.label}</p>
+                <h4 class="text-sm font-bold ${isSelected ? 'text-primary-900' : 'text-gray-800'}">${App.formatRupiah(item.total)}</h4>
+            </div>`;
+        });
 
-        if (elP) elP.textContent = this.footer.pokok;
-        if (elW) elW.textContent = this.footer.wajib;
-        if (elS) elS.textContent = this.footer.sukarela;
-        if (elPa) elPa.textContent = this.footer.partisipatif;
-        if (elG) elG.textContent = this.footer.total_saldo;
+        // Add Grand Total
+        const isGrandSelected = !this.selectedProduk;
+        summaryHtml += `
+        <div onclick="LaporanSimpananPage.filterByProduk(null)" class="cursor-pointer transition-all ${isGrandSelected ? 'bg-primary-600 border-primary-700 shadow-lg shadow-primary-500/20 ring-4 ring-primary-500/30' : 'bg-gray-100 border-gray-200 opacity-50'} p-4 rounded-2xl border col-span-2 md:col-span-1 active:scale-95">
+            <p class="text-[10px] font-bold ${isGrandSelected ? 'text-primary-100' : 'text-gray-500'} uppercase tracking-wider mb-1">Grand Total</p>
+            <h4 class="text-lg font-black ${isGrandSelected ? 'text-white' : 'text-gray-700'}">${App.formatRupiah(totalSemua)}</h4>
+        </div>`;
+
+        document.getElementById('ls-summary').innerHTML = summaryHtml;
     },
 
     sortBy(key) {
@@ -142,7 +170,6 @@ const LaporanSimpananPage = {
             let v1 = a[key];
             let v2 = b[key];
             
-            // Check if it's a numeric field
             const numericFields = ['pokok', 'wajib', 'sukarela', 'partisipatif', 'total_saldo'];
             if (numericFields.includes(key)) {
                 v1 = parseFloat(v1 || 0);
@@ -157,11 +184,27 @@ const LaporanSimpananPage = {
             return 0;
         });
 
-        this.renderTable(this.data);
+        this.applyFilters();
     },
 
     renderTable(data = null) {
-        if (!data) data = this.data;
+        const renderData = data || this.data;
+        
+        const totalPokok = renderData.reduce((a, b) => a + parseFloat(b.pokok || 0), 0);
+        const totalWajib = renderData.reduce((a, b) => a + parseFloat(b.wajib || 0), 0);
+        const totalSukarela = renderData.reduce((a, b) => a + parseFloat(b.sukarela || 0), 0);
+        const totalPartisipatif = renderData.reduce((a, b) => a + parseFloat(b.partisipatif || 0), 0);
+        const totalSemua = renderData.reduce((a, b) => a + parseFloat(b.total_saldo || 0), 0);
+
+        this.footer = {
+            anggota_nama: this.selectedProdukLabel ? `TOTAL ${this.selectedProdukLabel.toUpperCase()}` : 'TOTAL KESELURUHAN',
+            pokok: App.formatRupiah(totalPokok),
+            wajib: App.formatRupiah(totalWajib),
+            sukarela: App.formatRupiah(totalSukarela),
+            partisipatif: App.formatRupiah(totalPartisipatif),
+            total_saldo: App.formatRupiah(totalSemua)
+        };
+
         const getSortIcon = (key) => {
             if (this.sortKey !== key) return '<i class="ri-arrow-up-down-line ml-1 opacity-20"></i>';
             return this.sortDir === 1 ? '<i class="ri-arrow-up-s-line ml-1 text-primary-500"></i>' : '<i class="ri-arrow-down-s-line ml-1 text-primary-500"></i>';
@@ -193,7 +236,7 @@ const LaporanSimpananPage = {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
-                    ${data.map((r, i) => `
+                    ${renderData.map((r, i) => `
                         <tr class="hover:bg-gray-50/50 transition-colors">
                             <td class="px-4 py-3 text-gray-400">${i + 1}</td>
                             <td class="px-4 py-3">
@@ -207,9 +250,9 @@ const LaporanSimpananPage = {
                             <td class="px-4 py-3 text-right font-bold text-primary-700">${App.formatRupiah(r.total_saldo)}</td>
                         </tr>
                     `).join('')}
-                    ${data.length === 0 ? '<tr><td colspan="7" class="text-center py-10 text-gray-400">Tidak ada data simpanan</td></tr>' : ''}
+                    ${renderData.length === 0 ? '<tr><td colspan="7" class="text-center py-10 text-gray-400">Tidak ada data simpanan</td></tr>' : ''}
                 </tbody>
-                ${data.length > 0 ? `
+                ${renderData.length > 0 ? `
                 <tfoot class="bg-gray-50/50 font-bold border-t border-gray-100">
                     <tr>
                         <td colspan="2" class="px-4 py-3 text-right text-gray-500 uppercase tracking-wider">${this.footer.anggota_nama}</td>
@@ -239,8 +282,10 @@ const LaporanSimpananPage = {
     },
 
     export(type) {
-        if (!this.data.length) return;
-        const formattedData = this.data.map((r, i) => ({
+        const exportData = this.searchQuery || this.selectedProduk ? this.applyFiltersAndGet() : this.data;
+        if (!exportData.length) return;
+        
+        const formattedData = exportData.map((r, i) => ({
             ...r,
             no: i + 1,
             pokok: App.formatRupiah(r.pokok),
@@ -249,9 +294,20 @@ const LaporanSimpananPage = {
             partisipatif: App.formatRupiah(r.partisipatif),
             total_saldo: App.formatRupiah(r.total_saldo)
         }));
+        
         App.export(type, 'Laporan Saldo Simpanan', this.getColumns(), formattedData, {
             filename: 'laporan_simpanan',
             footer: this.footer
+        });
+    },
+
+    applyFiltersAndGet() {
+        const q = this.searchQuery.toLowerCase();
+        return this.data.filter(r => {
+            const matchSearch = (r.anggota_nama || '').toLowerCase().includes(q) || 
+                                (r.no_anggota || '').toLowerCase().includes(q);
+            const matchProduk = !this.selectedProduk || parseFloat(r[this.selectedProduk] || 0) > 0;
+            return matchSearch && matchProduk;
         });
     }
 };

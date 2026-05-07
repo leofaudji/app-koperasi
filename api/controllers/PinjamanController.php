@@ -101,44 +101,123 @@ switch ($method) {
         if ($id === 'laporan-saldo') {
             checkPermission('laporan.pinjaman_saldo');
             $redis = RedisManager::getInstance();
-            $cacheKey = 'rep_pinjaman_saldo';
+            $cacheKey = 'rep_pinjaman_saldo_v6';
             $cached = $redis->get($cacheKey);
             if ($cached) {
                 successResponse($cached);
             }
 
-            $data = $db->fetchAll(
+            $rows = $db->fetchAll(
                 "SELECT a.no_anggota, a.nama as anggota_nama, 
-                        SUM(p.jumlah) as total_pinjaman, 
-                        SUM(p.jumlah - p.sisa_pinjaman) as total_terbayar, 
-                        SUM(p.sisa_pinjaman) as sisa_pinjaman 
+                        p.no_pinjaman, p.jumlah, p.sisa_pinjaman, jp.nama as produk_nama
                  FROM anggota a 
                  JOIN pinjaman p ON a.id = p.anggota_id 
-                 WHERE p.status IN ('cair','lunas') 
-                 GROUP BY a.id, a.no_anggota, a.nama 
+                 JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+                 WHERE p.status = 'cair'
                  ORDER BY a.nama"
             );
-            $redis->set($cacheKey, $data, 3600);
-            successResponse($data);
+
+            // Group by member and calculate breakdown
+            $dataMap = [];
+            foreach ($rows as $row) {
+                $key = $row['no_anggota'];
+                if (!isset($dataMap[$key])) {
+                    $dataMap[$key] = [
+                        'no_anggota' => $row['no_anggota'],
+                        'anggota_nama' => $row['anggota_nama'],
+                        'no_pinjaman_all' => [],
+                        'total_pinjaman' => 0,
+                        'total_terbayar' => 0,
+                        'sisa_pinjaman' => 0,
+                        'produk_list' => [],
+                        'breakdown' => []
+                    ];
+                }
+
+                $plafon = (float) $row['jumlah'];
+                $sisa = (float) $row['sisa_pinjaman'];
+                $terbayar = $plafon - $sisa;
+                $produk = $row['produk_nama'];
+                $noPinjaman = $row['no_pinjaman'];
+
+                $dataMap[$key]['total_pinjaman'] += $plafon;
+                $dataMap[$key]['total_terbayar'] += $terbayar;
+                $dataMap[$key]['sisa_pinjaman'] += $sisa;
+                $dataMap[$key]['no_pinjaman_all'][] = $noPinjaman;
+
+                if (!in_array($produk, $dataMap[$key]['produk_list'])) {
+                    $dataMap[$key]['produk_list'][] = $produk;
+                }
+
+                if (!isset($dataMap[$key]['breakdown'][$produk])) {
+                    $dataMap[$key]['breakdown'][$produk] = ['plafon' => 0, 'terbayar' => 0, 'sisa' => 0, 'nos' => []];
+                }
+                $dataMap[$key]['breakdown'][$produk]['plafon'] += $plafon;
+                $dataMap[$key]['breakdown'][$produk]['terbayar'] += $terbayar;
+                $dataMap[$key]['breakdown'][$produk]['sisa'] += $sisa;
+                $dataMap[$key]['breakdown'][$produk]['nos'][] = $noPinjaman;
+            }
+
+            $data = array_values($dataMap);
+            // Re-stringify for frontend compatibility
+            foreach ($data as &$d) {
+                $d['produk_list_str'] = implode(', ', $d['produk_list']);
+                $d['no_pinjaman_str'] = implode(', ', $d['no_pinjaman_all']);
+            }
+
+            $summary = $db->fetchAll(
+                "SELECT jp.nama as produk, SUM(p.sisa_pinjaman) as total_saldo
+                 FROM pinjaman p
+                 JOIN anggota a ON p.anggota_id = a.id
+                 JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+                 WHERE p.status = 'cair'
+                 GROUP BY jp.id, jp.nama
+                 ORDER BY jp.nama"
+            );
+
+            $response = [
+                'list' => $data,
+                'summary' => $summary
+            ];
+
+            $redis->set($cacheKey, $response, 3600);
+            successResponse($response);
         }
         if ($id === 'laporan-baki-debet') {
             checkPermission('laporan.pinjaman_baki_debet');
             $redis = RedisManager::getInstance();
-            $cacheKey = 'rep_pinjaman_bakidebet';
+            $cacheKey = 'rep_pinjaman_bakidebet_v2';
             $cached = $redis->get($cacheKey);
             if ($cached) {
                 successResponse($cached);
             }
 
             $data = $db->fetchAll(
-                "SELECT p.no_pinjaman, a.nama as anggota_nama, p.tgl_pencairan, p.jumlah, p.tenor, p.sisa_pinjaman 
+                "SELECT p.no_pinjaman, a.nama as anggota_nama, a.no_anggota, p.tgl_pencairan, p.jumlah, p.tenor, p.sisa_pinjaman, jp.nama as produk
                  FROM pinjaman p 
                  JOIN anggota a ON p.anggota_id = a.id 
+                 JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
                  WHERE p.status = 'cair'
                  ORDER BY p.tgl_pencairan DESC"
             );
-            $redis->set($cacheKey, $data, 3600);
-            successResponse($data);
+
+            $summary = $db->fetchAll(
+                "SELECT jp.nama as produk, SUM(p.sisa_pinjaman) as total_saldo
+                 FROM pinjaman p
+                 JOIN anggota a ON p.anggota_id = a.id
+                 JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+                 WHERE p.status = 'cair'
+                 GROUP BY jp.id, jp.nama
+                 ORDER BY jp.nama"
+            );
+
+            $response = [
+                'list' => $data,
+                'summary' => $summary
+            ];
+
+            $redis->set($cacheKey, $response, 3600);
+            successResponse($response);
         }
         if ($id === 'laporan-jasa-anggota') {
             checkPermission('laporan.pinjaman_saldo');
@@ -179,23 +258,36 @@ switch ($method) {
 
         if ($id === 'laporan-agunan') {
             checkPermission('pinjaman.view');
-            $data = $db->fetchAll(
-                "SELECT p.id, p.no_pinjaman, p.jumlah, p.status, p.agunan, 
+            $rows = $db->fetchAll(
+                "SELECT ag.tipe_agunan, ag.deskripsi, ag.no_dokumen, ag.pemilik, ag.nilai_taksasi, ag.status as agunan_status,
+                        p.no_pinjaman, p.jumlah, p.status as pinjaman_status,
                         a.nama as anggota_nama, a.no_anggota, jp.nama as jenis_pinjaman
-                 FROM pinjaman p
+                 FROM agunan ag
+                 JOIN pinjaman p ON ag.pinjaman_id = p.id
                  JOIN anggota a ON p.anggota_id = a.id
                  JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
-                 WHERE p.agunan IS NOT NULL AND p.agunan != ''
-                 ORDER BY p.created_at DESC"
+                 ORDER BY ag.created_at DESC"
             );
 
-            foreach ($data as &$row) {
-                if (!empty($row['agunan'])) {
-                    $decoded = json_decode($row['agunan'], true);
-                    if (json_last_error() === JSON_ERROR_NONE) {
-                        $row['agunan'] = $decoded;
-                    }
-                }
+            $data = [];
+            foreach ($rows as $row) {
+                $data[] = [
+                    'no_pinjaman' => $row['no_pinjaman'],
+                    'jumlah' => $row['jumlah'],
+                    'status' => $row['agunan_status'],
+                    'anggota_nama' => $row['anggota_nama'],
+                    'no_anggota' => $row['no_anggota'],
+                    'jenis_pinjaman' => $row['jenis_pinjaman'],
+                    'agunan' => [
+                        'tipe' => $row['tipe_agunan'],
+                        'data' => [
+                            'Deskripsi' => $row['deskripsi'],
+                            'No. Dokumen' => $row['no_dokumen'] ?: '-',
+                            'Pemilik' => $row['pemilik'] ?: '-',
+                            'Taksasi' => number_format($row['nilai_taksasi'], 0, ',', '.')
+                        ]
+                    ]
+                ];
             }
 
             successResponse($data);

@@ -33,9 +33,10 @@ const LaporanAgunanPage = {
                         <div class="relative">
                             <select id="lag-filter-tipe" class="w-full border border-gray-200 rounded-xl px-10 py-2.5 text-sm font-medium text-amber-700 bg-white focus:ring-2 focus:ring-amber-500 shadow-sm appearance-none" onchange="LaporanAgunanPage.filterData(this.value)">
                                 <option value="">Semua Tipe Agunan</option>
-                                <option value="Sertifikat Tanah (SHM/SHGB)">Sertifikat Tanah (SHM/SHGB)</option>
-                                <option value="BPKB Kendaraan">BPKB Kendaraan</option>
-                                <option value="Deposito/Simpanan">Deposito/Simpanan</option>
+                                <option value="SHM">SHM (Sertifikat Hak Milik)</option>
+                                <option value="SHGB">SHGB (Sertifikat Hak Guna Bangunan)</option>
+                                <option value="BPKB">BPKB Kendaraan</option>
+                                <option value="Deposito">Deposito / Simpanan</option>
                                 <option value="Lainnya">Lainnya / Manual</option>
                             </select>
                             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -77,9 +78,6 @@ const LaporanAgunanPage = {
         }
 
         const filtered = this.data.filter(r => {
-            if (tipe === 'Lainnya') {
-                return typeof r.agunan !== 'object';
-            }
             return typeof r.agunan === 'object' && r.agunan.tipe === tipe;
         });
         this.renderTable(filtered);
@@ -147,10 +145,14 @@ const LaporanAgunanPage = {
     },
 
     getTipeColor(tipe) {
-        if (tipe.includes('Sertifikat')) return 'bg-emerald-100 text-emerald-800';
-        if (tipe.includes('BPKB')) return 'bg-blue-100 text-blue-800';
-        if (tipe.includes('Deposito')) return 'bg-amber-100 text-amber-800';
-        return 'bg-gray-100 text-gray-800';
+        const colors = {
+            'SHM': 'bg-emerald-100 text-emerald-800',
+            'SHGB': 'bg-teal-100 text-teal-800',
+            'BPKB': 'bg-blue-100 text-blue-800',
+            'Deposito': 'bg-amber-100 text-amber-800',
+            'Lainnya': 'bg-gray-100 text-gray-800',
+        };
+        return colors[tipe] || colors.Lainnya;
     },
 
     getColumns() {
