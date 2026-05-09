@@ -17,6 +17,7 @@ const DashboardPage = {
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Simpanan Per Jenis -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-slideUp">
                 <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="ri-pie-chart-line text-primary-500"></i> Simpanan Per Jenis</h3>
                 <div class="space-y-3">
@@ -27,14 +28,36 @@ const DashboardPage = {
                     </div>`).join('')}
                 </div>
             </div>
+
+            <!-- Pinjaman Per Jenis -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-slideUp" style="animation-delay:0.1s">
-                <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="ri-alarm-warning-line text-amber-500"></i> Angsuran Jatuh Tempo</h3>
-                ${(d.angsuran_jatuh_tempo || []).length ? `<div class="space-y-2">${d.angsuran_jatuh_tempo.map(a => `
-                <div class="flex items-center justify-between p-3 bg-amber-50 rounded-xl text-sm">
-                    <div><span class="font-medium text-gray-700">${a.anggota}</span><br><span class="text-gray-400 text-xs">${a.no_pinjaman} - Ke-${a.angsuran_ke}</span></div>
-                    <div class="text-right"><span class="font-semibold text-amber-600">${App.formatRupiah(a.total)}</span><br><span class="text-xs text-gray-400">${App.formatDate(a.tgl_jatuh_tempo)}</span></div>
-                </div>`).join('')}</div>` : '<p class="text-gray-400 text-sm text-center py-8">Tidak ada angsuran jatuh tempo</p>'}
+                <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="ri-hand-coin-line text-amber-500"></i> Pinjaman Per Jenis</h3>
+                <div class="space-y-3">
+                    ${(d.pinjaman_per_jenis || []).map(p => `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                        <span class="text-sm font-medium text-gray-600">${p.nama}</span>
+                        <span class="font-semibold text-gray-800">${App.formatRupiah(p.total)}</span>
+                    </div>`).join('')}
+                </div>
             </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 animate-slideUp" style="animation-delay:0.2s">
+            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="ri-alarm-warning-line text-rose-500"></i> Angsuran Jatuh Tempo (7 Hari Ke Depan)</h3>
+            ${(d.angsuran_jatuh_tempo || []).length ? `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${d.angsuran_jatuh_tempo.map(a => `
+                <div class="flex items-center justify-between p-4 bg-rose-50/50 border border-rose-100 rounded-xl text-sm hover:bg-rose-50 transition-colors">
+                    <div>
+                        <div class="font-bold text-gray-800">${a.anggota}</div>
+                        <div class="text-gray-500 text-xs mt-0.5">${a.no_pinjaman} &bull; Angsuran Ke-${a.angsuran_ke}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-rose-600">${App.formatRupiah(a.total)}</div>
+                        <div class="text-xs font-medium text-rose-400 mt-0.5">${App.formatDate(a.tgl_jatuh_tempo)}</div>
+                    </div>
+                </div>`).join('')}
+            </div>` : '<p class="text-gray-400 text-sm text-center py-8 bg-gray-50 rounded-xl border border-dashed">Tidak ada angsuran jatuh tempo dalam waktu dekat</p>'}
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-slideUp" style="animation-delay:0.2s">

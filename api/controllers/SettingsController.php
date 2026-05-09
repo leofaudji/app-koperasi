@@ -1,16 +1,30 @@
 <?php
 // Settings Controller
-authCheck();
 $db = Database::getInstance();
 
 switch ($method) {
     case 'GET':
-        // Any logged-in user can read settings
-        $cacheKey = 'app_settings_flat';
-        $flat = getCachedData($cacheKey, function() use ($db) {
-            $rows = $db->fetchAll("SELECT setting_key, setting_value, setting_label, setting_group FROM app_settings ORDER BY setting_group, id");
+        // Any user can read basic settings, but only logged-in users get everything
+        $isLoggedIn = isLoggedIn();
+        $cacheKey = $isLoggedIn ? 'app_settings_flat' : 'app_settings_public';
+        
+        $flat = getCachedData($cacheKey, function() use ($db, $isLoggedIn) {
+            $query = "SELECT setting_key, setting_value, setting_label, setting_group FROM app_settings ORDER BY setting_group, id";
+            $rows = $db->fetchAll($query);
             $flat = [];
+            
+            // Define keys that are safe for unauthenticated users
+            $publicKeys = [
+                'app_name', 'alamat', 'telepon', 'email', 'website', 'logo_url',
+                'pwa_name', 'pwa_short_name', 'pwa_description', 'pwa_theme_color'
+            ];
+
             foreach ($rows as $r) {
+                // If not logged in, skip sensitive or non-essential keys
+                if (!$isLoggedIn && !in_array($r['setting_key'], $publicKeys)) {
+                    continue;
+                }
+
                 $flat[$r['setting_key']] = [
                     'value' => $r['setting_value'],
                     'label' => $r['setting_label'],
@@ -19,6 +33,7 @@ switch ($method) {
             }
             return $flat;
         }, 86400);
+        
         successResponse($flat);
         break;
 

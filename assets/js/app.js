@@ -73,7 +73,14 @@ const App = {
         document.getElementById('login-form').addEventListener('submit', e => { e.preventDefault(); this.login(); });
         document.querySelectorAll('.copyright-year').forEach(el => el.textContent = new Date().getFullYear());
 
-        // Fetch public stats for login page
+        // 1. Load global settings first (publicly accessible now)
+        const settRes = await this.api('settings');
+        if (settRes && settRes.success) {
+            this.settings = settRes.data;
+            this.applyBranding();
+        }
+
+        // 2. Fetch public stats for login page
         this.api('public/stats').then(res => {
             if (res && res.success && res.data.total_anggota !== undefined) {
                 const el = document.getElementById('login-total-anggota');
@@ -81,21 +88,34 @@ const App = {
             }
         });
 
+        // 3. Check auth
         const res = await this.api('auth/me');
         if (res && res.success) {
             this.setUser(res.data);
-
-            // Load global settings after login
-            const settRes = await this.api('settings');
-            if (settRes && settRes.success) {
-                this.settings = settRes.data;
-            }
-
             this.showApp();
         } else {
             this.showLogin();
         }
         window.addEventListener('hashchange', () => this.handleRoute());
+    },
+
+    applyBranding() {
+        const getS = (key, def = '') => this.settings[key]?.value || def;
+        
+        // Update App Name
+        const appName = getS('app_name');
+        if (appName) {
+            const el = document.getElementById('login-app-name');
+            if (el) el.textContent = appName;
+            document.title = appName;
+        }
+
+        // Update Logo
+        const logoUrl = getS('logo_url');
+        if (logoUrl) {
+            const el = document.getElementById('login-logo');
+            if (el) el.src = logoUrl;
+        }
     },
 
     // ===== Auth =====
@@ -319,15 +339,27 @@ const App = {
     // ===== Router =====
     async handleRoute() {
         const hash = location.hash || '#/dashboard';
-        if (hash === this.currentRoute) return;
+        if (hash === this.currentRoute && !hash.includes('?')) return; // Allow re-route if query params change
         this.currentRoute = hash;
-        this.setActiveMenu(hash);
+        this.setActiveMenu(hash.split('?')[0]); // Highlight menu based on base path
+
         const content = document.getElementById('app-content');
         content.innerHTML = '<div class="flex items-center justify-center h-64"><div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full"></div></div>';
+        
         const route = hash.replace('#/', '');
-        const parts = route.split('/');
+        const [path, query] = route.split('?');
+        const parts = path.split('/');
         const page = parts[0] || 'dashboard';
         const param = parts[1] || null;
+
+        // Parse query params
+        this.queryParams = {};
+        if (query) {
+            query.split('&').forEach(p => {
+                const [key, val] = p.split('=');
+                if (key) this.queryParams[key] = decodeURIComponent(val || '');
+            });
+        }
 
         try {
             const basePath = this.API_BASE.substring(0, this.API_BASE.length - 3);

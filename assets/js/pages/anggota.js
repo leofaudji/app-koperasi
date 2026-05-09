@@ -69,51 +69,388 @@ const AnggotaPage = {
 
     async detail(container, id) {
         const res = await App.api('anggota/' + id);
-        if (!res?.success) { container.innerHTML = '<p class="text-center text-gray-400 py-10">Anggota tidak ditemukan</p>'; return; }
+        if (!res?.success) { 
+            container.innerHTML = `
+                <div class="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm animate-fadeIn">
+                    <i class="ri-user-search-line text-6xl text-slate-200 mb-4 block"></i>
+                    <p class="text-slate-500 text-lg font-medium">Anggota tidak ditemukan</p>
+                    <button onclick="location.hash='#/anggota'" class="mt-4 text-primary-600 font-bold hover:underline">Kembali ke Daftar</button>
+                </div>`;
+            return; 
+        }
+        
         const a = res.data;
+        const totalSimpanan = (a.saldo_simpanan || []).reduce((sum, s) => sum + parseFloat(s.saldo || 0), 0);
+        const totalPinjaman = (a.pinjaman_aktif || []).reduce((sum, p) => sum + parseFloat(p.sisa_pinjaman || 0), 0);
+        
+        // Calculate years of membership
+        const joinDate = new Date(a.tgl_daftar);
+        const now = new Date();
+        const tenure = Math.floor((now - joinDate) / (1000 * 60 * 60 * 24 * 365));
+
         container.innerHTML = `
-        <div class="mb-4"><a href="#/anggota" class="text-primary-600 hover:text-primary-700 text-sm flex items-center gap-1"><i class="ri-arrow-left-line"></i> Kembali</a></div>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
-                <div class="text-center mb-4">
-                    <div class="w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-2xl mx-auto mb-3">${a.nama.charAt(0)}</div>
-                    <h3 class="font-bold text-lg text-gray-800">${a.nama}</h3>
-                    <p class="text-primary-600 font-mono text-sm">${a.no_anggota}</p>
-                    ${App.statusBadge(a.status)}
-                </div>
-                <div class="space-y-3 text-sm border-t border-gray-100 pt-4">
-                    <div class="flex justify-between"><span class="text-gray-400">No. Anggota Lama</span><span class="font-medium font-mono text-xs">${a.no_anggota_lama || '-'}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">NIK</span><span class="font-medium">${a.nik || '-'}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Telepon</span><span class="font-medium">${a.telepon || '-'}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Email</span><span class="font-medium">${a.email || '-'}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Pekerjaan</span><span class="font-medium">${a.pekerjaan || '-'}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Tgl Daftar</span><span class="font-medium">${App.formatDate(a.tgl_daftar)}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Alamat</span><span class="font-medium text-right max-w-[200px]">${a.alamat || '-'}</span></div>
+        <div class="animate-fadeIn pb-10">
+            <!-- Top Action Bar -->
+            <div class="flex items-center justify-between mb-6">
+                <button onclick="location.hash='#/anggota'" class="group flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-all font-bold text-sm">
+                    <div class="w-8 h-8 rounded-full bg-white shadow-sm border border-slate-100 flex items-center justify-center group-hover:-translate-x-1 transition-transform">
+                        <i class="ri-arrow-left-line"></i>
+                    </div>
+                    Kembali
+                </button>
+                <div class="flex items-center gap-2">
+                    ${App.hasPerm('anggota.edit') ? `
+                    <button onclick="AnggotaPage.form(${a.id})" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm">
+                        <i class="ri-edit-line"></i> Edit Profil
+                    </button>` : ''}
+                    <button onclick="window.print()" class="bg-slate-900 text-white hover:bg-black px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-slate-200">
+                        <i class="ri-printer-line"></i> Cetak Kartu
+                    </button>
                 </div>
             </div>
-            <div class="lg:col-span-2 space-y-6">
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-slideUp">
-                    <h4 class="font-semibold text-gray-800 mb-4"><i class="ri-wallet-3-line text-primary-500 mr-2"></i>Saldo Simpanan</h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        ${(a.saldo_simpanan || []).map(s => `<div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 text-center">
-                            <p class="text-xs text-gray-500 mb-1">${s.nama}</p>
-                            <p class="text-lg font-bold text-gray-800">${App.formatRupiah(s.saldo)}</p>
-                        </div>`).join('')}
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <!-- LEFT COLUMN: PROFILE CARD -->
+                <div class="lg:col-span-4 space-y-6">
+                    <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-white p-8 relative overflow-hidden group">
+                        <!-- Decorative Background -->
+                        <div class="absolute -top-24 -right-24 w-48 h-48 bg-primary-50 rounded-full blur-3xl opacity-50 group-hover:bg-primary-100 transition-colors"></div>
+                        
+                        <div class="relative flex flex-col items-center text-center">
+                            <div class="relative mb-6">
+                                <div class="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white text-4xl font-black shadow-2xl shadow-primary-200 rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                                    ${a.nama.charAt(0).toUpperCase()}
+                                </div>
+                                <div class="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-2xl shadow-lg flex items-center justify-center text-emerald-500 border border-slate-50">
+                                    <i class="ri-checkbox-circle-fill text-2xl"></i>
+                                </div>
+                            </div>
+
+                            <h2 class="text-2xl font-black text-slate-900 leading-tight mb-1">${a.nama}</h2>
+                            <p class="font-mono text-xs font-bold text-slate-400 tracking-widest uppercase mb-4">${a.no_anggota}</p>
+                            
+                            <div class="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-wider mb-6">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> ${a.status}
+                            </div>
+
+                            <div class="w-full grid grid-cols-2 gap-4 pt-6 border-t border-slate-50">
+                                <div class="text-left">
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Bergabung</p>
+                                    <p class="text-sm font-bold text-slate-700">${App.formatDate(a.tgl_daftar)}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Masa Keanggotaan</p>
+                                    <p class="text-sm font-bold text-slate-700">${tenure > 0 ? tenure + ' Tahun' : '< 1 Tahun'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Contacts -->
+                    <div class="bg-slate-900 rounded-[2rem] p-8 text-white shadow-xl shadow-slate-900/20">
+                        <h4 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 flex items-center gap-2">
+                            <i class="ri-contacts-book-line text-primary-400"></i> Kontak Anggota
+                        </h4>
+                        <div class="space-y-6">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-primary-400">
+                                    <i class="ri-phone-line text-xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Nomor Telepon</p>
+                                    <p class="text-sm font-bold">${a.telepon || '-'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-primary-400">
+                                    <i class="ri-mail-line text-xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alamat Email</p>
+                                    <p class="text-sm font-bold truncate max-w-[150px]">${a.email || '-'}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-slideUp" style="animation-delay:0.1s">
-                    <div class="flex justify-between items-center mb-4">
-                        <h4 class="font-semibold text-gray-800"><i class="ri-hand-coin-line text-amber-500 mr-2"></i>Pinjaman Aktif</h4>
+
+                <!-- RIGHT COLUMN: DYNAMIC TABS -->
+                <div class="lg:col-span-8 space-y-6">
+                    <!-- Tab Navigation -->
+                    <div class="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 flex gap-1 overflow-x-auto no-scrollbar">
+                        <button onclick="AnggotaPage.switchDetailTab('overview')" id="tab-btn-overview" class="detail-tab-btn active px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0">
+                            <i class="ri-dashboard-line"></i> Ringkasan
+                        </button>
+                        <button onclick="AnggotaPage.switchDetailTab('savings')" id="tab-btn-savings" class="detail-tab-btn px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0">
+                            <i class="ri-wallet-3-line"></i> Simpanan
+                        </button>
+                        <button onclick="AnggotaPage.switchDetailTab('loans')" id="tab-btn-loans" class="detail-tab-btn px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0">
+                            <i class="ri-hand-coin-line"></i> Pinjaman
+                        </button>
+                        <button onclick="AnggotaPage.switchDetailTab('profile')" id="tab-btn-profile" class="detail-tab-btn px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0">
+                            <i class="ri-user-4-line"></i> Profil Lengkap
+                        </button>
                     </div>
-                    ${(a.pinjaman_aktif || []).length ? a.pinjaman_aktif.map(p => `<div class="bg-amber-50 rounded-xl p-4 flex justify-between items-center">
-                        <div><p class="font-medium text-gray-800">${p.no_pinjaman}</p><p class="text-xs text-gray-500">${p.jenis_pinjaman}</p></div>
-                        <div class="text-right"><p class="font-bold text-amber-600">${App.formatRupiah(p.sisa_pinjaman)}</p><p class="text-xs text-gray-400">sisa pinjaman</p></div>
-                    </div>`).join('') : '<p class="text-gray-400 text-sm text-center py-4">Tidak ada pinjaman aktif</p>'}
+
+                    <!-- TAB CONTENT: OVERVIEW -->
+                    <div id="detail-tab-overview" class="detail-tab-content block space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div class="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-[2rem] p-8 text-white shadow-lg shadow-emerald-200 overflow-hidden relative group">
+                                <i class="ri-safe-2-line absolute -bottom-6 -right-6 text-9xl opacity-10 group-hover:scale-110 transition-transform duration-700"></i>
+                                <p class="text-xs font-black uppercase tracking-widest opacity-80 mb-2">Total Saldo Simpanan</p>
+                                <h3 class="text-3xl font-black mb-4">${App.formatRupiah(totalSimpanan)}</h3>
+                                <div class="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
+                                    <div class="h-full bg-white rounded-full" style="width: 75%"></div>
+                                </div>
+                                <p class="text-[10px] mt-4 font-bold opacity-70 italic">* Akumulasi dari semua jenis simpanan</p>
+                            </div>
+                            <div class="bg-gradient-to-br from-amber-500 to-amber-700 rounded-[2rem] p-8 text-white shadow-lg shadow-amber-200 overflow-hidden relative group">
+                                <i class="ri-hand-coin-line absolute -bottom-6 -right-6 text-9xl opacity-10 group-hover:scale-110 transition-transform duration-700"></i>
+                                <p class="text-xs font-black uppercase tracking-widest opacity-80 mb-2">Total Baki Debet</p>
+                                <h3 class="text-3xl font-black mb-4">${App.formatRupiah(totalPinjaman)}</h3>
+                                <div class="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
+                                    <div class="h-full bg-white rounded-full" style="width: 45%"></div>
+                                </div>
+                                <p class="text-[10px] mt-4 font-bold opacity-70 italic">* Sisa pokok pinjaman aktif</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8">
+                            <h4 class="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">Aktivitas Terakhir</h4>
+                            <div class="space-y-6">
+                                <div class="flex items-center justify-center py-10 text-slate-300 italic text-sm">
+                                    Fitur histori aktivitas akan segera hadir
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB CONTENT: SAVINGS -->
+                    <div id="detail-tab-savings" class="detail-tab-content hidden space-y-6">
+                        <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8">
+                            <div class="flex items-center justify-between mb-8">
+                                <h4 class="text-sm font-black text-slate-900 uppercase tracking-widest">Daftar Rekening Simpanan</h4>
+                                <a href="#/simpanan?anggota_id=${a.id}" class="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-xs font-black hover:bg-emerald-100 transition-colors uppercase tracking-widest">
+                                    <i class="ri-add-line"></i> Transaksi Baru
+                                </a>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                ${(a.saldo_simpanan || []).map(s => `
+                                <div onclick="AnggotaPage.showMutasiSimpanan(${a.id}, ${s.id}, '${s.nama}')" class="group bg-slate-50 border border-slate-100 hover:border-emerald-200 p-6 rounded-[1.5rem] transition-all hover:shadow-lg cursor-pointer relative overflow-hidden">
+                                    <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform"></div>
+                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">${s.nama}</p>
+                                    <p class="text-2xl font-black text-slate-900">${App.formatRupiah(s.saldo)}</p>
+                                    <div class="mt-4 flex items-center justify-between">
+                                        <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Aktif</span>
+                                        <i class="ri-arrow-right-up-line text-slate-300 group-hover:text-emerald-500 transition-colors"></i>
+                                    </div>
+                                </div>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB CONTENT: LOANS -->
+                    <div id="detail-tab-loans" class="detail-tab-content hidden space-y-6">
+                        <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8">
+                            <div class="flex items-center justify-between mb-8">
+                                <h4 class="text-sm font-black text-slate-900 uppercase tracking-widest">Daftar Pinjaman Aktif</h4>
+                                <a href="#/pinjaman?anggota_id=${a.id}" class="bg-amber-50 text-amber-600 px-4 py-2 rounded-xl text-xs font-black hover:bg-amber-100 transition-colors uppercase tracking-widest">
+                                    <i class="ri-file-list-line"></i> Semua Pinjaman
+                                </a>
+                            </div>
+                            ${(a.pinjaman_aktif || []).length ? `
+                            <div class="space-y-4">
+                                ${a.pinjaman_aktif.map(p => {
+                                    const progress = Math.min(100, Math.round(((parseFloat(p.jumlah) - parseFloat(p.sisa_pinjaman)) / parseFloat(p.jumlah)) * 100));
+                                    return `
+                                    <div onclick="AnggotaPage.showMutasiPinjaman(${p.id}, '${p.no_pinjaman}')" class="group bg-slate-50 border border-slate-100 hover:border-amber-200 p-6 rounded-[1.5rem] transition-all hover:shadow-lg cursor-pointer">
+                                        <div class="flex justify-between items-start mb-6">
+                                            <div class="flex items-center gap-4">
+                                                <div class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-amber-500 group-hover:rotate-12 transition-transform">
+                                                    <i class="ri-hand-coin-fill text-2xl"></i>
+                                                </div>
+                                                <div>
+                                                    <p class="font-black text-slate-900 text-lg tracking-tight">${p.no_pinjaman}</p>
+                                                    <p class="text-[10px] font-bold text-amber-600 uppercase tracking-widest">${p.jenis_pinjaman}</p>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <p class="text-xl font-black text-slate-900">${App.formatRupiah(p.sisa_pinjaman)}</p>
+                                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sisa Baki Debet</p>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+                                                <span class="text-slate-400">Progress Pelunasan</span>
+                                                <span class="text-amber-600">${progress}%</span>
+                                            </div>
+                                            <div class="h-2 w-full bg-white rounded-full overflow-hidden border border-slate-100 p-0.5">
+                                                <div class="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all duration-1000" style="width: ${progress}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>`;
+                                }).join('')}
+                            </div>` : `
+                            <div class="text-center py-20 bg-slate-50 rounded-[1.5rem] border border-dashed border-slate-200">
+                                <i class="ri-shake-hands-line text-6xl text-slate-200 mb-4 block"></i>
+                                <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Tidak ada pinjaman aktif</p>
+                            </div>`}
+                        </div>
+                    </div>
+
+                    <!-- TAB CONTENT: PROFILE -->
+                    <div id="detail-tab-profile" class="detail-tab-content hidden space-y-6">
+                        <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8">
+                            <h4 class="text-sm font-black text-slate-900 uppercase tracking-widest mb-8">Informasi Personal</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-8 gap-x-12">
+                                ${this.infoRow('Nomor Induk Kependudukan (NIK)', a.nik || '-', 'ri-fingerprint-line')}
+                                ${this.infoRow('Tempat, Tanggal Lahir', (a.tempat_lahir || '-') + ', ' + (a.tanggal_lahir ? App.formatDate(a.tanggal_lahir) : '-'), 'ri-calendar-event-line')}
+                                ${this.infoRow('Jenis Kelamin', a.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan', 'ri-men-line')}
+                                ${this.infoRow('Pekerjaan Utama', a.pekerjaan || '-', 'ri-briefcase-line')}
+                                ${this.infoRow('No. Anggota Lama', a.no_anggota_lama || '-', 'ri-history-line')}
+                                <div class="sm:col-span-2 pt-4 border-t border-slate-50">
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Alamat Sesuai KTP / Domisili</label>
+                                    <p class="text-sm text-slate-700 font-bold leading-relaxed">${a.alamat || '<span class="italic text-slate-300 font-normal">Belum diisi</span>'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex gap-3">
-                    <a href="#/mutasi-simpanan?anggota_id=${a.id}" class="flex-1 bg-primary-50 hover:bg-primary-100 text-primary-700 py-3 rounded-xl text-center text-sm font-medium transition"><i class="ri-file-list-3-line mr-1"></i> Mutasi Simpanan</a>
-                    <a href="#/simpanan?anggota_id=${a.id}" class="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-xl text-center text-sm font-medium transition"><i class="ri-add-circle-line mr-1"></i> Transaksi Simpanan</a>
+            </div>
+        </div>
+
+        <style>
+            .detail-tab-btn { color: #64748b; border: 1px solid transparent; }
+            .detail-tab-btn:hover { background-color: #f8fafc; }
+            .detail-tab-btn.active { background-color: #0f172a; color: #fff; border-color: #0f172a; box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.1); }
+            .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        </style>
+        `;
+    },
+
+    switchDetailTab(tabId) {
+        document.querySelectorAll('.detail-tab-content').forEach(c => c.classList.replace('block', 'hidden'));
+        document.querySelectorAll('.detail-tab-btn').forEach(b => b.classList.remove('active'));
+        
+        document.getElementById('detail-tab-' + tabId).classList.replace('hidden', 'block');
+        document.getElementById('tab-btn-' + tabId).classList.add('active');
+    },
+
+    async showMutasiSimpanan(anggotaId, jenisId, nama) {
+        App.openModal(`
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 class="text-xl font-black text-slate-900">Mutasi ${nama}</h3>
+                        <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">30 Transaksi Terakhir</p>
+                    </div>
+                    <button onclick="App.closeModal()" class="text-slate-400 hover:text-slate-600"><i class="ri-close-line text-2xl"></i></button>
                 </div>
+                <div id="modal-mutasi-content" class="min-h-[300px]">
+                    <div class="flex items-center justify-center py-20"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>
+                </div>
+            </div>
+        `, 'max-w-3xl');
+
+        const res = await App.api(`simpanan/mutasi/${anggotaId}?jenis_simpanan_id=${jenisId}&per_page=30`);
+        const content = document.getElementById('modal-mutasi-content');
+        if (!res?.success || !res.data.length) {
+            content.innerHTML = '<div class="text-center py-20 text-slate-400">Tidak ada riwayat transaksi</div>';
+            return;
+        }
+
+        content.innerHTML = `
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left border-b border-slate-100">
+                            <th class="pb-3 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Tanggal</th>
+                            <th class="pb-3 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Keterangan</th>
+                            <th class="pb-3 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Jumlah</th>
+                            <th class="pb-3 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        ${res.data.map(t => `
+                        <tr>
+                            <td class="py-3 text-slate-600">${App.formatDate(t.tgl_transaksi)}</td>
+                            <td class="py-3">
+                                <div class="font-bold text-slate-800">${t.nama_transaksi}</div>
+                                <div class="text-[10px] text-slate-400">${t.no_transaksi}</div>
+                            </td>
+                            <td class="py-3 text-right font-bold ${t.dk === 'D' ? 'text-emerald-600' : 'text-rose-600'}">
+                                ${t.dk === 'D' ? '+' : '-'}${App.formatRupiah(t.jumlah)}
+                            </td>
+                            <td class="py-3 text-right font-bold text-slate-700">${App.formatRupiah(t.saldo_sesudah)}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    },
+
+    async showMutasiPinjaman(pinjamanId, noPinjaman) {
+        App.openModal(`
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 class="text-xl font-black text-slate-900">Riwayat Angsuran</h3>
+                        <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">${noPinjaman}</p>
+                    </div>
+                    <button onclick="App.closeModal()" class="text-slate-400 hover:text-slate-600"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+                <div id="modal-mutasi-content" class="min-h-[300px]">
+                    <div class="flex items-center justify-center py-20"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>
+                </div>
+            </div>
+        `, 'max-w-4xl');
+
+        const res = await App.api(`angsuran?pinjaman_id=${pinjamanId}&per_page=100`);
+        const content = document.getElementById('modal-mutasi-content');
+        if (!res?.success || !res.data.length) {
+            content.innerHTML = '<div class="text-center py-20 text-slate-400">Data angsuran tidak ditemukan</div>';
+            return;
+        }
+
+        content.innerHTML = `
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left border-b border-slate-100">
+                            <th class="pb-3 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-center">Ke-</th>
+                            <th class="pb-3 font-bold text-slate-400 uppercase tracking-widest text-[10px]">Tgl Bayar</th>
+                            <th class="pb-3 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Pokok</th>
+                            <th class="pb-3 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Bunga</th>
+                            <th class="pb-3 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right">Total</th>
+                            <th class="pb-3 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        ${res.data.map(a => `
+                        <tr>
+                            <td class="py-3 text-center font-bold text-slate-500">${a.angsuran_ke}</td>
+                            <td class="py-3 text-slate-600">${a.tgl_bayar ? App.formatDate(a.tgl_bayar) : '<span class="text-slate-300">-</span>'}</td>
+                            <td class="py-3 text-right font-medium text-slate-700">${App.formatRupiah(a.pokok)}</td>
+                            <td class="py-3 text-right font-medium text-slate-700">${App.formatRupiah(a.bunga)}</td>
+                            <td class="py-3 text-right font-bold text-slate-900">${App.formatRupiah(a.total)} ${a.denda > 0 ? `<br><span class="text-[9px] text-rose-500">Denda: ${App.formatRupiah(a.denda)}</span>` : ''}</td>
+                            <td class="py-3 text-center">${App.statusBadge(a.status)}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    },
+
+    infoRow(label, value, icon) {
+        return `
+        <div class="flex items-center gap-4">
+            <div class="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
+                <i class="${icon} text-lg"></i>
+            </div>
+            <div class="min-w-0">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">${label}</label>
+                <p class="text-sm text-slate-700 font-semibold truncate">${value || '<span class="italic font-normal text-slate-300">Kosong</span>'}</p>
             </div>
         </div>`;
     },

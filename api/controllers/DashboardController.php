@@ -8,7 +8,7 @@ $db = Database::getInstance();
 switch ($method) {
     case 'GET':
         $redis = RedisManager::getInstance();
-        $cacheKey = 'dashboard_stats';
+        $cacheKey = 'dashboard_stats_v19';
         $cachedStats = $redis->get($cacheKey);
 
         if ($cachedStats) {
@@ -53,6 +53,14 @@ switch ($method) {
              LIMIT 10"
         );
 
+        // Pinjaman per jenis
+        $pinjamanPerJenis = $db->fetchAll(
+            "SELECT jp.nama, COALESCE(SUM(p.sisa_pinjaman),0) as total
+             FROM jenis_pinjaman jp
+             LEFT JOIN pinjaman p ON jp.id = p.jenis_pinjaman_id AND p.status = 'cair'
+             GROUP BY jp.id, jp.nama ORDER BY jp.nama"
+        );
+
         // Transaksi simpanan terakhir
         $transaksiTerakhir = $db->fetchAll(
             "SELECT s.no_transaksi, s.tgl_transaksi, s.jumlah,
@@ -72,6 +80,7 @@ switch ($method) {
             'total_pinjaman' => $totalPinjaman['total'] ?? 0,
             'pinjaman_pending' => $pinjamanPending,
             'simpanan_per_jenis' => $simpananPerJenis,
+            'pinjaman_per_jenis' => $pinjamanPerJenis,
             'angsuran_jatuh_tempo' => $angsuranJatuhTempo,
             'transaksi_terakhir' => $transaksiTerakhir
         ];

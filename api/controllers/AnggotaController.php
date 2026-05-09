@@ -23,7 +23,7 @@ switch ($method) {
 
                 // Get saldo simpanan
                 $saldo = $db->fetchAll(
-                    "SELECT js.nama, js.kode,
+                    "SELECT js.id, js.nama, js.kode,
                         COALESCE(SUM(CASE WHEN kt.dk='D' THEN s.jumlah ELSE -s.jumlah END),0) as saldo
                     FROM jenis_simpanan js
                     LEFT JOIN simpanan s ON js.id = s.jenis_simpanan_id AND s.anggota_id = ?

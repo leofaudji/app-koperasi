@@ -122,6 +122,12 @@ switch ($method) {
                 $binds[] = $rekeningId;
             }
 
+            $jenisId = $params['jenis_simpanan_id'] ?? '';
+            if ($jenisId) {
+                $where .= " AND s.jenis_simpanan_id = ?";
+                $binds[] = $jenisId;
+            }
+
             $offset = ($page - 1) * $perPage;
             $total = $db->count("SELECT COUNT(*) FROM simpanan s $where", $binds);
 
@@ -179,6 +185,12 @@ switch ($method) {
                 $binds[] = "%$search%";
                 $binds[] = "%$search%";
                 $binds[] = "%$search%";
+            }
+
+            $anggotaId = $params['anggota_id'] ?? '';
+            if ($anggotaId) {
+                $where .= " AND s.anggota_id = ?";
+                $binds[] = $anggotaId;
             }
 
             paginatedResponse(

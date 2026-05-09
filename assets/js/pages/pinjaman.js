@@ -275,7 +275,8 @@ const PinjamanPage = {
         this.page = page;
         const search = document.getElementById('pnj-search')?.value || '';
         const status = document.getElementById('pnj-status')?.value || '';
-        const res = await App.api(`pinjaman?page=${page}&search=${encodeURIComponent(search)}&status=${status}`);
+        const anggotaId = App.queryParams?.anggota_id || '';
+        const res = await App.api(`pinjaman?page=${page}&search=${encodeURIComponent(search)}&status=${status}&anggota_id=${anggotaId}`);
         if (!res?.success) return;
 
         container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
@@ -1298,13 +1299,36 @@ const PinjamanPage = {
         }
     },
 
-    exportApprovalLetter(p) {
+    async exportApprovalLetter(p) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
         const margin = 20;
 
+        // --- Digital Signature Generation ---
+        const verifyUrl = `${window.location.origin}${window.location.pathname}?v=verify&id=${p.id}&no=${p.no_pinjaman}`;
+        const verifyText = `Verified SPK: ${p.no_pinjaman}\nAnggota: ${p.anggota_nama}\nPlafon: ${App.formatRupiah(p.jumlah)}\nDate: ${new Date().toISOString()}`;
+        
+        // Use QRCode.js to generate data URL
+        const qrContainer = document.createElement('div');
+        qrContainer.style.display = 'none';
+        document.body.appendChild(qrContainer);
+        
+        const qrcode = new QRCode(qrContainer, {
+            text: verifyUrl,
+            width: 256,
+            height: 256,
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        // Wait a bit for canvas to render
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const qrCanvas = qrContainer.querySelector('canvas');
+        const qrImage = qrCanvas.toDataURL('image/png');
+        document.body.removeChild(qrContainer);
+
+        // --- PDF Rendering ---
         // Header
         const getS = (key, def = '') => App.settings[key]?.value || def;
         const namaKop = getS('nama_koperasi', 'KOPERASI SIMPAN PINJAM "APP-KOPERASI"');
@@ -1313,25 +1337,32 @@ const PinjamanPage = {
 
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42); // slate-900
         doc.text(namaKop.toUpperCase(), pageWidth / 2, 15, { align: 'center' });
+        
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139); // slate-500
         doc.text(alamatKop, pageWidth / 2, 20, { align: 'center' });
         doc.text(telpEmail, pageWidth / 2, 24, { align: 'center' });
 
+        doc.setDrawColor(226, 232, 240); // slate-200
         doc.setLineWidth(0.5);
         doc.line(margin, 27, pageWidth - margin, 27);
-        doc.setLineWidth(0.2);
+        doc.setLineWidth(0.1);
         doc.line(margin, 28, pageWidth - margin, 28);
 
         // Title
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
         doc.text('SURAT PERSETUJUAN KREDIT (SPK)', pageWidth / 2, 38, { align: 'center' });
         doc.setFontSize(10);
-        doc.text('Nomor: ' + p.no_pinjaman, pageWidth / 2, 43, { align: 'center' });
+        doc.setFont('courier', 'bold');
+        doc.text('REF: ' + p.no_pinjaman, pageWidth / 2, 43, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
 
-        // Section: Data Peminjam & Pinjaman
+        // Body Content
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.text('I. RINCIAN PINJAMAN', margin, 53);
@@ -1341,9 +1372,13 @@ const PinjamanPage = {
         const leftCol = 25;
         const valCol = 80;
 
-        const drawRow = (label, value) => {
+        const drawRow = (label, value, boldValue = false) => {
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 116, 139);
             doc.text(label, leftCol, y);
             doc.text(':', valCol - 5, y);
+            doc.setTextColor(15, 23, 42);
+            if (boldValue) doc.setFont('helvetica', 'bold');
             doc.text(value.toString(), valCol, y);
             y += 6;
         };
@@ -1351,7 +1386,7 @@ const PinjamanPage = {
         drawRow('Nama Anggota', p.anggota_nama);
         drawRow('No. Anggota', p.no_anggota);
         drawRow('Jenis Pinjaman', p.jenis_pinjaman);
-        drawRow('Plafon Pinjaman', App.formatRupiah(p.jumlah));
+        drawRow('Plafon Pinjaman', App.formatRupiah(p.jumlah), true);
         drawRow('Jangka waktu', p.tenor + ' Bulan');
         drawRow('Suku Bunga', p.bunga_persen + '% per bulan');
         drawRow('Tanggal Pengajuan', App.formatDate(p.created_at));
@@ -1371,6 +1406,13 @@ const PinjamanPage = {
                         drawRow('- ' + k, v);
                     });
                 }
+            } else if (Array.isArray(p.agunan)) {
+                p.agunan.forEach((a, i) => {
+                    drawRow(`Item #${i+1}`, a.tipe);
+                    Object.entries(a.data || {}).forEach(([k, v]) => {
+                        drawRow('  ' + k, v);
+                    });
+                });
             } else {
                 drawRow('Keterangan', p.agunan);
             }
@@ -1389,9 +1431,9 @@ const PinjamanPage = {
 
         doc.setFont('helvetica', 'bold');
         drawRow('Total Potongan', App.formatRupiah(p.total_biaya || 0));
-        doc.setTextColor(0, 100, 0);
-        drawRow('JUMLAH DITERIMA BERSIH', App.formatRupiah(p.jumlah - (p.total_biaya || 0)));
-        doc.setTextColor(0, 0, 0);
+        doc.setTextColor(16, 185, 129); // emerald-500
+        drawRow('JUMLAH DITERIMA BERSIH', App.formatRupiah(p.jumlah - (p.total_biaya || 0)), true);
+        doc.setTextColor(15, 23, 42);
 
         // Section: Jadwal Angsuran
         y += 4;
@@ -1412,13 +1454,13 @@ const PinjamanPage = {
             head: [['Ke-', 'Jatuh Tempo', 'Pokok', 'Bunga', 'Total Tagihan']],
             body: scheduleData,
             theme: 'grid',
-            headStyles: { fillColor: [15, 23, 42], fontSize: 8, halign: 'center' },
-            bodyStyles: { fontSize: 8 },
+            headStyles: { fillColor: [15, 23, 42], fontSize: 8, halign: 'center', fontStyle: 'bold' },
+            bodyStyles: { fontSize: 8, textColor: [51, 65, 85] },
             columnStyles: {
                 0: { halign: 'center', cellWidth: 10 },
                 2: { halign: 'right' },
                 3: { halign: 'right' },
-                4: { halign: 'right' }
+                4: { halign: 'right', fontStyle: 'bold' }
             }
         });
 
@@ -1427,28 +1469,62 @@ const PinjamanPage = {
         // Terms
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        const terms = 'Dengan menandatangani surat ini, Anggota menyatakan setuju terhadap rincian pinjaman tersebut di atas dan bersedia mematuhi segala peraturan yang berlaku di Koperasi.';
+        doc.setTextColor(71, 85, 105); // slate-600
+        const terms = 'Pernyataan: Dengan menandatangani surat ini, Anggota menyatakan telah memahami dan setuju terhadap rincian pinjaman tersebut di atas serta bersedia mematuhi segala peraturan yang berlaku di Koperasi.';
         const splitText = doc.splitTextToSize(terms, pageWidth - (margin * 2));
 
         // Final page check
-        if (y + splitText.length * 5 + 40 > pageHeight) {
+        if (y + splitText.length * 5 + 50 > pageHeight) {
             doc.addPage();
             y = 20;
         }
 
         doc.text(splitText, margin, y);
-        y += (splitText.length * 5) + 15;
+        y += (splitText.length * 5) + 10;
 
-        // Signatures
+        // Signatures Area
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(9);
         doc.text('Kota Digital, ' + App.todayDMY(), pageWidth - margin - 50, y);
+        
         y += 7;
-        doc.text('Hormat Kami,', margin + 10, y);
-        doc.text('Menyetujui,', pageWidth - margin - 40, y);
-
-        y += 20;
+        const sigY = y;
         doc.setFont('helvetica', 'bold');
-        doc.text('( Pengurus Koperasi )', margin + 5, y);
+        doc.text('PENGURUS KOPERASI', margin + 5, sigY);
+        doc.text('ANGGOTA / PEMINJAM', pageWidth - margin - 45, sigY);
+
+        // Digital Signature Stamp (Koperasi side)
+        y += 5;
+        doc.addImage(qrImage, 'PNG', margin + 10, y, 22, 22);
+        
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(79, 70, 229); // indigo-600
+        doc.text('DIGITALLY SIGNED', margin + 35, y + 8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.text('Verify authenticity by', margin + 35, y + 12);
+        doc.text('scanning this QR Code', margin + 35, y + 15);
+        doc.setFont('courier', 'normal');
+        doc.text('ID: ' + btoa(p.no_pinjaman).substring(0, 12), margin + 35, y + 19);
+
+        // Member Signature Placeholder
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(203, 213, 225); // slate-300
+        doc.text('( Tanda Tangan Anggota )', pageWidth - margin - 45, y + 15);
+
+        y += 30;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text('( ' + (p.approved_by_nama || 'PENGURUS') + ' )', margin + 5, y);
         doc.text('( ' + p.anggota_nama + ' )', pageWidth - margin - 45, y);
+
+        // Footer small print
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(148, 163, 184);
+        doc.text('Dokumen ini diterbitkan secara elektronik dan merupakan bukti sah persetujuan kredit.', pageWidth / 2, pageHeight - 10, { align: 'center' });
 
         window.open(doc.output('bloburl'), '_blank');
     },

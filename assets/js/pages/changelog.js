@@ -108,6 +108,9 @@ function buildVersionCard(v, index) {
         </div>`;
     }).join('');
 
+    const bodyId = `cl-body-${v.version.replace(/[^a-z0-9]/gi, '-')}`;
+    const arrowId = `cl-arrow-${v.version.replace(/[^a-z0-9]/gi, '-')}`;
+
     return `
     <div class="version-card relative flex gap-5" data-version="${v.version}">
         <!-- Timeline line & dot -->
@@ -121,18 +124,24 @@ function buildVersionCard(v, index) {
         <!-- Card -->
         <div class="flex-1 mb-8 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
             <!-- Card Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-50 bg-gray-50/50">
+            <div onclick="ChangelogPage.toggleVersion('${v.version}')" 
+                class="flex items-center justify-between px-6 py-4 border-b border-gray-50 bg-gray-50/50 cursor-pointer hover:bg-gray-100/50 transition-colors group">
                 <div class="flex items-center gap-3">
                     <span class="font-bold text-lg text-gray-900 tracking-tight font-mono">${v.version}</span>
                     ${isLatest ? '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-100 text-primary-700"><i class="ri-rocket-line text-[11px]"></i> Terbaru</span>' : ''}
                 </div>
-                <div class="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
-                    <i class="ri-calendar-line"></i>
-                    <span>${formatDate(v.date)}</span>
+                <div class="flex items-center gap-4">
+                    <div class="hidden sm:flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                        <i class="ri-calendar-line"></i>
+                        <span>${formatDate(v.date)}</span>
+                    </div>
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 group-hover:bg-white transition-all shadow-sm border border-transparent group-hover:border-gray-100">
+                        <i id="${arrowId}" class="ri-arrow-down-s-line text-xl transition-transform duration-300 ${isLatest ? 'rotate-180' : ''}"></i>
+                    </div>
                 </div>
             </div>
             <!-- Card Body -->
-            <div class="px-6 py-5">
+            <div id="${bodyId}" class="px-6 py-5 ${isLatest ? '' : 'hidden'}">
                 ${groupsHtml || '<p class="text-sm text-gray-400">Tidak ada detail perubahan.</p>'}
             </div>
         </div>
@@ -270,6 +279,22 @@ const ChangelogPage = {
         }
 
         timeline.innerHTML = filtered.map((v, i) => buildVersionCard(v, i)).join('');
+    },
+
+    toggleVersion(version) {
+        const safeId = version.replace(/[^a-z0-9]/gi, '-');
+        const body = document.getElementById(`cl-body-${safeId}`);
+        const arrow = document.getElementById(`cl-arrow-${safeId}`);
+        if (!body || !arrow) return;
+
+        const isHidden = body.classList.contains('hidden');
+        if (isHidden) {
+            body.classList.remove('hidden');
+            arrow.classList.add('rotate-180');
+        } else {
+            body.classList.add('hidden');
+            arrow.classList.remove('rotate-180');
+        }
     },
 
     _updateLatestBadge() {

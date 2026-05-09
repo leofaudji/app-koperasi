@@ -10,7 +10,8 @@ const SimpananPage = {
     async loadList(container, page = 1) {
         this.page = page;
         const search = document.getElementById('simp-search')?.value || '';
-        const res = await App.api(`simpanan?page=${page}&search=${encodeURIComponent(search)}`);
+        const anggotaId = App.queryParams?.anggota_id || '';
+        const res = await App.api(`simpanan?page=${page}&search=${encodeURIComponent(search)}&anggota_id=${anggotaId}`);
         if (!res?.success) return;
 
         container.innerHTML = `

@@ -29,7 +29,23 @@ if (session_status() === PHP_SESSION_NONE) {
 
     session_name(SESSION_NAME);
     ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
-    session_set_cookie_params(SESSION_LIFETIME);
+    
+    // Support for PHP 7.3+ array options for better control over secure/samesite flags
+    $isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+    
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params([
+            'lifetime' => SESSION_LIFETIME,
+            'path' => '/',
+            'domain' => '', // Current domain
+            'secure' => $isSecure,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+    } else {
+        session_set_cookie_params(SESSION_LIFETIME, '/; SameSite=Lax', '', $isSecure, true);
+    }
+    
     session_start();
 }
 

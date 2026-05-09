@@ -6,6 +6,21 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v1.9.0] - 2026-05-08
+
+### ✨ Ditambahkan
+- **Branding Dinamis di Login**: Nama koperasi dan logo pada halaman login kini diambil secara dinamis dari pengaturan database tanpa memerlukan login terlebih dahulu.
+- **Collapsible Changelog**: Antarmuka riwayat versi kini dapat diciutkan (collapsible) per versi untuk navigasi yang lebih rapi dan fokus pada versi terbaru.
+- **Digital Signature & E-Contract**: Implementasi tanda tangan digital berbasis QR Code pada dokumen SPK (Surat Persetujuan Kredit) untuk verifikasi keaslian dokumen secara instan.
+- **Dashboard Analytics Update**: Penambahan statistik "Pinjaman Per Jenis" pada dashboard utama untuk memberikan gambaran portofolio pinjaman yang lebih komprehensif, sejajar dengan statistik simpanan.
+- **Fintech Detail Interface**: Redesain total halaman detail anggota dengan antarmuka berbasis tab (Ringkasan, Simpanan, Pinjaman, Profil) ala aplikasi Fintech premium. Dilengkapi dengan indikator progress pelunasan pinjaman, kartu statistik modern, dan navigasi yang lebih intuitif.
+- **Modal Mutasi Produk**: Kini pengurus dapat melihat riwayat transaksi simpanan atau riwayat angsuran pinjaman secara instan melalui modal pop-up hanya dengan mengklik kartu produk pada halaman detail anggota.
+- **Deep-Linking & Filter Otomatis**: Router aplikasi kini mendukung parameter query (`?anggota_id=...`). Mengklik "Tambah Transaksi" atau "Lihat Semua" dari detail anggota akan langsung memfilter data transaksi sesuai anggota yang dipilih.
+
+### 🔧 Diubah
+- **Akses Publik Pengaturan**: Membuka akses baca publik terbatas ke endpoint `/api/settings` untuk mendukung fitur branding dinamis dengan tetap menjaga keamanan data sensitif.
+- **Hardening Sesi HTTPS**: Optimalisasi parameter cookie sesi (`Secure`, `HttpOnly`, `SameSite=Lax`) untuk meningkatkan stabilitas login di lingkungan server hosting berbasis HTTPS.
+
 ## [v1.8.0] - 2026-05-07
 
 ### ✨ Ditambahkan
