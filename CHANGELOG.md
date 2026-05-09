@@ -6,7 +6,7 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
-## [v1.9.0] - 2026-05-08
+## [v2.0.0] - 2026-05-10
 
 ### ✨ Ditambahkan
 - **Branding Dinamis di Login**: Nama koperasi dan logo pada halaman login kini diambil secara dinamis dari pengaturan database tanpa memerlukan login terlebih dahulu.

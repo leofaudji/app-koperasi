@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '1.8.0', // Default version, will be updated from CHANGELOG.md
+    version: '2.0.0', // Major Modernization Milestone
     API_BASE: (() => {
         // Best way: find the root based on where this script is loaded from
         const script = document.currentScript || document.querySelector('script[src*="assets/js/app.js"]');
