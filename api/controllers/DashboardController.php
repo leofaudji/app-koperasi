@@ -8,7 +8,7 @@ $db = Database::getInstance();
 switch ($method) {
     case 'GET':
         $redis = RedisManager::getInstance();
-        $cacheKey = 'dashboard_stats_v19';
+        $cacheKey = 'dashboard_stats_v21';
         $cachedStats = $redis->get($cacheKey);
 
         if ($cachedStats) {
@@ -74,10 +74,55 @@ switch ($method) {
              LIMIT 10"
         );
 
+        // Total Kas (Account 1000)
+        $kasBalance = $db->fetch(
+            "SELECT COALESCE(SUM(debit - kredit), 0) as total 
+             FROM jurnal_detail jd 
+             JOIN akun a ON jd.akun_id = a.id 
+             WHERE a.kode = '1000'"
+        );
+        $totalKas = $kasBalance['total'] ?? 0;
+        
+        // Liquidity Ratio (%)
+        $totalSimp = $totalSimpanan['total'] ?? 0;
+        $liquidityRatio = $totalSimp > 0 ? round(($totalKas / $totalSimp) * 100, 2) : 100;
+
+        // 1. NPL Ratio (Kredit Macet > 90 hari)
+        // Defini: (Sisa Pinjaman yang memiliki tunggakan > 90 hari) sesuai Laporan Kolektibilitas
+        $totalOutstanding = $totalPinjaman['total'] ?? 0;
+        $totalMacet = $db->fetch(
+            "SELECT COALESCE(SUM(sisa_pinjaman), 0) as total 
+             FROM pinjaman 
+             WHERE id IN (
+                SELECT DISTINCT pinjaman_id 
+                FROM angsuran 
+                WHERE status = 'terlambat' 
+                OR (status = 'belum' AND tgl_jatuh_tempo < DATE_SUB(CURDATE(), INTERVAL 90 DAY))
+             ) AND status = 'cair'"
+        );
+        $nplRatio = $totalOutstanding > 0 ? round(($totalMacet['total'] / $totalOutstanding) * 100, 2) : 0;
+
+        // 2. Member Growth (% Month over Month)
+        $thisMonth = date('Y-m');
+        $lastMonth = date('Y-m', strtotime('first day of last month'));
+        $newMembers = $db->count("SELECT COUNT(*) FROM anggota WHERE DATE_FORMAT(tgl_daftar, '%Y-%m') = ?", [$thisMonth]);
+        $oldMembers = $db->count("SELECT COUNT(*) FROM anggota WHERE DATE_FORMAT(tgl_daftar, '%Y-%m') < ?", [$thisMonth]);
+        $memberGrowth = $oldMembers > 0 ? round(($newMembers / $oldMembers) * 100, 1) : 100;
+
+        // 3. Transaction Volume (Last 30 Days)
+        $txSimpanan = $db->count("SELECT COUNT(*) FROM simpanan WHERE tgl_transaksi >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
+        $txAngsuran = $db->count("SELECT COUNT(*) FROM angsuran WHERE tgl_bayar >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
+        $txVolume = $txSimpanan + $txAngsuran;
+
         $stats = [
             'total_anggota' => $totalAnggota,
-            'total_simpanan' => $totalSimpanan['total'] ?? 0,
-            'total_pinjaman' => $totalPinjaman['total'] ?? 0,
+            'total_simpanan' => $totalSimp,
+            'total_pinjaman' => $totalOutstanding,
+            'total_kas' => $totalKas,
+            'liquidity_ratio' => $liquidityRatio,
+            'npl_ratio' => $nplRatio,
+            'member_growth' => $memberGrowth,
+            'tx_volume' => $txVolume,
             'pinjaman_pending' => $pinjamanPending,
             'simpanan_per_jenis' => $simpananPerJenis,
             'pinjaman_per_jenis' => $pinjamanPerJenis,

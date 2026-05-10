@@ -421,6 +421,9 @@ try {
         case 'log':
             require_once $controllerPath . 'LogController.php';
             break;
+        case 'search':
+            require_once $controllerPath . 'SearchController.php';
+            break;
         default:
             errorResponse('Route not found', 404);
     }

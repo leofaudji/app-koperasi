@@ -364,6 +364,16 @@
                         <p id="page-subtitle" class="text-xs text-gray-400 hidden"></p>
                     </div>
                 </div>
+                <div class="flex items-center gap-4 flex-1 max-w-xl mx-4 sm:mx-10">
+                    <div onclick="App.toggleSearch()" 
+                         class="flex-1 group flex items-center gap-3 px-4 h-10 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer hover:bg-white hover:border-primary-100 hover:shadow-md transition-all duration-300">
+                        <i class="ri-search-2-line text-gray-400 group-hover:text-primary-500 transition-colors"></i>
+                        <span class="text-xs font-medium text-gray-400 group-hover:text-gray-500 flex-1">Cari apa saja...</span>
+                        <kbd class="hidden md:flex items-center gap-1 px-1.5 py-0.5 bg-white border border-gray-200 rounded text-[10px] font-bold text-gray-400 group-hover:border-primary-200 transition-colors">
+                            Ctrl + K
+                        </kbd>
+                    </div>
+                </div>
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-gray-400 hidden sm:block" id="current-date"></span>
                 </div>
@@ -398,7 +408,68 @@
         </div>
     </div>
 
+    <!-- Omni-Search Modal -->
+    <div id="omni-search-modal" class="fixed inset-0 z-[110] hidden opacity-0 transition-all duration-300">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onclick="App.toggleSearch()"></div>
+        <div class="absolute inset-x-0 top-20 flex justify-center p-4">
+            <div class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden transform transition-all scale-95" id="omni-search-content">
+                <div class="relative flex items-center border-b border-slate-100 p-6">
+                    <i class="ri-search-line text-2xl text-slate-400"></i>
+                    <input type="text" id="omni-search-input" placeholder="Ketik nama anggota, menu, atau transaksi... (Ctrl+K)" 
+                           class="w-full pl-4 pr-10 py-1 text-lg font-medium text-slate-800 placeholder-slate-400 focus:outline-none bg-transparent">
+                    <kbd class="hidden sm:flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-bold">
+                        ESC
+                    </kbd>
+                </div>
+                <div id="omni-search-results" class="max-h-[60vh] overflow-y-auto p-4 custom-scrollbar">
+                    <div class="p-8 text-center text-slate-400">
+                        <i class="ri-command-line text-4xl mb-3 block opacity-20"></i>
+                        <p class="text-sm font-medium">Gunakan <strong>Ctrl + K</strong> untuk mencari apapun secara instan.</p>
+                    </div>
+                </div>
+                <div class="bg-slate-50 px-6 py-3 border-t border-slate-100 flex items-center justify-between">
+                    <div class="flex gap-4">
+                        <span class="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                            <kbd class="px-1.5 py-0.5 bg-white border border-slate-200 rounded-md">↑↓</kbd> Pilih
+                        </span>
+                        <span class="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
+                            <kbd class="px-1.5 py-0.5 bg-white border border-slate-200 rounded-md">Enter</kbd> Buka
+                        </span>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">OmniSearch v1.0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="assets/js/app.js?v={{APP_VERSION}}"></script>
+    <!-- Quick Action Magic Menu -->
+    <div class="fixed bottom-8 right-8 z-[100]">
+        <div id="magic-menu" class="absolute bottom-20 right-0 flex flex-col gap-3 items-end transition-all duration-300 scale-0 origin-bottom-right opacity-0 pointer-events-none">
+            <button onclick="location.hash='#/simpanan'; App.toggleMagicMenu()" class="group flex items-center gap-3 bg-white hover:bg-emerald-50 px-5 py-3 rounded-2xl shadow-xl border border-slate-100 transition-all hover:-translate-x-2">
+                <span class="text-xs font-black text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Simpan Uang</span>
+                <div class="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                    <i class="ri-wallet-3-line text-xl"></i>
+                </div>
+            </button>
+            <button onclick="location.hash='#/pinjaman'; App.toggleMagicMenu()" class="group flex items-center gap-3 bg-white hover:bg-amber-50 px-5 py-3 rounded-2xl shadow-xl border border-slate-100 transition-all hover:-translate-x-2">
+                <span class="text-xs font-black text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Bayar Pinjaman</span>
+                <div class="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
+                    <i class="ri-hand-coin-line text-xl"></i>
+                </div>
+            </button>
+            <button onclick="location.hash='#/anggota'; App.toggleMagicMenu()" class="group flex items-center gap-3 bg-white hover:bg-indigo-50 px-5 py-3 rounded-2xl shadow-xl border border-slate-100 transition-all hover:-translate-x-2">
+                <span class="text-xs font-black text-slate-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Tambah Anggota</span>
+                <div class="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                    <i class="ri-user-add-line text-xl"></i>
+                </div>
+            </button>
+        </div>
+        <button id="magic-btn" onclick="App.toggleMagicMenu()" class="w-16 h-16 bg-slate-900 hover:bg-black text-white rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-slate-400 transition-all hover:rotate-90">
+            <i class="ri-add-line text-3xl transition-transform" id="magic-btn-icon"></i>
+        </button>
+    </div>
+
     <!-- Splash Screen Overlay -->
     <div id="splash-screen"
         class="fixed inset-0 bg-primary-600 z-[200] flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-500">

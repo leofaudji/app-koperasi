@@ -97,6 +97,34 @@ const App = {
             this.showLogin();
         }
         window.addEventListener('hashchange', () => this.handleRoute());
+
+        // Omni-Search Keyboard Shortcuts
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                this.toggleSearch();
+            }
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('omni-search-modal');
+                if (modal && !modal.classList.contains('hidden')) this.toggleSearch();
+            }
+        });
+
+        // Omni-Search Input Event
+        document.getElementById('omni-search-input')?.addEventListener('input', (e) => {
+            clearTimeout(this.searchTimer);
+            const q = e.target.value.trim();
+            if (q.length < 2) {
+                document.getElementById('omni-search-results').innerHTML = '<div class="p-8 text-center text-slate-400"><i class="ri-command-line text-4xl mb-3 block opacity-20"></i><p class="text-sm font-medium">Gunakan <strong>Ctrl + K</strong> untuk mencari apapun secara instan.</p></div>';
+                return;
+            }
+
+            this.searchTimer = setTimeout(async () => {
+                document.getElementById('omni-search-results').innerHTML = '<div class="p-8 text-center"><i class="ri-loader-4-line text-4xl animate-spin text-primary-500"></i></div>';
+                const res = await this.api(`search?q=${encodeURIComponent(q)}`);
+                if (res?.success) this.renderSearchResults(res.data);
+            }, 300);
+        });
     },
 
     applyBranding() {
@@ -423,6 +451,76 @@ const App = {
         document.getElementById('modal-container').classList.remove('hidden');
     },
     closeModal() { document.getElementById('modal-container').classList.add('hidden'); },
+
+    toggleSearch() {
+        const modal = document.getElementById('omni-search-modal');
+        const content = document.getElementById('omni-search-content');
+        const input = document.getElementById('omni-search-input');
+
+        if (modal.classList.contains('hidden')) {
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.add('opacity-100');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+                input.focus();
+            }, 10);
+        } else {
+            modal.classList.remove('opacity-100');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                input.value = '';
+            }, 300);
+        }
+    },
+
+    renderSearchResults(results) {
+        const container = document.getElementById('omni-search-results');
+        if (!results.length) {
+            container.innerHTML = '<div class="p-8 text-center text-slate-400"><i class="ri-find-replace-line text-4xl mb-3 block opacity-20"></i><p class="text-sm font-medium">Tidak ada hasil ditemukan.</p></div>';
+            return;
+        }
+
+        container.innerHTML = results.map((r, i) => `
+            <div onclick="App.openSearchUrl('${r.url}')" class="group flex items-center gap-4 p-4 hover:bg-slate-50 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-slate-100">
+                <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-primary-600 group-hover:shadow-md transition-all">
+                    <i class="${r.icon} text-xl"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                        <h5 class="text-sm font-bold text-slate-800">${r.title}</h5>
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-300 group-hover:text-primary-400 transition-colors">${r.type}</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium">${r.subtitle}</p>
+                </div>
+                <i class="ri-arrow-right-s-line text-slate-300 group-hover:translate-x-1 transition-transform"></i>
+            </div>
+        `).join('');
+    },
+
+    openSearchUrl(url) {
+        this.toggleSearch();
+        location.hash = url;
+    },
+
+    toggleMagicMenu() {
+        const menu = document.getElementById('magic-menu');
+        const icon = document.getElementById('magic-btn-icon');
+        if (!menu || !icon) return;
+
+        const isOpen = !menu.classList.contains('scale-0');
+        if (isOpen) {
+            menu.classList.add('scale-0', 'opacity-0', 'pointer-events-none');
+            menu.classList.remove('scale-100', 'opacity-100', 'pointer-events-auto');
+            icon.classList.remove('rotate-45');
+        } else {
+            menu.classList.remove('scale-0', 'opacity-0', 'pointer-events-none');
+            menu.classList.add('scale-100', 'opacity-100', 'pointer-events-auto');
+            icon.classList.add('rotate-45');
+        }
+    },
 
     // ===== Helpers =====
     formatRupiah(n) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0); },

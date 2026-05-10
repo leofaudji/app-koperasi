@@ -15,7 +15,9 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 - **Dashboard Analytics Update**: Penambahan statistik "Pinjaman Per Jenis" pada dashboard utama untuk memberikan gambaran portofolio pinjaman yang lebih komprehensif, sejajar dengan statistik simpanan.
 - **Fintech Detail Interface**: Redesain total halaman detail anggota dengan antarmuka berbasis tab (Ringkasan, Simpanan, Pinjaman, Profil) ala aplikasi Fintech premium. Dilengkapi dengan indikator progress pelunasan pinjaman, kartu statistik modern, dan navigasi yang lebih intuitif.
 - **Modal Mutasi Produk**: Kini pengurus dapat melihat riwayat transaksi simpanan atau riwayat angsuran pinjaman secara instan melalui modal pop-up hanya dengan mengklik kartu produk pada halaman detail anggota.
-- **Deep-Linking & Filter Otomatis**: Router aplikasi kini mendukung parameter query (`?anggota_id=...`). Mengklik "Tambah Transaksi" atau "Lihat Semua" dari detail anggota akan langsung memfilter data transaksi sesuai anggota yang dipilih.
+- **Financial Health Scoreboard**: Panel indikator kesehatan finansial yang mencakup Rasio NPL (Kredit Macet), Pertumbuhan Anggota (MoM), dan Volume Transaksi 30 hari terakhir untuk pemantauan performa bisnis yang lebih akurat.
+- **Liquidity Gauge Analytics**: Panel pemantauan likuiditas kas secara real-time yang membandingkan aset kas dengan total kewajiban simpanan, lengkap dengan indikator kesehatan keuangan.
+- **Quick Action Magic Menu**: Floating action button (FAB) baru untuk akses cepat ke transaksi simpanan, pinjaman, dan pendaftaran anggota dari halaman mana pun.
 
 ### 🔧 Diubah
 - **Akses Publik Pengaturan**: Membuka akses baca publik terbatas ke endpoint `/api/settings` untuk mendukung fitur branding dinamis dengan tetap menjaga keamanan data sensitif.
