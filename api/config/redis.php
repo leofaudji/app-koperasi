@@ -16,18 +16,21 @@ class RedisManager
         try {
             $this->redis = new Redis();
             
+            // Fix: Treat string "null" as actual null
+            $pass = (REDIS_PASS === 'null' || REDIS_PASS === '') ? null : REDIS_PASS;
+
             // Check if host is a Unix socket
             if (strpos(REDIS_HOST, '/') === 0) {
                 $this->connected = @$this->redis->connect(REDIS_HOST);
             } else {
-                $this->connected = @$this->redis->connect(REDIS_HOST, REDIS_PORT, 2.0);
+                $this->connected = @$this->redis->connect(REDIS_HOST, (int)REDIS_PORT, 2.0);
             }
 
             if ($this->connected) {
-                if (REDIS_PASS) {
-                    $this->redis->auth(REDIS_PASS);
+                if ($pass !== null) {
+                    $this->redis->auth($pass);
                 }
-                $this->redis->select(REDIS_DB);
+                $this->redis->select((int)REDIS_DB);
                 $this->redis->setOption(Redis::OPT_PREFIX, REDIS_PREFIX);
                 $this->redis->setOption(Redis::OPT_SERIALIZER, Redis::SERIALIZER_PHP);
             }
@@ -120,8 +123,9 @@ class RedisManager
                 $savePath = "tcp://" . REDIS_HOST . ":" . REDIS_PORT . "?prefix=" . REDIS_PREFIX . "session:";
             }
             
-            if (REDIS_PASS) {
-                $savePath .= "&auth=" . urlencode(REDIS_PASS);
+            $pass = (REDIS_PASS === 'null' || REDIS_PASS === '') ? null : REDIS_PASS;
+            if ($pass !== null) {
+                $savePath .= "&auth=" . urlencode($pass);
             }
 
             ini_set('session.save_path', $savePath);
