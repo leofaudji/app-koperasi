@@ -27,7 +27,7 @@ require_once __DIR__ . '/middleware/csrf.php';
 // Start session
 if (session_status() === PHP_SESSION_NONE) {
     // Use Redis for sessions if available
-    RedisManager::getInstance()->initSession();
+    // RedisManager::getInstance()->initSession();
 
     session_name(SESSION_NAME);
     ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
