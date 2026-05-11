@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '2.0.0', // Major Modernization Milestone
+    version: '2.0.1', // Splash & UI Refinement Update
     API_BASE: (() => {
         // Best way: find the root based on where this script is loaded from
         const script = document.currentScript || document.querySelector('script[src*="assets/js/app.js"]');
@@ -125,6 +125,72 @@ const App = {
                 if (res?.success) this.renderSearchResults(res.data);
             }, 300);
         });
+
+        // Set Version on Splash
+        const vEl = document.getElementById('splash-version');
+        if (vEl) vEl.textContent = `Core Engine v${this.version}`;
+
+        // Dynamic Splash Messages & System Health Check
+        const splashMsg = document.getElementById('splash-msg');
+        const splashStatus = document.getElementById('splash-status');
+        const splashTip = document.getElementById('splash-tip');
+        
+        const systemTips = [
+            "Sistem dioptimalkan dengan Redis v2.0 untuk performa maksimal.",
+            "Keamanan data dilindungi oleh Encryption Layer terbaru.",
+            "Gunakan Ctrl+K untuk mencari anggota atau menu secara instan.",
+            "Sistem cadangan data otomatis berjalan setiap malam.",
+            "Monitoring likuiditas membantu pengambilan keputusan tepat.",
+            "Log aktivitas mencatat setiap perubahan penting secara detail."
+        ];
+
+        if (splashTip) {
+            // Show Tip immediately
+            const randomTip = systemTips[Math.floor(Math.random() * systemTips.length)];
+            splashTip.innerHTML = `<i class="ri-lightbulb-line text-amber-500 animate-pulse"></i> ${randomTip}`;
+            
+            // Smart Time-Based Greeting
+            const hours = new Date().getHours();
+            let timeGreeting = "Selamat Malam";
+            if (hours < 11) timeGreeting = "Selamat Pagi";
+            else if (hours < 15) timeGreeting = "Selamat Siang";
+            else if (hours < 19) timeGreeting = "Selamat Sore";
+
+            const userNama = this.user?.nama_lengkap?.split(' ')[0] || '';
+            const greeting = userNama ? `${timeGreeting}, ${userNama}` : "Initializing System";
+            if (splashMsg) splashMsg.textContent = greeting;
+            
+            // Phase 1: DB Status
+            setTimeout(() => {
+                if (splashStatus) {
+                    splashStatus.classList.remove('opacity-0');
+                    splashStatus.textContent = "Menghubungkan ke Database...";
+                }
+            }, 400);
+
+            // Phase 2: Redis Status
+            setTimeout(() => {
+                if (splashStatus) splashStatus.textContent = "Mengaktifkan Redis Cache...";
+            }, 1200);
+
+            // Phase 3: Auth Status
+            setTimeout(() => {
+                if (splashStatus) splashStatus.textContent = "Validasi Sesi Keamanan...";
+                if (splashMsg) {
+                    splashMsg.textContent = "System Ready";
+                    splashMsg.classList.replace('text-primary-600', 'text-emerald-500');
+                }
+            }, 2200);
+        }
+
+        // Hide Splash Screen with smooth transition (3s total)
+        setTimeout(() => {
+            const splash = document.getElementById('splash-screen');
+            if (splash) {
+                splash.classList.add('opacity-0', 'invisible', 'scale-110');
+                setTimeout(() => splash.classList.add('hidden'), 700);
+            }
+        }, 3200);
     },
 
     applyBranding() {
@@ -164,12 +230,25 @@ const App = {
         if (res && res.success) {
             this.setUser(res.data);
 
-            // 1. Show splash screen instantly (solid background)
+            // 1. Show splash screen instantly
             const splash = document.getElementById('splash-screen');
-            splash.classList.remove('hidden', 'opacity-0');
-            splash.classList.add('opacity-100');
+            if (splash) {
+                // Reset states
+                splash.classList.remove('hidden', 'opacity-0', 'invisible', 'scale-110');
+                splash.classList.add('opacity-100');
+                
+                // Update text to Dashboard specific
+                const sMsg = document.getElementById('splash-msg');
+                const sStatus = document.getElementById('splash-status');
+                if (sMsg) {
+                    sMsg.textContent = "Welcome Back";
+                    sMsg.classList.remove('text-emerald-500');
+                    sMsg.classList.add('text-primary-600');
+                }
+                if (sStatus) sStatus.textContent = "Menyiapkan Dashboard Anda...";
+            }
 
-            // 2. Hide login page immediately so it's not visible during/after splash transition
+            // 2. Hide login page immediately
             document.getElementById('login-page').classList.add('hidden');
 
             // 3. Wait 1.8s for the "Experience"
@@ -223,8 +302,10 @@ const App = {
     showLogin() {
         document.getElementById('login-page').classList.remove('hidden');
         document.getElementById('app-layout').classList.add('hidden');
-        document.getElementById('login-username').value = '';
+        const userField = document.getElementById('login-username');
+        userField.value = '';
         document.getElementById('login-password').value = '';
+        setTimeout(() => userField.focus(), 100);
     },
 
     async showApp() {

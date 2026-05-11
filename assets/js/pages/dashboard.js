@@ -2,7 +2,27 @@
 const DashboardPage = {
     async render(container) {
         App.setTitle('Dashboard', 'Ringkasan data koperasi');
-        container.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">' + Array(4).fill('<div class="skeleton h-28 rounded-2xl"></div>').join('') + '</div><div class="skeleton h-64 rounded-2xl"></div>';
+        
+        // Premium Skeleton Loader
+        container.innerHTML = `
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            ${Array(4).fill(`
+                <div class="bg-white rounded-2xl p-5 border border-slate-100">
+                    <div class="skeleton w-10 h-10 rounded-xl mb-4"></div>
+                    <div class="skeleton w-24 h-6 rounded-md mb-2"></div>
+                    <div class="skeleton w-16 h-4 rounded-md"></div>
+                </div>
+            `).join('')}
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-100">
+                <div class="skeleton w-full h-48 rounded-3xl"></div>
+            </div>
+            <div class="bg-white rounded-[2rem] p-8 border border-slate-100">
+                <div class="skeleton w-full h-48 rounded-3xl"></div>
+            </div>
+        </div>
+        `;
 
         const res = await App.api('dashboard');
         if (!res?.success) return;
@@ -18,7 +38,7 @@ const DashboardPage = {
 
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
             <!-- Liquidity Gauge -->
-            <div class="xl:col-span-2 bg-white rounded-[2rem] shadow-xl shadow-slate-200/40 border border-white p-8 flex flex-col sm:flex-row items-center gap-10 animate-slideUp">
+            <div class="xl:col-span-2 bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8 flex flex-col sm:flex-row items-center gap-10 animate-slideUp">
                 <div class="relative w-44 h-44 shrink-0">
                     <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="44" fill="none" stroke="#f1f5f9" stroke-width="10"></circle>
@@ -53,7 +73,7 @@ const DashboardPage = {
             </div>
 
             <!-- Financial Health Scoreboard -->
-            <div class="bg-white rounded-[2rem] shadow-xl shadow-slate-200/40 border border-white p-8 animate-slideUp" style="animation-delay: 0.1s">
+            <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8 animate-slideUp" style="animation-delay: 0.1s">
                 <h4 class="text-lg font-black text-slate-900 mb-6 flex items-center gap-2">
                     <i class="ri-heart-pulse-line text-rose-500"></i> Financial Health
                 </h4>
@@ -72,7 +92,7 @@ const DashboardPage = {
                     <!-- Member Growth -->
                     <div>
                         <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-bold text-slate-500 uppercase">Pertumbuhan Anggota (Bulan Ini)</span>
+                            <span class="text-xs font-bold text-slate-500 uppercase">Pertumbuhan Anggota</span>
                             <span class="text-sm font-black text-indigo-500">+${d.member_growth}%</span>
                         </div>
                         <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -96,7 +116,7 @@ const DashboardPage = {
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <!-- Status & Tips Card -->
-            <div class="bg-slate-900 rounded-[2rem] p-8 text-white shadow-2xl shadow-slate-900/20 overflow-hidden relative group animate-slideUp">
+            <div class="bg-slate-900 rounded-[2rem] p-8 text-white shadow-xl shadow-slate-900/10 overflow-hidden relative group animate-slideUp">
                 <i class="ri-pulse-line absolute -bottom-10 -right-10 text-[12rem] opacity-5 group-hover:scale-110 transition-transform duration-1000"></i>
                 <div class="relative z-10 h-full flex flex-col">
                     <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
@@ -119,65 +139,85 @@ const DashboardPage = {
             </div>
 
             <!-- Simpanan Per Jenis -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-slideUp" style="animation-delay: 0.1s">
-                <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="ri-pie-chart-line text-primary-500"></i> Simpanan Per Jenis</h3>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 animate-slideUp" style="animation-delay: 0.1s">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="ri-pie-chart-line text-primary-500"></i> Simpanan Per Jenis</h3>
                 <div class="space-y-3">
                     ${(d.simpanan_per_jenis || []).map(s => `
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                        <span class="text-sm font-medium text-gray-600">${s.nama}</span>
-                        <span class="font-semibold text-gray-800">${App.formatRupiah(s.total)}</span>
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">${s.nama}</span>
+                        <span class="font-black text-slate-900">${App.formatRupiah(s.total)}</span>
                     </div>`).join('')}
                 </div>
             </div>
 
             <!-- Pinjaman Per Jenis -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-slideUp" style="animation-delay:0.2s">
-                <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="ri-hand-coin-line text-amber-500"></i> Pinjaman Per Jenis</h3>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 animate-slideUp" style="animation-delay:0.2s">
+                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="ri-hand-coin-line text-amber-500"></i> Pinjaman Per Jenis</h3>
                 <div class="space-y-3">
                     ${(d.pinjaman_per_jenis || []).map(p => `
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                        <span class="text-sm font-medium text-gray-600">${p.nama}</span>
-                        <span class="font-semibold text-gray-800">${App.formatRupiah(p.total)}</span>
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">${p.nama}</span>
+                        <span class="font-black text-slate-900">${App.formatRupiah(p.total)}</span>
                     </div>`).join('')}
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 animate-slideUp" style="animation-delay:0.2s">
-            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="ri-alarm-warning-line text-rose-500"></i> Angsuran Jatuh Tempo (7 Hari Ke Depan)</h3>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6 animate-slideUp" style="animation-delay:0.2s">
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="ri-alarm-warning-line text-rose-500"></i> Angsuran Jatuh Tempo</h3>
             ${(d.angsuran_jatuh_tempo || []).length ? `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 ${d.angsuran_jatuh_tempo.map(a => `
-                <div class="flex items-center justify-between p-4 bg-rose-50/50 border border-rose-100 rounded-xl text-sm hover:bg-rose-50 transition-colors">
+                <div class="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl hover:bg-slate-100 transition-all group">
                     <div>
-                        <div class="font-bold text-gray-800">${a.anggota}</div>
-                        <div class="text-gray-500 text-xs mt-0.5">${a.no_pinjaman} &bull; Angsuran Ke-${a.angsuran_ke}</div>
+                        <div class="font-black text-slate-900 text-sm">${a.anggota}</div>
+                        <div class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">${a.no_pinjaman} &bull; Angsuran Ke-${a.angsuran_ke}</div>
                     </div>
                     <div class="text-right">
-                        <div class="font-bold text-rose-600">${App.formatRupiah(a.total)}</div>
-                        <div class="text-xs font-medium text-rose-400 mt-0.5">${App.formatDate(a.tgl_jatuh_tempo)}</div>
+                        <div class="font-black text-rose-600 text-sm">${App.formatRupiah(a.total)}</div>
+                        <div class="text-[10px] font-bold text-rose-400 mt-1 uppercase tracking-widest">${App.formatDate(a.tgl_jatuh_tempo)}</div>
                     </div>
                 </div>`).join('')}
-            </div>` : '<p class="text-gray-400 text-sm text-center py-8 bg-gray-50 rounded-xl border border-dashed">Tidak ada angsuran jatuh tempo dalam waktu dekat</p>'}
+            </div>` : '<div class="text-slate-400 text-xs font-bold uppercase tracking-widest text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">Tidak ada angsuran jatuh tempo</div>'}
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-slideUp" style="animation-delay:0.2s">
-            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2"><i class="ri-exchange-line text-primary-500"></i> Transaksi Terakhir</h3>
+        <!-- Enterprise Data Table -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 animate-slideUp" style="animation-delay:0.2s">
+            <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="ri-exchange-line text-primary-500"></i> Transaksi Terakhir</h3>
+                <button class="text-[10px] font-bold text-primary-600 uppercase tracking-widest hover:text-primary-700 transition-colors">Lihat Semua</button>
+            </div>
             <div class="table-wrapper">
-                <table class="data-table w-full text-sm">
-                    <thead><tr class="bg-gray-50"><th class="text-left px-4 py-3 font-medium text-gray-500">No. Transaksi</th><th class="text-left px-4 py-3 font-medium text-gray-500">Anggota</th><th class="text-left px-4 py-3 font-medium text-gray-500">Jenis</th><th class="text-left px-4 py-3 font-medium text-gray-500">Transaksi</th><th class="text-right px-4 py-3 font-medium text-gray-500">Jumlah</th><th class="text-center px-4 py-3 font-medium text-gray-500">D/K</th></tr></thead>
-                    <tbody>${(d.transaksi_terakhir || []).map(t => `
-                    <tr class="border-t border-gray-50">
-                        <td class="px-4 py-3 font-mono text-xs">${t.no_transaksi}</td>
-                        <td class="px-4 py-3">${t.anggota}</td>
-                        <td class="px-4 py-3 text-gray-500">${t.jenis_simpanan}</td>
-                        <td class="px-4 py-3">${t.kode_transaksi}</td>
-                        <td class="px-4 py-3 text-right font-semibold">${App.formatRupiah(t.jumlah)}</td>
-                        <td class="px-4 py-3 text-center">${App.dkBadge(t.dk)}</td>
-                    </tr>`).join('')}</tbody>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>No. Transaksi</th>
+                            <th>Anggota</th>
+                            <th>Jenis Simpanan</th>
+                            <th>Transaksi</th>
+                            <th class="text-right">Jumlah</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(d.transaksi_terakhir || []).map(t => `
+                        <tr>
+                            <td class="font-mono font-bold text-slate-400">${t.no_transaksi}</td>
+                            <td>
+                                <div class="font-bold text-slate-900">${t.anggota}</div>
+                            </td>
+                            <td>
+                                <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">${t.jenis_simpanan}</span>
+                            </td>
+                            <td class="text-xs font-medium text-slate-600">${t.kode_transaksi}</td>
+                            <td class="text-right font-black text-slate-900">${App.formatRupiah(t.jumlah)}</td>
+                            <td class="text-center">${App.dkBadge(t.dk)}</td>
+                        </tr>`).join('')}
+                    </tbody>
                 </table>
             </div>
         </div>`;
+
 
         this.startTipsRotation();
     },
