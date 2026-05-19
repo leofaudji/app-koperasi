@@ -372,29 +372,36 @@ const AgunanPage = {
                 ${d.tgl_kembali ? `<div class="text-xs text-blue-500 mt-0.5">Kembali: ${fmtD(d.tgl_kembali)}</div>` : ''}
             </td>
             <td class="px-4 py-3 text-center">${statusBadge(d.status)}</td>
-            <td class="px-4 py-3">
-                <div class="flex items-center justify-end gap-1">
-                    <button onclick="AgunanPage.openModal(${d.id})" title="Edit"
-                        class="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition">
-                        <i class="ri-pencil-line text-base"></i>
+            <td class="px-4 py-3 text-right">
+                <div class="relative inline-block text-left">
+                    <button onclick="AgunanPage.toggleDropdown(event, ${d.id})" 
+                        class="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-gray-600">
+                        <i class="ri-more-2-fill text-lg"></i>
                     </button>
-                    ${d.status === 'aktif' ? `
-                    <button onclick="AgunanPage.gantiAgunan(${d.id})" title="Ganti Agunan"
-                        class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition">
-                        <i class="ri-refresh-line text-base"></i>
-                    </button>
-                    <button onclick="AgunanPage.kembalikan(${d.id})" title="Tandai Dikembalikan"
-                        class="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition">
-                        <i class="ri-check-double-line text-base"></i>
-                    </button>` : ''}
-                    <button onclick="AgunanPage.cetakSuratPenyerahan(${d.id})" title="Cetak Surat Penyerahan"
-                        class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">
-                        <i class="ri-printer-line text-base"></i>
-                    </button>
-                    <button onclick="AgunanPage.hapus(${d.id})" title="Hapus"
-                        class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
-                        <i class="ri-delete-bin-line text-base"></i>
-                    </button>
+                    <div id="ag-drop-${d.id}" class="ag-action-drop hidden absolute right-0 mt-1 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 py-2 animate-fadeIn">
+                        <button onclick="AgunanPage.openModal(${d.id})" 
+                            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-600 flex items-center gap-2 transition-colors">
+                            <i class="ri-pencil-line text-base opacity-70"></i> Edit Agunan
+                        </button>
+                        ${d.status === 'aktif' ? `
+                        <button onclick="AgunanPage.gantiAgunan(${d.id})" 
+                            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-600 flex items-center gap-2 transition-colors">
+                            <i class="ri-refresh-line text-base opacity-70"></i> Ganti Agunan
+                        </button>
+                        <button onclick="AgunanPage.kembalikan(${d.id})" 
+                            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 flex items-center gap-2 transition-colors">
+                            <i class="ri-check-double-line text-base opacity-70"></i> Kembalikan
+                        </button>` : ''}
+                        <button onclick="AgunanPage.cetakSuratPenyerahan(${d.id})" 
+                            class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors">
+                            <i class="ri-printer-line text-base opacity-70"></i> Cetak Surat
+                        </button>
+                        <div class="h-px bg-gray-100 my-1"></div>
+                        <button onclick="AgunanPage.hapus(${d.id})" 
+                            class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors">
+                            <i class="ri-delete-bin-line text-base opacity-70"></i> Hapus Data
+                        </button>
+                    </div>
                 </div>
             </td>
         </tr>`).join('');
@@ -424,6 +431,27 @@ const AgunanPage = {
     goPage(p) {
         _page = p;
         AgunanPage.load();
+    },
+
+    toggleDropdown(e, id) {
+        e.stopPropagation();
+        const el = document.getElementById(`ag-drop-${id}`);
+        const isOpen = !el.classList.contains('hidden');
+
+        // Close all other dropdowns
+        document.querySelectorAll('.ag-action-drop').forEach(d => d.classList.add('hidden'));
+
+        if (!isOpen) {
+            el.classList.remove('hidden');
+            // One-time listener to close on outside click
+            const close = (evt) => {
+                if (!el.contains(evt.target)) {
+                    el.classList.add('hidden');
+                    document.removeEventListener('click', close);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', close), 10);
+        }
     },
 
     // ── Modal ─────────────────────────────────────────────────
@@ -774,7 +802,7 @@ const AgunanPage = {
 
         const res = await App.api(`agunan/${id}/kembalikan`, {
             method: 'PUT',
-            body: { tgl_kembali: new Date().toISOString().slice(0, 10) }
+            body: { tgl_kembali: App.todayISO() }
         });
         if (res?.success) {
             App.toast('Agunan berhasil ditandai dikembalikan', 'success');

@@ -243,7 +243,7 @@ const KartuAngsuranPage = {
                     const isLunas = a.status === 'lunas';
                     const isTerlambat = a.status === 'terlambat';
                     const isBelum = a.status === 'belum';
-                    const today = new Date().toISOString().slice(0, 10);
+                    const today = App.todayISO();
                     const isJatuhTempo = isBelum && a.tgl_jatuh_tempo <= today;
 
                     const rowClass = isLunas ? 'bg-emerald-50/30'

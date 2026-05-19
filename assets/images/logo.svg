@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <!-- White Circular Background -->
+    <circle cx="100" cy="100" r="98" fill="#ffffff" />
+    
+    <!-- Outer Gear (Roda Gigi) -->
+    <path fill="#15803d" d="M100 20l6 14h14l-11 10 4 14-13-9-13 9 4-14-11-10h14z" opacity="0.1"/>
+    <g fill="#166534">
+        <!-- Gear Ring -->
+        <path d="M100 35c-35.9 0-65 29.1-65 65s29.1 65 65 65 65-29.1 65-65-29.1-65-65-65zm0 118c-29.3 0-53-23.7-53-53s23.7-53 53-53 53 23.7 53 53-23.7 53-53 53z"/>
+        <!-- 8 Gear Teeth -->
+        <rect x="96" y="28" width="8" height="15" rx="1" transform="rotate(0 100 100)" />
+        <rect x="96" y="28" width="8" height="15" rx="1" transform="rotate(45 100 100)" />
+        <rect x="96" y="28" width="8" height="15" rx="1" transform="rotate(90 100 100)" />
+        <rect x="96" y="28" width="8" height="15" rx="1" transform="rotate(135 100 100)" />
+        <rect x="96" y="28" width="8" height="15" rx="1" transform="rotate(180 100 100)" />
+        <rect x="96" y="28" width="8" height="15" rx="1" transform="rotate(225 100 100)" />
+        <rect x="96" y="28" width="8" height="15" rx="1" transform="rotate(270 100 100)" />
+        <rect x="96" y="28" width="8" height="15" rx="1" transform="rotate(315 100 100)" />
+    </g>
+
+    <!-- Banyan Tree (Pohon Beringin) -->
+    <path fill="#15803d" d="M100 50c-18 0-30 12-30 25 0 5 8 12 15 12h30c7 0 15-7 15-12 0-13-12-25-30-25z" />
+    <rect x="97" y="80" width="6" height="18" fill="#78350f" />
+    
+    <!-- Scales (Timbangan) -->
+    <rect x="65" y="105" width="70" height="4" rx="2" fill="#854d0e" />
+    <path fill="none" stroke="#854d0e" stroke-width="2.5" d="M65 105c0 15 10 25 15 25M135 105c0 15-10 25-15 25" />
+    <circle cx="80" cy="130" r="10" fill="none" stroke="#854d0e" stroke-width="2" />
+    <circle cx="120" cy="130" r="10" fill="none" stroke="#854d0e" stroke-width="2" />
+    <line x1="100" y1="105" x2="100" y2="90" stroke="#854d0e" stroke-width="2.5" />
+    
+    <!-- Cotton and Rice (Kapas & Padi) -->
+    <g fill="#facc15">
+        <path d="M48 145c-6-12-6-25 0-35 6 10 6 25 0 35zM152 145c6-12 6-25 0-35-6 10-6 25 0 35z" />
+    </g>
+    
+    <!-- Red Banner -->
+    <path fill="#dc2626" d="M60 150h80l-12 18H72z" />
+    <text x="100" y="163" font-family="Arial, sans-serif" font-size="9" fill="white" text-anchor="middle" font-weight="900" letter-spacing="1">KOPERASI</text>
+    
+    <!-- Star (Pancasila) -->
+    <polygon points="100,42 104,50 112,50 106,56 108,65 100,60 92,65 94,56 88,50 96,50" fill="#fbbf24" stroke="#78350f" stroke-width="0.5" />
+</svg>

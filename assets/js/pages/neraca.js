@@ -12,7 +12,8 @@ const NeracaPage = {
 
     async load() {
         const tglEl = document.getElementById('nr-tgl');
-        this.tanggal = tglEl ? App.dateToISO(tglEl.value) : App.todayISO();
+        const tglUI = tglEl ? tglEl.value : App.todayDMY();
+        this.tanggal = App.dateToISO(tglUI);
         const modeEl = document.querySelector('input[name="nr-mode"]:checked');
         if (modeEl) this.mode = modeEl.value;
 
@@ -68,9 +69,11 @@ const NeracaPage = {
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <!-- Column AKTIVA -->
                 <div>
-                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b-2 border-primary-500 flex justify-between">
+                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b-2 border-primary-500 flex justify-between uppercase tracking-wider text-sm">
                         <span>AKTIVA (Aset)</span>
+                        <i class="ri-wallet-3-line text-primary-500"></i>
                     </h3>
                     <div class="space-y-1">
                         ${d.aset.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors">
@@ -81,13 +84,14 @@ const NeracaPage = {
                             <span class="font-mono font-bold text-gray-900">${App.formatRupiah(a.saldo)}</span>
                         </div>`).join('')}
                     </div>
-                    <div class="flex justify-between py-4 mt-4 bg-primary-50/50 px-4 rounded-xl border border-primary-100 font-black text-primary-700">
-                        <span>TOTAL AKTIVA</span>
-                        <span>${App.formatRupiah(d.total_aset)}</span>
-                    </div>
                 </div>
+
+                <!-- Column PASIVA -->
                 <div>
-                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b-2 border-primary-500">PASIVA (Kewajiban & Modal)</h3>
+                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b-2 border-primary-500 flex justify-between uppercase tracking-wider text-sm">
+                        <span>PASIVA (Kewajiban & Modal)</span>
+                        <i class="ri-safe-2-line text-primary-500"></i>
+                    </h3>
                     
                     <div class="mb-6">
                         <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -104,7 +108,7 @@ const NeracaPage = {
                         </div>
                     </div>
 
-                    <div class="mb-6">
+                    <div class="">
                         <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-purple-400"></span> MODAL
                         </h4>
@@ -122,25 +126,32 @@ const NeracaPage = {
                                 <div class="flex flex-col">
                                     <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">LRB</span>
                                     <div class="flex items-center gap-1.5">
-                                        <span class="text-gray-700 font-medium">Laba/Rugi Berjalan</span>
-                                        <span class="text-[9px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-semibold">1 Jan – ${App.formatDate(d.tanggal)}</span>
+                                        <span class="text-gray-700 font-medium text-xs">Laba/Rugi Berjalan</span>
+                                        <span class="text-[8px] bg-blue-100 text-blue-600 px-1 py-0.5 rounded font-bold">1 Jan – ${App.formatDate(d.tanggal)}</span>
                                     </div>
                                 </div>
-                                <span class="font-mono font-bold ${(d.laba_rugi_berjalan ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}">
+                                <span class="font-mono font-bold text-xs ${(d.laba_rugi_berjalan ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}">
                                     ${App.formatRupiah(d.laba_rugi_berjalan ?? 0)}
                                 </span>
                             </div>
                         </div>
                     </div>
-
-                    <div class="flex justify-between py-4 mt-4 bg-primary-50/50 px-4 rounded-xl border border-primary-100 font-black text-primary-700">
-                        <span>TOTAL PASIVA</span>
-                        <span>${App.formatRupiah(d.total_pasiva)}</span>
-                    </div>
                 </div>
             </div>
 
-            <div class="mt-8 flex justify-center">
+            <!-- Totals Row (Aligned Sebaris) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-8">
+                <div class="flex justify-between py-5 bg-primary-600 px-6 rounded-2xl shadow-lg shadow-primary-100 text-white font-black">
+                    <span class="uppercase tracking-widest text-xs opacity-80">Total Aktiva</span>
+                    <span class="text-lg font-mono">${App.formatRupiah(d.total_aset)}</span>
+                </div>
+                <div class="flex justify-between py-5 bg-primary-600 px-6 rounded-2xl shadow-lg shadow-primary-100 text-white font-black">
+                    <span class="uppercase tracking-widest text-xs opacity-80">Total Pasiva</span>
+                    <span class="text-lg font-mono">${App.formatRupiah(d.total_pasiva)}</span>
+                </div>
+            </div>
+
+            <div class="mt-10 flex justify-center">
                 ${Math.abs(d.total_aset - d.total_pasiva) > 0.01 ?
                 `<div class="bg-red-50 border border-red-100 text-red-600 rounded-2xl px-8 py-3.5 text-sm font-bold shadow-sm shadow-red-100 flex items-center gap-2 animate-pulse">
                         <i class="ri-error-warning-fill text-lg"></i> Neraca tidak seimbang! Selisih: ${App.formatRupiah(Math.abs(d.total_aset - d.total_pasiva))}
@@ -150,7 +161,7 @@ const NeracaPage = {
                     </div>`}
             </div>
         </div>`;
-        App.initDatepicker('#nr-tgl', { defaultDate: this.tanggal });
+        App.initDatepicker('#nr-tgl', { defaultDate: tglUI });
     },
 
     export(type) {

@@ -19,6 +19,36 @@ switch ($id) {
         successResponse($logs);
         break;
 
+    case 'activities':
+        authCheck();
+        $anggotaId = $params['anggota_id'] ?? 0;
+        if (!$anggotaId)
+            errorResponse('ID Anggota wajib diisi');
+
+        // Menggabungkan berbagai log aktivitas anggota
+        $sql = "
+            (SELECT 'security' as type, activity as title, CONCAT(COALESCE(platform,''), ' · ', COALESCE(browser,'')) as detail, created_at 
+             FROM portal_logs WHERE anggota_id = ?)
+            UNION ALL
+            (SELECT 'profile' as type, action as title, CONCAT('Audit: ', table_name, ' (ID:', record_id, ')') as detail, created_at 
+             FROM audit_logs WHERE table_name = 'anggota' AND record_id = ?)
+            UNION ALL
+            (SELECT 'finance' as type, CONCAT('Simpanan: ', js.nama) as title, s.no_transaksi as detail, s.created_at 
+             FROM simpanan s JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id 
+             WHERE s.anggota_id = ?)
+            UNION ALL
+            (SELECT 'finance' as type, 'Pencairan Pinjaman' as title, p.no_pinjaman as detail, p.created_at 
+             FROM pinjaman p WHERE p.anggota_id = ? AND p.status IN ('cair', 'lunas'))
+            UNION ALL
+            (SELECT 'finance' as type, 'Pembayaran Angsuran' as title, a.no_transaksi as detail, a.created_at 
+             FROM angsuran a JOIN pinjaman p ON a.pinjaman_id = p.id 
+             WHERE p.anggota_id = ? AND a.status != 'belum')
+            ORDER BY created_at DESC LIMIT 30";
+
+        $activities = $db->fetchAll($sql, [$anggotaId, $anggotaId, $anggotaId, $anggotaId, $anggotaId]);
+        successResponse($activities);
+        break;
+
     case 'stats':
         authCheck();
         $today = date('Y-m-d');

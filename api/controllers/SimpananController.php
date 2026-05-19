@@ -14,7 +14,7 @@ switch ($method) {
                             COALESCE(SUM(CASE WHEN js.kode = 'SP' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as pokok,
                             COALESCE(SUM(CASE WHEN js.kode = 'SW' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as wajib,
                             COALESCE(SUM(CASE WHEN js.kode = 'SS' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as sukarela,
-                            COALESCE(SUM(CASE WHEN js.kode = 'SPF' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as partisipatif,
+                            COALESCE(SUM(CASE WHEN js.kode = 'SPRT' THEN (CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) ELSE 0 END), 0) as partisipatif,
                             COALESCE(SUM(CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END), 0) as total_saldo
                     FROM anggota a
                     LEFT JOIN simpanan s ON a.id = s.anggota_id

@@ -210,6 +210,13 @@ const App = {
             const el = document.getElementById('login-logo');
             if (el) el.src = logoUrl;
         }
+
+        // Update Sidebar Koperasi Name
+        const kopName = getS('nama_koperasi') || getS('app_name');
+        if (kopName) {
+            const el = document.getElementById('sidebar-koperasi-name');
+            if (el) el.textContent = kopName;
+        }
     },
 
     // ===== Auth =====
@@ -659,19 +666,20 @@ const App = {
     },
 
     todayISO() {
-        return new Date().toISOString().slice(0, 10);
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    },
+
+    monthAgoISO() {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     },
 
     monthAgoDMY() {
         const d = new Date();
         d.setMonth(d.getMonth() - 1);
         return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
-    },
-
-    monthAgoISO() {
-        const d = new Date();
-        d.setMonth(d.getMonth() - 1);
-        return d.toISOString().slice(0, 10);
     },
 
     // Convert DD-MM-YYYY to YYYY-MM-DD for API submission

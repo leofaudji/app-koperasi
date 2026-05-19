@@ -216,10 +216,16 @@ const AnggotaPage = {
                         </div>
 
                         <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8">
-                            <h4 class="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">Aktivitas Terakhir</h4>
-                            <div class="space-y-6">
+                            <div class="flex items-center justify-between mb-8">
+                                <h4 class="text-sm font-black text-slate-900 uppercase tracking-widest">Aktivitas Terakhir</h4>
+                                <button onclick="AnggotaPage.loadActivities(${a.id})" class="text-slate-400 hover:text-primary-600 transition-colors">
+                                    <i class="ri-refresh-line"></i>
+                                </button>
+                            </div>
+                            <div id="activity-list" class="space-y-0 relative">
                                 <div class="flex items-center justify-center py-10 text-slate-300 italic text-sm">
-                                    Fitur histori aktivitas akan segera hadir
+                                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-300 mr-2"></div>
+                                    Memuat aktivitas...
                                 </div>
                             </div>
                         </div>
@@ -329,6 +335,44 @@ const AnggotaPage = {
             .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         </style>
         `;
+        
+        this.loadActivities(id);
+    },
+
+    async loadActivities(anggotaId) {
+        const container = document.getElementById('activity-list');
+        if (!container) return;
+
+        const res = await App.api(`log/activities?anggota_id=${anggotaId}`);
+        if (!res?.success || !res.data.length) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-10 text-slate-300 italic text-sm">
+                    <i class="ri-history-line text-4xl mb-2 opacity-20"></i>
+                    Belum ada riwayat aktivitas
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = res.data.map(log => {
+            let icon = 'ri-record-circle-line';
+            let color = 'slate';
+            if (log.type === 'security') { icon = 'ri-shield-user-line'; color = 'indigo'; }
+            else if (log.type === 'finance') { icon = 'ri-exchange-funds-line'; color = 'emerald'; }
+            else if (log.type === 'profile') { icon = 'ri-user-settings-line'; color = 'blue'; }
+
+            return `
+            <div class="flex gap-4 relative">
+                <div class="absolute left-[1.1rem] top-10 bottom-0 w-px bg-slate-100 last:hidden"></div>
+                <div class="w-9 h-9 rounded-xl bg-${color}-50 text-${color}-600 flex items-center justify-center shrink-0 z-10 border border-${color}-100">
+                    <i class="${icon} text-lg"></i>
+                </div>
+                <div class="pb-6">
+                    <p class="text-sm font-bold text-slate-800 leading-tight">${log.title}</p>
+                    <p class="text-[10px] text-slate-400 font-medium mt-1">${log.detail}</p>
+                    <p class="text-[9px] text-slate-400 mt-1.5 uppercase tracking-widest font-bold">${App.formatDate(log.created_at)} · ${log.created_at.split(' ')[1]}</p>
+                </div>
+            </div>`;
+        }).join('');
     },
 
     switchDetailTab(tabId) {

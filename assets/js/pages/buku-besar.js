@@ -13,8 +13,10 @@ const BukuBesarPage = {
     async load(page = 1) {
         const dariEl = document.getElementById('bb-dari');
         const sampaiEl = document.getElementById('bb-sampai');
-        this.dari = dariEl ? App.dateToISO(dariEl.value) : App.monthAgoISO();
-        this.sampai = sampaiEl ? App.dateToISO(sampaiEl.value) : App.todayISO();
+        const dariUI = dariEl ? dariEl.value : App.monthAgoDMY();
+        const sampaiUI = sampaiEl ? sampaiEl.value : App.todayDMY();
+        this.dari = App.dateToISO(dariUI);
+        this.sampai = App.dateToISO(sampaiUI);
 
         const res = await App.api(`keuangan/buku-besar?dari=${this.dari}&sampai=${this.sampai}`);
         if (!res?.success) return;
@@ -66,8 +68,8 @@ const BukuBesarPage = {
             </div>
         </div>`;
 
-        App.initDatepicker('#bb-dari', { defaultDate: this.dari });
-        App.initDatepicker('#bb-sampai', { defaultDate: this.sampai });
+        App.initDatepicker('#bb-dari', { defaultDate: dariUI });
+        App.initDatepicker('#bb-sampai', { defaultDate: sampaiUI });
     },
 
     async detail(akunId, nama) {
@@ -93,8 +95,7 @@ const BukuBesarPage = {
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="bg-gray-50">
-                                <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Tanggal</th>
-                                <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">No Bukti</th>
+                                <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Tgl / No Bukti</th>
                                 <th class="px-4 py-3 text-left font-bold text-gray-500 uppercase text-[10px] tracking-widest">Keterangan</th>
                                 <th class="px-4 py-3 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Debit</th>
                                 <th class="px-4 py-3 text-right font-bold text-gray-500 uppercase text-[10px] tracking-widest">Kredit</th>
@@ -104,8 +105,10 @@ const BukuBesarPage = {
                         <tbody class="divide-y divide-gray-50">
                             ${(res.data.details || []).map(d => `
                                 <tr class="hover:bg-gray-50/50 transition-colors">
-                                    <td class="px-4 py-3">${App.formatDate(d.tgl_transaksi)}</td>
-                                    <td class="px-4 py-3 font-mono text-[11px] font-bold text-primary-600">${d.no_bukti}</td>
+                                    <td class="px-4 py-3">
+                                        <div class="text-gray-900 font-medium">${App.formatDate(d.tgl_transaksi)}</div>
+                                        <div class="font-mono text-[10px] font-bold text-primary-500 mt-0.5">${d.no_bukti}</div>
+                                    </td>
                                     <td class="px-4 py-3 text-gray-600">${d.keterangan || '-'}</td>
                                     <td class="px-4 py-3 text-right font-mono">${d.debit > 0 ? App.formatRupiah(d.debit) : '-'}</td>
                                     <td class="px-4 py-3 text-right font-mono">${d.kredit > 0 ? App.formatRupiah(d.kredit) : '-'}</td>
@@ -150,16 +153,14 @@ const BukuBesarPage = {
 
     exportDetailPDF(data) {
         const cols = [
-            { title: 'Tanggal', key: 'tgl' },
-            { title: 'No Bukti', key: 'no_bukti' },
+            { title: 'Tgl / No Bukti', key: 'transaksi' },
             { title: 'Keterangan', key: 'keterangan' },
             { title: 'Debit', key: 'debit', align: 'right' },
             { title: 'Kredit', key: 'kredit', align: 'right' },
             { title: 'Saldo', key: 'saldo', align: 'right' }
         ];
         const rows = data.details.map(d => ({
-            tgl: App.formatDate(d.tgl_transaksi),
-            no_bukti: d.no_bukti,
+            transaksi: `${App.formatDate(d.tgl_transaksi)}\n${d.no_bukti}`,
             keterangan: d.keterangan,
             debit: d.debit > 0 ? App.formatRupiah(d.debit) : '-',
             kredit: d.kredit > 0 ? App.formatRupiah(d.kredit) : '-',

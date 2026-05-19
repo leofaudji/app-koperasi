@@ -14,8 +14,10 @@ const LabaRugiPage = {
     async load() {
         const dariEl = document.getElementById('lr-dari');
         const sampaiEl = document.getElementById('lr-sampai');
-        this.dari = dariEl ? App.dateToISO(dariEl.value) : new Date().getFullYear() + '-01-01';
-        this.sampai = sampaiEl ? App.dateToISO(sampaiEl.value) : App.todayISO();
+        const dariUI = dariEl ? dariEl.value : '01-01-' + new Date().getFullYear();
+        const sampaiUI = sampaiEl ? sampaiEl.value : App.todayDMY();
+        this.dari = App.dateToISO(dariUI);
+        this.sampai = App.dateToISO(sampaiUI);
         const modeEl = document.querySelector('input[name="lr-mode"]:checked');
         if (modeEl) this.mode = modeEl.value;
 
@@ -49,7 +51,7 @@ const LabaRugiPage = {
                             <i class="ri-checkbox-circle-line"></i> Sesudah
                         </label>
                     </div>
-                    <button onclick="LabaRugiPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors">Filter</button>
+                    <button onclick="LabaRugiPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors">Tampilkan</button>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="LabaRugiPage.export('pdf')" class="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF">
@@ -74,54 +76,71 @@ const LabaRugiPage = {
                 </span>
             </div>
 
-            <div class="max-w-3xl mx-auto space-y-12">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <!-- Column PENDAPATAN -->
                 <div>
-                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b-2 border-emerald-500 flex justify-between uppercase tracking-wider text-sm">
+                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b-2 border-primary-500 flex justify-between uppercase tracking-wider text-sm">
                         <span>PENDAPATAN</span>
-                        <i class="ri-funds-box-line text-emerald-500"></i>
+                        <i class="ri-funds-box-line text-primary-500"></i>
                     </h3>
                     <div class="space-y-1">
-                        ${d.pendapatan.map(a => `<div class="flex justify-between py-2.5 text-sm border-b border-gray-50 hover:bg-emerald-50/30 px-3 rounded-lg transition-colors">
-                            <span>${a.kode} - ${a.nama}</span>
+                        ${d.pendapatan.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">${a.kode}</span>
+                                <span class="text-gray-700 font-medium">${a.nama}</span>
+                            </div>
                             <span class="font-mono font-bold text-emerald-600">${App.formatRupiah(a.saldo)}</span>
                         </div>`).join('')}
                     </div>
-                    <div class="flex justify-between py-4 mt-4 bg-emerald-50 px-4 rounded-xl border border-emerald-100 font-black text-emerald-700">
-                        <span>TOTAL PENDAPATAN</span>
-                        <span>${App.formatRupiah(d.total_pendapatan)}</span>
-                    </div>
                 </div>
 
+                <!-- Column BEBAN -->
                 <div>
-                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b-2 border-red-400 flex justify-between uppercase tracking-wider text-sm">
+                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b-2 border-primary-500 flex justify-between uppercase tracking-wider text-sm">
                         <span>BEBAN OPERASIONAL</span>
-                        <i class="ri-send-plane-2-line text-red-400"></i>
+                        <i class="ri-send-plane-2-line text-primary-500"></i>
                     </h3>
                     <div class="space-y-1">
-                        ${d.beban.map(a => `<div class="flex justify-between py-2.5 text-sm border-b border-gray-50 hover:bg-red-50/30 px-3 rounded-lg transition-colors">
-                            <span>${a.kode} - ${a.nama}</span>
+                        ${d.beban.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">${a.kode}</span>
+                                <span class="text-gray-700 font-medium">${a.nama}</span>
+                            </div>
                             <span class="font-mono font-bold text-red-500">${App.formatRupiah(a.saldo)}</span>
                         </div>`).join('')}
                     </div>
-                    <div class="flex justify-between py-4 mt-4 bg-red-50 px-4 rounded-xl border border-red-100 font-black text-red-600">
-                        <span>TOTAL BEBAN</span>
-                        <span>${App.formatRupiah(d.total_beban)}</span>
-                    </div>
                 </div>
+            </div>
 
-                <div class="flex justify-between py-6 px-8 bg-gray-900 rounded-2xl text-white shadow-xl shadow-gray-200">
-                    <div class="flex flex-col">
-                        <span class="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">${d.laba_rugi >= 0 ? 'Surplus Hasil Usaha' : 'Defisit Hasil Usaha'}</span>
-                        <span class="text-2xl font-black">${d.laba_rugi >= 0 ? 'SHU (LABA)' : 'RUGI'}</span>
+            <!-- Totals Row (Aligned Sebaris) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-8">
+                <div class="flex justify-between py-5 bg-emerald-600 px-6 rounded-2xl shadow-lg shadow-emerald-100 text-white font-black">
+                    <span class="uppercase tracking-widest text-xs opacity-80">Total Pendapatan</span>
+                    <span class="text-lg font-mono">${App.formatRupiah(d.total_pendapatan)}</span>
+                </div>
+                <div class="flex justify-between py-5 bg-red-600 px-6 rounded-2xl shadow-lg shadow-red-100 text-white font-black">
+                    <span class="uppercase tracking-widest text-xs opacity-80">Total Beban</span>
+                    <span class="text-lg font-mono">${App.formatRupiah(d.total_beban)}</span>
+                </div>
+            </div>
+
+            <div class="mt-8 flex justify-center">
+                <div class="w-full max-w-lg flex justify-between py-6 px-10 bg-gray-900 rounded-[2.5rem] text-white shadow-2xl shadow-gray-200 border-4 border-white relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-4 opacity-10">
+                        <i class="ri-funds-line text-8xl"></i>
                     </div>
-                    <div class="text-3xl font-black self-center ${d.laba_rugi >= 0 ? 'text-emerald-400' : 'text-red-400'}">
+                    <div class="flex flex-col relative z-10">
+                        <span class="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">${d.laba_rugi >= 0 ? 'Surplus Hasil Usaha' : 'Defisit Hasil Usaha'}</span>
+                        <span class="text-2xl font-black">${d.laba_rugi >= 0 ? 'SHU (LABA)' : 'RUGI BERSIH'}</span>
+                    </div>
+                    <div class="text-3xl font-black self-center relative z-10 ${d.laba_rugi >= 0 ? 'text-emerald-400' : 'text-red-400'}">
                         ${App.formatRupiah(Math.abs(d.laba_rugi))}
                     </div>
                 </div>
             </div>
         </div>`;
-        App.initDatepicker('#lr-dari', { defaultDate: this.dari });
-        App.initDatepicker('#lr-sampai', { defaultDate: this.sampai });
+        App.initDatepicker('#lr-dari', { defaultDate: dariUI });
+        App.initDatepicker('#lr-sampai', { defaultDate: sampaiUI });
     },
 
     export(type) {

@@ -36,8 +36,8 @@ const MutasiPage = {
             <div id="ms-table"><p class="text-center text-gray-400 py-10">Pilih anggota untuk melihat mutasi</p></div></div>`;
 
         // Init datepickers
-        const dariDefault = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 10);
-        const sampaiDefault = new Date().toISOString().slice(0, 10);
+        const dariDefault = App.monthAgoDMY();
+        const sampaiDefault = App.todayDMY();
         App.datepicker('#ms-dari', { defaultDate: dariDefault });
         App.datepicker('#ms-sampai', { defaultDate: sampaiDefault });
 

@@ -119,34 +119,81 @@ switch ($method) {
                 $db->execute("DELETE FROM anggota");
                 $db->execute("SET FOREIGN_KEY_CHECKS = 1");
 
-                // 2. Map Jenis Simpanan IDs
-                $jsPokok = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = 'SP' OR nama LIKE '%Pokok%'")['id'] ?? null;
-                $jsWajib = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = 'SW' OR nama LIKE '%Wajib%'")['id'] ?? null;
-                $jsManasuka = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = 'SS' OR nama LIKE '%Manasuka%' OR nama LIKE '%Sukarela%'")['id'] ?? null;
-                $jsPartisipasif = $db->fetch("SELECT id FROM jenis_simpanan WHERE nama LIKE '%Partisipatif%' OR nama LIKE '%Partisipatif%'")['id'] ?? null;
-
-                // 3. Ensure & Map Jenis Pinjaman IDs
-                $loanProducts = [
-                    ['kode' => 'PB1', 'nama' => 'Pinjaman Berjangka 1', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '31'],
-                    ['kode' => 'PB2', 'nama' => 'Pinjaman Berjangka 2', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '32'],
-                    ['kode' => 'PINS', 'nama' => 'Pinjaman Insidental', 'bunga' => 1.0, 'tipe' => 'insidental', 'numerik' => '33'],
-                    ['kode' => 'PBRG', 'nama' => 'Pinjaman Barang', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '34'],
+                // 2. Map/Create specific Accounts for tidy Neraca (Balance Sheet)
+                $mapAset = 'aset';
+                $mapKewajiban = 'kewajiban';
+                
+                $accountsToCreate = [
+                    ['kode' => '1201', 'nama' => 'Piutang Pinjaman Berjangka 1', 'tipe' => $mapAset, 'normal' => 'D'],
+                    ['kode' => '1202', 'nama' => 'Piutang Pinjaman Berjangka 2', 'tipe' => $mapAset, 'normal' => 'D'],
+                    ['kode' => '1203', 'nama' => 'Piutang Pinjaman Insidental', 'tipe' => $mapAset, 'normal' => 'D'],
+                    ['kode' => '1204', 'nama' => 'Piutang Pinjaman Barang', 'tipe' => $mapAset, 'normal' => 'D'],
+                    ['kode' => '2001', 'nama' => 'Simpanan Pokok', 'tipe' => $mapKewajiban, 'normal' => 'K'],
+                    ['kode' => '2002', 'nama' => 'Simpanan Wajib', 'tipe' => $mapKewajiban, 'normal' => 'K'],
+                    ['kode' => '2003', 'nama' => 'Simpanan Sukarela', 'tipe' => $mapKewajiban, 'normal' => 'K'],
+                    ['kode' => '2004', 'nama' => 'Simpanan Partisipatif', 'tipe' => $mapKewajiban, 'normal' => 'K'],
                 ];
+                
+                foreach ($accountsToCreate as $acc) {
+                    $existAcc = $db->fetch("SELECT id FROM akun WHERE kode = ?", [$acc['kode']]);
+                    if (!$existAcc) {
+                        $db->insert("INSERT INTO akun (kode, nama, tipe, saldo_normal) VALUES (?, ?, ?, ?)", [$acc['kode'], $acc['nama'], $acc['tipe'], $acc['normal']]);
+                    }
+                }
 
-                $akunPiutang = $db->fetch("SELECT id FROM akun WHERE kode = '1200' LIMIT 1")['id'] ?? null;
+                $accIds = [];
+                foreach ($accountsToCreate as $acc) {
+                    $res = $db->fetch("SELECT id FROM akun WHERE kode = ?", [$acc['kode']]);
+                    $accIds[$acc['kode']] = $res ? $res['id'] : null;
+                }
+
+                $akunKas = $db->fetch("SELECT id FROM akun WHERE kode = '1000' LIMIT 1")['id'] ?? null;
+                $akunPiutangDefault = $db->fetch("SELECT id FROM akun WHERE kode = '1200' LIMIT 1")['id'] ?? null;
+
+                // 3. Map/Create Jenis Simpanan with specific accounts
+                $jsList = [
+                    ['kode' => 'SP', 'nama' => 'Simpanan Pokok', 'akun_id' => $accIds['2001'], 'numerik' => '01'],
+                    ['kode' => 'SW', 'nama' => 'Simpanan Wajib', 'akun_id' => $accIds['2002'], 'numerik' => '02'],
+                    ['kode' => 'SS', 'nama' => 'Simpanan Sukarela', 'akun_id' => $accIds['2003'], 'numerik' => '03'],
+                    ['kode' => 'SPRT', 'nama' => 'Simpanan Partisipatif', 'akun_id' => $accIds['2004'], 'numerik' => '04'],
+                ];
+                
+                foreach ($jsList as $js) {
+                    $exist = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = ? OR nama = ?", [$js['kode'], $js['nama']]);
+                    if (!$exist) {
+                        $db->insert("INSERT INTO jenis_simpanan (kode, nama, akun_id, kode_numerik, is_active) VALUES (?, ?, ?, ?, 1)", [$js['kode'], $js['nama'], $js['akun_id'], $js['numerik']]);
+                    } else {
+                        $db->execute("UPDATE jenis_simpanan SET kode = ?, akun_id = ?, kode_numerik = ? WHERE id = ?", [$js['kode'], $js['akun_id'], $js['numerik'], $exist['id']]);
+                    }
+                }
+
+                $jsPokok = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = 'SP'")['id'] ?? null;
+                $jsWajib = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = 'SW'")['id'] ?? null;
+                $jsManasuka = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = 'SS'")['id'] ?? null;
+                $jsPartisipasif = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = 'SPRT'")['id'] ?? null;
+
+                // 4. Ensure & Map Jenis Pinjaman IDs
+                $loanProducts = [
+                    ['kode' => 'PB1', 'nama' => 'Pinjaman Berjangka 1', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '31', 'akun_id' => $accIds['1201']],
+                    ['kode' => 'PB2', 'nama' => 'Pinjaman Berjangka 2', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '32', 'akun_id' => $accIds['1202']],
+                    ['kode' => 'PINS', 'nama' => 'Pinjaman Insidental', 'bunga' => 1.0, 'tipe' => 'insidental', 'numerik' => '33', 'akun_id' => $accIds['1203']],
+                    ['kode' => 'PBRG', 'nama' => 'Pinjaman Barang', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '34', 'akun_id' => $accIds['1204']],
+                ];
 
                 $jpIds = [];
                 foreach ($loanProducts as $lp) {
                     $exist = $db->fetch("SELECT id FROM jenis_pinjaman WHERE kode = ?", [$lp['kode']]);
                     if (!$exist) {
-                        $jpIds[$lp['kode']] = $db->insert(
-                            "INSERT INTO jenis_pinjaman (kode, nama, bunga_persen, max_tenor, is_active, kode_numerik, akun_id) VALUES (?, ?, ?, 60, 1, ?, ?)",
-                            [$lp['kode'], $lp['nama'], $lp['bunga'], $lp['numerik'], $akunPiutang]
-                        );
+                        $jpIds[$lp['kode']] = [
+                            'id' => $db->insert(
+                                "INSERT INTO jenis_pinjaman (kode, nama, bunga_persen, max_tenor, is_active, kode_numerik, akun_id) VALUES (?, ?, ?, 60, 1, ?, ?)",
+                                [$lp['kode'], $lp['nama'], $lp['bunga'], $lp['numerik'], $lp['akun_id']]
+                            ),
+                            'tipe' => $lp['tipe']
+                        ];
                     } else {
-                        $jpIds[$lp['kode']] = $exist['id'];
-                        // Update existing to ensure account is set
-                        $db->execute("UPDATE jenis_pinjaman SET kode_numerik = ?, akun_id = ? WHERE id = ?", [$lp['numerik'], $akunPiutang, $exist['id']]);
+                        $db->execute("UPDATE jenis_pinjaman SET akun_id = ?, nama = ?, kode_numerik = ? WHERE id = ?", [$lp['akun_id'], $lp['nama'], $lp['numerik'], $exist['id']]);
+                        $jpIds[$lp['kode']] = ['id' => $exist['id'], 'tipe' => $lp['tipe']];
                     }
                 }
 
@@ -259,11 +306,29 @@ switch ($method) {
                     $rawAgunan = trim($data[6] ?? '');
                     $tipeAgunan = (preg_match('/BPKB|Motor|Mobil|Kendaraan/i', $rawAgunan)) ? 'BPKB' : ((preg_match('/SHM|Sertifikat|Tanah|Rumah/i', $rawAgunan)) ? 'SHM' : 'Lainnya');
 
+                    // Extract details from description
+                    $noDokumen = null;
+                    $pemilik = null;
+                    $nilaiTaksasi = 0;
+                    if (!empty($rawAgunan)) {
+                        // Document Number: at least 3 chars and contains at least one digit
+                        if (preg_match('/\b(?:Nomor|No\.?)\s*([A-Z0-9\.\-\/]*[0-9][A-Z0-9\.\-\/]*)/i', $rawAgunan, $m)) {
+                            $noDokumen = trim($m[1]);
+                        }
+                        // Owner: stop before Rp/Nilai/Taksasi or another No/Nomor
+                        if (preg_match('/\b(?:An\.?|A\/n|Nama|Pemilik|Atas\s+Nama)\s+([^,Rp\r\n\t]+?)(?=\s+(?:Rp|Nilai|Taksasi|No\.?|Nomor)|$)/i', $rawAgunan, $m)) {
+                            $pemilik = trim($m[1]);
+                        }
+                        if (preg_match('/(?:Rp|Nilai|Taksasi)\s*([\d\.,]+)/i', $rawAgunan, $m)) {
+                            $nilaiTaksasi = $parseAmount($m[1]);
+                        }
+                    }
+
                     $loanDataMap = [
-                        ['id' => $jpIds['PB1'], 'idx' => 7, 'tipe' => 'flat', 'numerik' => '31'],
-                        ['id' => $jpIds['PB2'], 'idx' => 11, 'tipe' => 'flat', 'numerik' => '32'],
-                        ['id' => $jpIds['PINS'], 'idx' => 15, 'tipe' => 'insidental', 'numerik' => '33'],
-                        ['id' => $jpIds['PBRG'], 'idx' => 19, 'tipe' => 'flat', 'numerik' => '34'],
+                        ['id' => $jpIds['PB1']['id'] ?? null, 'idx' => 7, 'tipe' => 'flat', 'numerik' => '31'],
+                        ['id' => $jpIds['PB2']['id'] ?? null, 'idx' => 11, 'tipe' => 'flat', 'numerik' => '32'],
+                        ['id' => $jpIds['PINS']['id'] ?? null, 'idx' => 15, 'tipe' => 'insidental', 'numerik' => '33'],
+                        ['id' => $jpIds['PBRG']['id'] ?? null, 'idx' => 19, 'tipe' => 'flat', 'numerik' => '34'],
                     ];
 
                     foreach ($loanDataMap as $ld) {
@@ -282,33 +347,66 @@ switch ($method) {
                                 [$noPinjaman, $anggotaId, $ld['id'], $tglReal, $tglReal, $plafond, $tenor, $totalBunga, $plafond + $totalBunga, $bakiDebet, $rawAgunan]
                             );
 
+                            // JURNAL: Saldo Awal Pinjaman (Baki Debet)
+                            if ($bakiDebet > 0) {
+                                $jenisP = $db->fetch("SELECT nama, akun_id FROM jenis_pinjaman WHERE id = ?", [$ld['id']]);
+                                $noBukti = 'JRN' . date('Ymd') . str_pad($db->count("SELECT COUNT(*) FROM jurnal WHERE tgl_transaksi = ?", [date('Y-m-d')]) + 1, 4, '0', STR_PAD_LEFT);
+                                // Set total_debit = $plafond to satisfy Audit "Selisih Nominal Transaksi vs Jurnal"
+                                $jurnalId = $db->insert("INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by) VALUES (?,?,?,?,?,?,?,?)", [$noBukti, date('Y-m-d'), "Saldo Awal " . $jenisP['nama'] . " - " . $nama, 'pinjaman', $pinjamanId, $plafond, $plafond, 1]);
+
+                                $akunPiutangId = $jenisP['akun_id'] ?: $akunPiutang;
+                                $akunKasId = $db->fetch("SELECT id FROM akun WHERE kode = '1000' LIMIT 1")['id'] ?? null;
+                                if ($akunPiutangId && $akunKasId) {
+                                    // Debit full Plafond
+                                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnalId, $akunPiutangId, $plafond]);
+                                    // Credit Kas only for Baki Debet (Migration)
+                                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunKasId, $bakiDebet]);
+                                    // Credit Piutang for the difference to get net Baki Debet in GL
+                                    $paidAmount = $plafond - $bakiDebet;
+                                    if ($paidAmount > 0) {
+                                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunPiutangId, $paidAmount]);
+                                    }
+                                }
+                            }
+
                             if (!empty($rawAgunan)) {
                                 $db->insert(
-                                    "INSERT INTO agunan (pinjaman_id, tipe_agunan, deskripsi, tgl_terima, status, created_by) VALUES (?, ?, ?, ?, 'aktif', 1)",
-                                    [$pinjamanId, $tipeAgunan, $rawAgunan, $tglReal]
+                                    "INSERT INTO agunan (pinjaman_id, tipe_agunan, deskripsi, no_dokumen, pemilik, nilai_taksasi, tgl_terima, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'aktif', 1)",
+                                    [$pinjamanId, $tipeAgunan, $rawAgunan, $noDokumen, $pemilik, $nilaiTaksasi, $tglReal]
                                 );
                             }
 
-                            // Generate Installments
-                            $pokokPerBulan = $plafond / $tenor;
-                            $bungaPerBulan = $plafond * (1.0 / 100);
-                            $lunasCount = ($ld['tipe'] === 'flat') ? round(($plafond - $bakiDebet) / $pokokPerBulan) : 0;
+                            // Generate Installments with Precision Fix
+                            $pokokPerBulan = round($plafond / $tenor);
+                            $bungaPerBulan = round($plafond * (1.0 / 100));
+                            $lunasCount = ($ld['tipe'] === 'flat') ? round(($plafond - $bakiDebet) / ($plafond / $tenor)) : 0;
+
+                            $unpaidCount = $tenor - $lunasCount;
+                            $pokokUnpaidBase = $unpaidCount > 0 ? floor($bakiDebet / $unpaidCount) : 0;
+                            $pokokUnpaidLast = $unpaidCount > 0 ? ($bakiDebet - ($pokokUnpaidBase * ($unpaidCount - 1))) : 0;
+                            $unpaidTrack = 0;
 
                             for ($i = 1; $i <= $tenor; $i++) {
                                 $jt = date('Y-m-d', strtotime("$tglReal +$i month"));
                                 $status = ($i <= $lunasCount) ? 'lunas' : 'belum';
 
                                 if ($ld['tipe'] === 'insidental') {
-                                    $p = ($i == $tenor) ? $plafond : 0;
+                                    $p = ($i == $tenor) ? $bakiDebet : 0;
                                     $status = ($bakiDebet == 0) ? 'lunas' : 'belum';
                                 } else {
-                                    $p = $pokokPerBulan;
+                                    if ($status == 'belum') {
+                                        $unpaidTrack++;
+                                        $p = ($unpaidTrack == $unpaidCount) ? $pokokUnpaidLast : $pokokUnpaidBase;
+                                    } else {
+                                        $p = $pokokPerBulan;
+                                    }
                                 }
 
+                                // Note: tgl_bayar is set to NULL for migration lunas to avoid Orphan Audit
                                 $db->execute(
                                     "INSERT INTO angsuran (no_transaksi, pinjaman_id, angsuran_ke, tgl_jatuh_tempo, tgl_bayar, pokok, bunga, total, status)
                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                    ['AGS-' . $pinjamanId . '-' . $i, $pinjamanId, $i, $jt, ($status == 'lunas' ? $jt : null), $p, $bungaPerBulan, $p + $bungaPerBulan, $status]
+                                    ['AGS-' . $pinjamanId . '-' . $i, $pinjamanId, $i, $jt, null, $p, $bungaPerBulan, $p + $bungaPerBulan, $status]
                                 );
                             }
                         }

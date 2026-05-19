@@ -401,7 +401,7 @@ const PengaturanPage = {
 
             const blob = await response.blob();
             const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+?)"/)?.[1]
-                || `backup_db_koperasi_${new Date().toISOString().slice(0, 10)}.sql`;
+                || `backup_db_koperasi_${App.todayISO()}.sql`;
 
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');

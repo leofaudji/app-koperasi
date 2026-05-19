@@ -13,8 +13,10 @@ const JurnalPage = {
     async load(page = 1) {
         const dariEl = document.getElementById('jrn-dari');
         const sampaiEl = document.getElementById('jrn-sampai');
-        const dari = dariEl ? App.dateToISO(dariEl.value) : App.monthAgoISO();
-        const sampai = sampaiEl ? App.dateToISO(sampaiEl.value) : App.todayISO();
+        const dariUI = dariEl ? dariEl.value : App.monthAgoDMY();
+        const sampaiUI = sampaiEl ? sampaiEl.value : App.todayDMY();
+        const dari = App.dateToISO(dariUI);
+        const sampai = App.dateToISO(sampaiUI);
         const search = document.getElementById('jrn-search')?.value || '';
 
         const res = await App.api(`keuangan/jurnal?dari=${dari}&sampai=${sampai}&search=${encodeURIComponent(search)}&page=${page}`);
@@ -111,8 +113,8 @@ const JurnalPage = {
             ${App.renderPagination(res.pagination, 'JurnalPage.paginate')}
         </div>`;
 
-        App.initDatepicker('#jrn-dari', { defaultDate: dari });
-        App.initDatepicker('#jrn-sampai', { defaultDate: sampai });
+        App.initDatepicker('#jrn-dari', { defaultDate: dariUI });
+        App.initDatepicker('#jrn-sampai', { defaultDate: sampaiUI });
     },
 
     paginate(p) { this.load(p); },

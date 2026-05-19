@@ -6,6 +6,12 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v2.0.2] - 2026-05-13
+
+### Fixed
+- **Date Handling**: Fixed UTC date shifts in App.todayISO and resolved default filter value discrepancies in Mutasi Simpanan.
+- **Activity History**: Integrated live activity logs into Member Detail page.
+
 ## [v2.0.1] - 2026-05-10
 
 ### ✨ Ditambahkan
