@@ -552,7 +552,7 @@ const PengundianRATPage = {
                 4: { halign: 'center', cellWidth: 28 }
             },
             alternateRowStyles: { fillColor: [255, 251, 235] },
-            margin: { left: 14, right: 14, bottom: 30 },
+            margin: { left: 14, right: 14, top: 48, bottom: 30 },
             didParseCell: (data) => {
                 if (data.row.index < 3 && data.section === 'body') {
                     const colors = [[254, 240, 138], [229, 231, 235], [251, 191, 36]];

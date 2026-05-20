@@ -6,6 +6,22 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v2.0.4] - 2026-05-20
+
+### ✨ Ditambahkan
+- **Premium PDF Engine Upgrade (Global Helper):** Integrasi header bergradien modern kustom, visual accent bar pada subjudul, serta footer dinamis dengan nomor halaman (`Page X of Y`) pada semua modul laporan.
+- **Auto-Width & Proportional Column Sizing:** Menghitung lebar kolom secara proporsional dan otomatis berbasis tipe data (mono-width untuk nomor, lebar luas untuk deskripsi, sedang untuk finansial), mencegah pemotongan data teks penting.
+- **Dynamic Status Badging in PDF Tables:** Penataan otomatis teks status (LANCAR, MACET, PENDING, AKTIF, dll.) menjadi badge berwarna dengan kontras tinggi yang menyesuaikan dengan tema aktif sistem pada dokumen PDF.
+- **Visual Category Badging (Reconciliation PDF):** Menambahkan aksen warna latar belakang Indigo (Simpanan) dan Purple (Pinjaman) yang elegan untuk membedakan kategori transaksi pada laporan audit secara cepat.
+- **Combined Account & GL Column (Reconciliation PDF):** Menggabungkan kolom "Nama Rekening Akun" dan "Kode Akun" menjadi satu kolom ringkas "Rekening & Akun GL" dengan pemisah baris (`\n`), menghemat ruang horizontal dan memastikan nilai nominal Rupiah memiliki ruang maksimal.
+
+### 🔧 Perbaikan
+- **Penyuntingan Karakter Garbled jsPDF:** Mengganti simbol checkmark Unicode (`✔`) dengan teks ASCII standar (`[OK]`), memperbaiki isu di mana PDF viewer standar merender checkmark sebagai karakter sampah `&&&&`.
+- **Dynamic Header & Title Alignment:** Menyeimbangkan tinggi area gradien `drawPDFHeader` dan menurunkan koordinat vertikal judul laporan ke `y = 38.5` serta sub-header ke `y = 44` untuk mengeliminasi tabrakan visual.
+- **Proteksi Page-Break Multi-Halaman:** Menerapkan batas margin pengaman `top: 48` pada seluruh rendering autoTable kustom (`audit.js`, `kesehatan-koperasi.js`, `buku-simpanan.js`, `kartu-angsuran.js`, `pengundian-rat.js`) agar judul tabel tidak tertimpa banner dinamis pada halaman 2+.
+- **Reconciliation Data Mapping:** Memperbaiki mapping data sehingga temuan selisih nominal transaksi dan data yatim (orphan) dapat dibaca dengan nilai riil yang akurat.
+- **Branding & Splash Screen Polish:** Poles visual logo, background glow, grayscale footer partner, serta perbaikan typo teks bahasa Inggris ke bahasa Indonesia ("and" -> "dan") pada `index.html` untuk meningkatkan estetika antarmuka login.
+
 ## [v2.0.2] - 2026-05-13
 
 ### Fixed

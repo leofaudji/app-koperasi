@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '2.0.1', // Splash & UI Refinement Update
+    version: '2.0.4', // Premium PDF & Layout Upgrade
     API_BASE: (() => {
         // Best way: find the root based on where this script is loaded from
         const script = document.currentScript || document.querySelector('script[src*="assets/js/app.js"]');
@@ -69,6 +69,9 @@ const App = {
 
     // ===== Init =====
     async init() {
+        // Load the latest version dynamically from CHANGELOG.md (falls back to hardcoded value if offline)
+        await this._loadAppVersion();
+
         document.getElementById('current-date').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         document.getElementById('login-form').addEventListener('submit', e => { e.preventDefault(); this.login(); });
         document.querySelectorAll('.copyright-year').forEach(el => el.textContent = new Date().getFullYear());
@@ -717,85 +720,292 @@ const App = {
     drawPDFHeader(doc, title) {
         const pageWidth = doc.internal.pageSize.getWidth();
         const getS = (key, def = '') => this.settings[key]?.value || def;
+        const namaKop = getS('nama_koperasi') || getS('app_name', 'KOPERASI SIMPAN PINJAM "APP-KOPERASI"');
 
+        // Get brand colors dynamically from active theme
+        const activeThemeKey = localStorage.getItem('app_theme') || 'indigo';
+        const theme = window.THEMES?.[activeThemeKey] || { shade: '#4f46e5', p: { 50: '#eef2ff', 900: '#312e81' } };
+        
+        const hexToRgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [79, 70, 229];
+        };
+        const primaryRGB = hexToRgb(theme.p[400] || theme.shade);
+        const darkRGB = hexToRgb(theme.p[700] || theme.shade);
+        const brandRGB = hexToRgb(theme.shade);
+
+        // 1. Draw Gorgeous Smooth Linear Gradient Header Background from y=0 to y=28
+        const headerHeight = 28;
+        const gradientSteps = 40;
+        const stepHeight = headerHeight / gradientSteps;
+        for (let i = 0; i < gradientSteps; i++) {
+            const t = i / (gradientSteps - 1);
+            const r = Math.round(primaryRGB[0] + t * (darkRGB[0] - primaryRGB[0]));
+            const g = Math.round(primaryRGB[1] + t * (darkRGB[1] - primaryRGB[1]));
+            const b = Math.round(primaryRGB[2] + t * (darkRGB[2] - primaryRGB[2]));
+            
+            doc.setFillColor(r, g, b);
+            doc.rect(0, i * stepHeight, pageWidth, stepHeight + 0.1, 'F');
+        }
+
+        // 2. Logo / Emblem with modern card styling
         const logoUrl = getS('logo_url');
+        let drawLogoFallback = true;
         if (logoUrl) {
             try {
                 const ext = logoUrl.split('.').pop().split('?')[0].toUpperCase();
                 const format = ['PNG', 'JPEG', 'JPG', 'WEBP'].includes(ext) ? ext : 'PNG';
-                doc.addImage(logoUrl, format, 14, 10, 8, 8);
+                
+                // Draw a beautiful white card wrapper for the logo image
+                doc.setFillColor(255, 255, 255);
+                doc.roundedRect(14, 9, 10, 10, 1.5, 1.5, 'F');
+                doc.addImage(logoUrl, format, 14.5, 9.5, 9, 9);
+                drawLogoFallback = false;
             } catch (e) {
-                // Fallback to placeholder if image fails to load
-                doc.setFillColor(15, 23, 42);
-                doc.rect(14, 10, 8, 8, 'F');
+                drawLogoFallback = true;
             }
-        } else {
-            doc.setFillColor(15, 23, 42);
-            doc.rect(14, 10, 8, 8, 'F');
+        }
+        
+        if (drawLogoFallback) {
+            // Elegant glowing white card with primary-colored text initials
+            doc.setFillColor(255, 255, 255);
+            doc.roundedRect(14, 9, 10, 10, 1.5, 1.5, 'F');
+            
+            doc.setFontSize(6.5);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(brandRGB[0], brandRGB[1], brandRGB[2]); // Solid primary theme color text
+            
+            const words = namaKop.split(/\s+/).filter(w => w.length > 0);
+            let initials = '';
+            if (words.length > 0) initials += words[0][0];
+            if (words.length > 1) initials += words[1][0];
+            if (initials.length === 0) initials = 'KP';
+            doc.text(initials.toUpperCase(), 19, 15.5, { align: 'center' });
         }
 
-        doc.setFontSize(14);
+        // 3. Institution details in elegant contrast white & slate-200
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        const namaKop = getS('app_name', 'KOPERASI SIMPAN PINJAM "APP-KOPERASI"');
-        doc.text(namaKop.toUpperCase(), 26, 16);
+        doc.setTextColor(255, 255, 255); // White for high contrast
+        doc.text(namaKop.toUpperCase(), 28, 13);
 
-        doc.setFontSize(8);
+        doc.setFontSize(7.5);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100);
+        doc.setTextColor(226, 232, 240); // slate-200 for clean secondary text
         const alamat = getS('alamat', 'Jl. Raya Utama No. 123, Kel. Suka Maju, Kec. Cerdas, Kota Digital');
-        doc.text(alamat, 26, 21);
+        doc.text(alamat, 28, 17.5);
 
         const telp = getS('telepon', '(021) 1234567');
         const email = getS('email', 'info@koperasi-app.com');
         const web = getS('website', 'www.koperasi-app.com');
-        doc.text(`Telp: ${telp} | Email: ${email} | Website: ${web}`, 26, 25);
+        doc.text(`Telp: ${telp}  |  Email: ${email}  |  Website: ${web}`, 28, 21.5);
 
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.5);
-        doc.line(14, 29, pageWidth - 14, 29);
+
+
+        // 4. Subtle glowing bottom accent line
+        doc.setFillColor(brandRGB[0], brandRGB[1], brandRGB[2]);
+        doc.rect(0, 27.5, pageWidth, 0.5, 'F');
+
+        // 5. Title & Date section with brand color vertical vertical accent bar
+        doc.setFillColor(brandRGB[0], brandRGB[1], brandRGB[2]);
+        doc.rect(14, 34, 2.5, 5.5, 'F');
 
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(30, 41, 59);
-        doc.text(title.toUpperCase(), 14, 38);
+        doc.setTextColor(30, 41, 59); // slate-800
+        doc.text(title.toUpperCase(), 18.5, 38.5);
 
         doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100);
-        doc.text('Tanggal Cetak: ' + this.todayDMY(), pageWidth - 14, 38, { align: 'right' });
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.text('Tanggal Cetak: ' + this.todayDMY(), pageWidth - 14, 38.5, { align: 'right' });
     },
 
     drawPDFFooter(doc) {
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
         const str = 'Halaman ' + doc.internal.getNumberOfPages();
+        
+        // Thin gray line above footer
+        doc.setDrawColor(241, 245, 249); // slate-100
+        doc.setLineWidth(0.3);
+        doc.line(14, pageHeight - 14, pageWidth - 14, pageHeight - 14);
+
         doc.setFontSize(8);
-        doc.setTextColor(148, 163, 184);
-        doc.text(str, 14, pageHeight - 10);
-        doc.text('© ' + new Date().getFullYear() + ' CRUDWorks.com - Allright Reserved.', pageWidth - 14, pageHeight - 10, { align: 'right' });
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.text(str, 14, pageHeight - 9);
+        doc.text('© ' + new Date().getFullYear() + ' CRUDWorks.com - Allright Reserved.', pageWidth - 14, pageHeight - 9, { align: 'right' });
     },
 
+
+
+
+
+    drawPDFSummaryCards(doc, cards, startY) {
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 14;
+        const availableWidth = pageWidth - (margin * 2);
+        const gap = 4;
+        const cardWidth = (availableWidth - (gap * (cards.length - 1))) / cards.length;
+        const cardHeight = 16;
+
+        // Get theme colors dynamically
+        const activeThemeKey = localStorage.getItem('app_theme') || 'indigo';
+        const theme = window.THEMES?.[activeThemeKey] || { shade: '#4f46e5', p: { 50: '#eef2ff', 900: '#312e81' } };
+        
+        const hexToRgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [79, 70, 229];
+        };
+        const primaryRGB = hexToRgb(theme.shade);
+        const bgRGB = hexToRgb(theme.p[50] || '#f8fafc');
+
+        cards.forEach((card, idx) => {
+            const x = margin + (idx * (cardWidth + gap));
+            const y = startY;
+
+            // Draw Card Background with beautiful rounded borders
+            doc.setFillColor(bgRGB[0], bgRGB[1], bgRGB[2]);
+            doc.roundedRect(x, y, cardWidth, cardHeight, 1.5, 1.5, 'F');
+            
+            // Draw Dynamic left vertical accent line in solid primary theme color
+            doc.setFillColor(primaryRGB[0], primaryRGB[1], primaryRGB[2]);
+            doc.rect(x, y, 1.5, cardHeight, 'F');
+
+            // Draw Labels (faint slate-500)
+            doc.setFontSize(6.5);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(100, 116, 139); // slate-500
+            
+            const cleanLabel = String(card.label).toUpperCase();
+            doc.text(cleanLabel, x + 4, y + 5.5);
+
+            // Draw Values (bold slate-900)
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(15, 23, 42); // slate-900
+            doc.text(String(card.value), x + 4, y + 11.5);
+        });
+
+        return startY + cardHeight + 6; // Return new startY for the table
+    },
+
+
+
     exportPDF(title, filename, columns, rows, footer = null, options = {}) {
+        const activeThemeKey = localStorage.getItem('app_theme') || 'indigo';
+        const theme = window.THEMES?.[activeThemeKey] || { shade: '#4f46e5', p: { 50: '#eef2ff', 900: '#312e81' } };
+        
+        const hexToRgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [79, 70, 229];
+        };
+        const primary50RGB = hexToRgb(theme.p[50] || '#f1f5f9');
+        const primary900RGB = hexToRgb(theme.p[900] || '#0f172a');
+
         const { jsPDF } = window.jspdf;
         const orientation = options.orientation || (columns.length > 7 ? 'l' : 'p');
         const doc = new jsPDF(orientation, 'mm', 'a4');
 
+        // Dynamic printable width calculation based on margins
+        const docWidth = doc.internal.pageSize.getWidth();
+        const defaultMargin = { top: 48, bottom: 20, left: 14, right: 14 };
+        const userMargin = options.tableStyle?.margin || {};
+        const leftMargin = typeof userMargin === 'number' ? userMargin : (userMargin.left !== undefined ? userMargin.left : 14);
+        const rightMargin = typeof userMargin === 'number' ? userMargin : (userMargin.right !== undefined ? userMargin.right : 14);
+        const printableWidth = docWidth - leftMargin - rightMargin;
+
+        let currentStartY = options.startY || 48;
+        if (options.cards && options.cards.length > 0) {
+            currentStartY = this.drawPDFSummaryCards(doc, options.cards, currentStartY);
+        }
+
+        // Proportional column width calculations to ensure gorgeous sizing
+        const getColumnWidths = (cols, totalWidth) => {
+            const weights = cols.map(col => {
+                if (col.width) {
+                    if (typeof col.width === 'number') return col.width;
+                    if (typeof col.width === 'string' && col.width.endsWith('%')) {
+                        const pct = parseFloat(col.width) / 100;
+                        return pct * totalWidth;
+                    }
+                }
+                const key = (col.key || '').toLowerCase();
+                const title = (col.title || '').toLowerCase();
+
+                if (key === 'no' || key === 'index' || key === 'id' || title === 'no') {
+                    return 1.1; // Better weight for No column to prevent text wrapping
+                }
+                if (key.includes('tanggal') || key.includes('date') || key.includes('tgl') || title.includes('tgl') || title.includes('tanggal')) {
+                    return 2.2;
+                }
+                if (key.includes('no_') || key.includes('kode') || key.includes('rekening') || key.includes('norek') || key.includes('ref')) {
+                    return 2.8;
+                }
+                if (key.includes('nama') || key.includes('anggota') || key.includes('user') || title.includes('nama') || title.includes('anggota')) {
+                    return 4.8; // Generous space for names
+                }
+                if (key.includes('keterangan') || key.includes('keperluan') || key.includes('deskripsi') || key.includes('uraian') || title.includes('keterangan') || title.includes('keperluan')) {
+                    return 6.5; // Very generous space for descriptions
+                }
+                if (['jumlah', 'debit', 'kredit', 'saldo', 'total', 'nominal', 'plafon', 'bayar', 'tagihan', 'shu', 'simpanan', 'jasa'].some(k => key.includes(k) || title.includes(k))) {
+                    return 3.2; // Medium-wide space for formatting currencies nicely
+                }
+                return 3.0; // Standard fallback weight
+            });
+
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            return cols.map((col, idx) => {
+                const calculatedWidth = (weights[idx] / totalWeight) * totalWidth;
+                const key = (col.key || '').toLowerCase();
+                const title = (col.title || '').toLowerCase();
+                
+                // Fine-tune bounding constraints to prevent wrap issues
+                if (key === 'no' || key === 'index' || title === 'no') {
+                    return Math.max(11, Math.min(calculatedWidth, 16));
+                }
+                return Math.round(calculatedWidth * 10) / 10;
+            });
+        };
+
+        const calculatedColWidths = getColumnWidths(columns, printableWidth);
+
         const tableStyle = {
             theme: 'striped',
-            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 9, cellPadding: 4, fontStyle: 'bold', halign: 'center' },
-            bodyStyles: { fontSize: 8, cellPadding: 3, textColor: [51, 65, 85] },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { top: 45, bottom: 20, left: 14, right: 14 },
+            headStyles: { 
+                fillColor: primary50RGB, // Soft active brand color tint for a modern SaaS dashboard feel
+                textColor: primary900RGB, // Deep brand color text for outstanding contrast and legibility
+                fontSize: 8, 
+                cellPadding: { top: 4, bottom: 4, left: 3.5, right: 3.5 }, 
+                fontStyle: 'bold', 
+                halign: 'center',
+                valign: 'middle',
+                lineColor: [226, 232, 240], // Soft gray bottom divider
+                lineWidth: 0.1
+            },
+            bodyStyles: { 
+                fontSize: 7.8, // Elegant, crisp small text for premium readability
+                cellPadding: { top: 3.5, bottom: 3.5, left: 3.5, right: 3.5 }, 
+                textColor: [30, 41, 59], // Soft Slate-800 instead of heavy pure black
+                lineColor: [241, 245, 249], // Minimalist tailwind slate-100 dividers
+                lineWidth: 0.08 
+            },
+            alternateRowStyles: { 
+                fillColor: [252, 253, 254] // Faint slate tint for clean row distinction
+            },
+            margin: defaultMargin,
             ...options.tableStyle
         };
 
         const columnStyles = {};
         columns.forEach((col, idx) => {
-            if (col.align) columnStyles[idx] = { halign: col.align };
+            columnStyles[idx] = {};
+            if (col.align) columnStyles[idx].halign = col.align;
             else if (['jumlah', 'debit', 'kredit', 'saldo', 'total', 'pokok', 'bunga', 'denda'].some(k => col.key.toLowerCase().includes(k))) {
-                columnStyles[idx] = { halign: 'right' };
+                columnStyles[idx].halign = 'right';
             }
+            // Enforce proportional column width
+            columnStyles[idx].cellWidth = calculatedColWidths[idx];
         });
 
         let tableBody = rows;
@@ -806,16 +1016,55 @@ const App = {
         if (footer) tableBody.push(columns.map(col => footer[col.key] || ''));
 
         doc.autoTable({
-            startY: options.startY || 45,
+            startY: currentStartY,
             head: [columns.map(col => col.title)],
             body: tableBody,
             ...tableStyle,
             columnStyles: { ...columnStyles, ...options.columnStyles },
             didParseCell: (data) => {
+                // Style footer summary row with soft color matching current active theme and slate-300 borders
                 if (footer && data.row.index === tableBody.length - 1) {
                     data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.fillColor = [241, 245, 249];
-                    data.cell.styles.textColor = [15, 23, 42];
+                    data.cell.styles.fillColor = primary50RGB;
+                    data.cell.styles.textColor = primary900RGB;
+                    data.cell.styles.lineColor = [203, 213, 225]; // slate-300
+                    data.cell.styles.lineWidth = 0.2;
+                } else {
+                    // --- Premium Status Badge Styling ---
+                    const rawVal = String(data.cell.raw || '').trim().toUpperCase();
+                    const colIndex = data.column.index;
+                    const originalCol = columns[colIndex];
+                    
+                    if (originalCol) {
+                        const key = String(originalCol.key || '').toLowerCase();
+                        const title = String(originalCol.title || '').toLowerCase();
+                        
+                        const isStatusColumn = key.includes('status') || key.includes('kolek') || key.includes('tipe') || key.includes('jenis') || 
+                                               title.includes('status') || title.includes('kolek') || title.includes('tipe') || title.includes('jenis');
+                                               
+                        const isShortText = rawVal.length > 0 && rawVal.length <= 60;
+                        
+                        if (isStatusColumn && isShortText) {
+                        // 1. Red / Danger Statuses (Check first to avoid partial green match on KURANG LANCAR)
+                        if (['MACET', 'MENUNGGAK', 'DITOLAK', 'REJECTED', 'BATAL', 'CANCELLED', 'NON-AKTIF', 'NON ACTIVE', 'KELUAR', 'PENARIKAN', 'DEBIT'].some(s => rawVal.includes(s))) {
+                            data.cell.styles.fillColor = [254, 226, 226]; // bg-red-100
+                            data.cell.styles.textColor = [185, 28, 28];   // text-red-700
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                        // 2. Yellow / Warning Statuses
+                        else if (['KURANG LANCAR', 'DIRAGUKAN', 'PENDING', 'PROSES', 'MENUNGGU', 'DRAFT', 'JATUH TEMPO', 'DPK'].some(s => rawVal.includes(s))) {
+                            data.cell.styles.fillColor = [254, 243, 199]; // bg-amber-100
+                            data.cell.styles.textColor = [180, 83, 9];    // text-amber-700
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                        // 3. Green / Success Statuses
+                        else if (['LANCAR', 'AKTIF', 'ACTIVE', 'LUNAS', 'SUKSES', 'SUCCESS', 'APPROVED', 'DISETUJUI', 'MASUK', 'SETORAN', 'KREDIT'].some(s => rawVal.includes(s))) {
+                            data.cell.styles.fillColor = [220, 252, 231]; // bg-green-100
+                            data.cell.styles.textColor = [21, 128, 61];   // text-green-700
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
+                }
                 }
                 if (options.didParseCell) options.didParseCell(data);
             },

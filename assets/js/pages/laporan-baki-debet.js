@@ -238,10 +238,22 @@ const LaporanBakiDebetPage = {
             tenor: r.tenor + ' Bln',
             sisa_pinjaman: App.formatRupiah(r.sisa_pinjaman)
         }));
+
+        const totalPlafon = exportData.reduce((sum, r) => sum + parseFloat(r.jumlah || 0), 0);
+        const totalBakiDebet = exportData.reduce((sum, r) => sum + parseFloat(r.sisa_pinjaman || 0), 0);
+        const totalTenor = exportData.reduce((sum, r) => sum + parseFloat(r.tenor || 0), 0);
+        const avgTenor = exportData.length ? Math.round(totalTenor / exportData.length) : 0;
+        const totalRekening = exportData.length;
         
         App.export(type, 'Laporan Baki Debet Pinjaman', this.getColumns(), formattedData, {
             filename: 'laporan_baki_debet',
-            footer: this.footer
+            footer: this.footer,
+            cards: [
+                { label: 'Total Rekening Aktif', value: `${totalRekening} Rekening` },
+                { label: 'Total Plafon Pinjaman', value: App.formatRupiah(totalPlafon) },
+                { label: 'Total Baki Debet', value: App.formatRupiah(totalBakiDebet) },
+                { label: 'Rata-rata Tenor', value: `${avgTenor} Bulan` }
+            ]
         });
     },
 

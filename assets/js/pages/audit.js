@@ -446,65 +446,245 @@ const AuditPage = {
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
 
-        const tableStyle = {
-            theme: 'striped',
-            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold', halign: 'center' },
-            bodyStyles: { fontSize: 7, textColor: [51, 65, 85] },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { left: 14, right: 14 }
+        // Get active theme colors
+        const activeThemeKey = localStorage.getItem('app_theme') || 'indigo';
+        const theme = window.THEMES?.[activeThemeKey] || { shade: '#4f46e5', p: { 50: '#eef2ff', 900: '#312e81' } };
+        const hexToRgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [79, 70, 229];
         };
+        const brandRGB = hexToRgb(theme.shade);
+        const bgRGB = hexToRgb(theme.p[50] || '#eef2ff');
 
-        const title = 'Laporan Audit Komprehensif';
+        const title = 'LAPORAN AUDIT INTEGRITAS & REKONSILIASI';
 
-        // Use App helpers for consistent branding
+        // Consistent page decorator
         const drawPageDecoration = () => {
             App.drawPDFHeader(doc, title);
             App.drawPDFFooter(doc);
         };
 
         drawPageDecoration();
-        let finalY = 45;
 
-        // Section 1: Reconciliation
-        doc.setFontSize(10).setFont('helvetica', 'bold').text('1. REKONSILIASI SALDO MODUL VS GL', 14, finalY);
+        // Table styles with proper top margin (48mm) to prevent overlapping headers on page 2+
+        const tableStyle = {
+            theme: 'striped',
+            headStyles: { 
+                fillColor: [brandRGB[0], brandRGB[1], brandRGB[2]], 
+                textColor: 255, 
+                fontSize: 8, 
+                fontStyle: 'bold', 
+                halign: 'center',
+                cellPadding: 3 
+            },
+            bodyStyles: { 
+                fontSize: 7.5, 
+                textColor: [51, 65, 85],
+                cellPadding: 3
+            },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
+            margin: { left: 14, right: 14, top: 48, bottom: 20 }
+        };
+
+        // Subtitle Info cleanly placed at y=44 (below header title drawn at y=38.5)
+        doc.setFontSize(7.5); 
+        doc.setFont('helvetica', 'normal'); 
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.text(`Periode Audit: ${App.todayDMY()}  |  Sistem Pengawasan Internal Koperasi`, 14, 44);
+
+        // ── Bento-style Audit Score Card shifted down to y=47 to prevent overlap ──
+        const h = this.health || { score: 100, status: 'Sehat', color: 'emerald', penalties: [] };
+        
+        const hColor = h.color === 'emerald' ? [16, 185, 129]
+            : h.color === 'amber' ? [245, 158, 11]
+                : h.color === 'red' ? [239, 68, 68]
+                    : [59, 130, 246]; // primary / blue
+
+        const hTint = h.color === 'emerald' ? [220, 252, 231]
+            : h.color === 'amber' ? [254, 243, 199]
+                : h.color === 'red' ? [254, 242, 242]
+                    : [219, 234, 254];
+
+        const hText = h.color === 'emerald' ? [21, 128, 61]
+            : h.color === 'amber' ? [180, 83, 9]
+                : h.color === 'red' ? [185, 28, 28]
+                    : [29, 78, 216];
+
+        doc.setFillColor(hTint[0], hTint[1], hTint[2]);
+        doc.roundedRect(14, 47, pageWidth - 28, 16, 2, 2, 'F');
+        
+        doc.setFillColor(hColor[0], hColor[1], hColor[2]);
+        doc.rect(14, 47, 1.8, 16, 'F'); // Left vertical brand accent line
+
+        // Left Column (Integritas Score)
+        doc.setFontSize(6.5); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.text("SKOR INTEGRITAS DATA & KEPATUHAN", 20, 52);
+        
+        doc.setFontSize(13); 
+        doc.setFont('helvetica', 'black'); 
+        doc.setTextColor(15, 23, 42); // slate-900
+        doc.text(`${h.score}`, 20, 58.5);
+        
+        doc.setFontSize(7.5); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.text("/ 100 POIN", 20 + doc.getTextWidth(`${h.score}`) + 1.5, 58.5);
+
+        // Right Column (Audit Status Badge)
+        doc.setFontSize(6.5); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.text("STATUS HASIL PEMERIKSAAN AUDIT", pageWidth - 20, 52, { align: 'right' });
+        
+        doc.setFontSize(11); 
+        doc.setFont('helvetica', 'black'); 
+        doc.setTextColor(hText[0], hText[1], hText[2]);
+        doc.text(h.status.toUpperCase(), pageWidth - 20, 58.5, { align: 'right' });
+
+        let finalY = 70; // Shifted Section 1 down to y=70 to accommodate bento scorecard
+
+        // ── Section 1: Reconciliation Table ──
+        doc.setFillColor(brandRGB[0], brandRGB[1], brandRGB[2]);
+        doc.rect(14, finalY, 2, 4.5, 'F'); // Visual accent bar
+        
+        doc.setFontSize(8.5); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.setTextColor(30, 41, 59); // slate-800
+        doc.text('1. REKONSILIASI SALDO MODUL VS BUKU BESAR (GL)', 18.5, finalY + 3.5);
+        
         const d = this.data || [];
-        const reconRows = d.map(item => [item.kategori, item.nama, item.akun, App.formatRupiah(item.saldo_modul), App.formatRupiah(item.saldo_gl), App.formatRupiah(item.selisih), Math.abs(item.selisih) > 0.01 ? 'SELISIH' : 'OK']);
+        const reconRows = d.map(item => [
+            item.kategori, 
+            `${item.nama}\n${item.akun}`, 
+            App.formatRupiah(item.saldo_modul), 
+            App.formatRupiah(item.saldo_gl), 
+            App.formatRupiah(item.selisih), 
+            Math.abs(item.selisih) > 0.01 ? 'SELISIH' : 'OK'
+        ]);
+        
         doc.autoTable({
-            startY: finalY + 4,
-            head: [['Kategori', 'Nama Akun', 'Kode Akun', 'Saldo Modul', 'Saldo GL', 'Selisih', 'Status']],
+            startY: finalY + 6,
+            head: [['Kategori', 'Rekening & Akun GL', 'Saldo Modul', 'Saldo Buku Besar', 'Selisih', 'Status']],
             body: reconRows,
             ...tableStyle,
+            columnStyles: {
+                0: { cellWidth: 22 },
+                1: { cellWidth: 'auto' },
+                2: { halign: 'right', cellWidth: 30 },
+                3: { halign: 'right', cellWidth: 30 },
+                4: { halign: 'right', cellWidth: 30 },
+                5: { halign: 'center', cellWidth: 20 }
+            },
+            didParseCell: (data) => {
+                // Color-code the Kategori Column (Column index 0)
+                if (data.column.index === 0 && data.cell.section === 'body') {
+                    const kat = String(data.cell.raw).trim();
+                    if (kat === 'Simpanan') {
+                        data.cell.styles.fillColor = [238, 242, 255]; // bg-indigo-50 tint
+                        data.cell.styles.textColor = [67, 56, 202];   // text-indigo-700
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (kat === 'Pinjaman') {
+                        data.cell.styles.fillColor = [250, 245, 255]; // bg-purple-50 tint
+                        data.cell.styles.textColor = [126, 34, 206];   // text-purple-700
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+                // Color-code the Status Column (Column index 5)
+                if (data.column.index === 5 && data.cell.section === 'body') {
+                    const status = String(data.cell.raw);
+                    if (status === 'OK') {
+                        data.cell.styles.fillColor = [220, 252, 231]; // bg-green-100
+                        data.cell.styles.textColor = [21, 128, 61];   // text-green-700
+                        data.cell.styles.fontStyle = 'bold';
+                    } else {
+                        data.cell.styles.fillColor = [254, 242, 242]; // bg-red-100
+                        data.cell.styles.textColor = [185, 28, 28];   // text-red-700
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            },
             didDrawPage: drawPageDecoration
         });
 
-        finalY = doc.lastAutoTable.finalY + 12;
+        finalY = doc.lastAutoTable.finalY + 12; // Increased spacing
 
-        // Section 2: Discrepancies if any
+        // ── Section 2: Discrepancies ──
+        if (finalY + 20 > pageHeight - 20) { 
+            doc.addPage(); 
+            finalY = 46; // FIXED: shifted down below header title to prevent overlap on new page!
+        }
+
+        doc.setFillColor(brandRGB[0], brandRGB[1], brandRGB[2]);
+        doc.rect(14, finalY, 2, 4.5, 'F'); // Visual accent bar
+        
+        doc.setFontSize(8.5); 
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 41, 59); // slate-800
+        doc.text('2. TEMUAN SELISIH NOMINAL TRANSAKSI VS JURNAL POSTING', 18.5, finalY + 3.5);
+
         if (this.discrepancies.length > 0) {
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.setTextColor(220, 38, 38).text('(!) TEMUAN SELISIH NOMINAL TRANS vs JURNAL', 14, finalY).setTextColor(30, 41, 59);
-            const disRows = this.discrepancies.map(i => [i.tipe, i.no, i.tgl, i.info]);
+            const disRows = this.discrepancies.map(i => [i.tipe, i.no, App.formatDate(i.tgl), i.info]);
             doc.autoTable({
-                startY: finalY + 4,
-                head: [['Jenis Selisih', 'No Ref', 'Tanggal', 'Keterangan']],
+                startY: finalY + 6,
+                head: [['Jenis Modul', 'No Referensi', 'Tanggal Transaksi', 'Keterangan Temuan Selisih']],
                 body: disRows,
                 ...tableStyle,
+                columnStyles: {
+                    0: { cellWidth: 30 },
+                    1: { cellWidth: 35 },
+                    2: { halign: 'center', cellWidth: 30 },
+                    3: { cellWidth: 'auto' }
+                },
                 didDrawPage: drawPageDecoration
             });
             finalY = doc.lastAutoTable.finalY + 12;
+        } else {
+            // Success alert box
+            doc.setFillColor(220, 252, 231);
+            doc.roundedRect(14, finalY + 6, pageWidth - 28, 10, 1.5, 1.5, 'F');
+            doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(21, 128, 61);
+            doc.text("[OK] AMAN! Seluruh nilai nominal transaksi tercatat presisi dengan posting jurnal pembukuan.", 20, finalY + 12);
+            finalY = finalY + 24;
         }
 
-        // Section 3: Orphans
-        if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-        doc.text('2. INTEGRITAS DATA (ORPHAN RECORDS)', 14, finalY);
-        const orpRows = this.orphans.map(item => [item.tipe, item.no, item.tgl, item.masalah]);
-        doc.autoTable({
-            startY: finalY + 4,
-            head: [['Tipe', 'No Transaksi', 'Tanggal', 'Keterangan Masalah']],
-            body: orpRows,
-            ...tableStyle,
-            didDrawPage: drawPageDecoration
-        });
+        // ── Section 3: Orphans ──
+        if (finalY + 20 > pageHeight - 20) { 
+            doc.addPage(); 
+            finalY = 46; // FIXED: shifted down below header title to prevent overlap on new page!
+        }
+
+        doc.setFillColor(brandRGB[0], brandRGB[1], brandRGB[2]);
+        doc.rect(14, finalY, 2, 4.5, 'F'); // Visual accent bar
+        
+        doc.setFontSize(8.5); 
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 41, 59); // slate-800
+        doc.text('3. INTEGRITAS DATA & REKORD YATIM (ORPHAN RECORDS)', 18.5, finalY + 3.5);
+
+        if (this.orphans.length > 0) {
+            const orpRows = this.orphans.map(item => [item.tipe, item.no, App.formatDate(item.tgl), item.masalah]);
+            doc.autoTable({
+                startY: finalY + 6,
+                head: [['Jenis Data', 'No Referensi', 'Tanggal Rekord', 'Keterangan Masalah Integritas']],
+                body: orpRows,
+                ...tableStyle,
+                columnStyles: {
+                    0: { cellWidth: 30 },
+                    1: { cellWidth: 35 },
+                    2: { halign: 'center', cellWidth: 30 },
+                    3: { cellWidth: 'auto' }
+                },
+                didDrawPage: drawPageDecoration
+            });
+        } else {
+            // Success alert box
+            doc.setFillColor(220, 252, 231);
+            doc.roundedRect(14, finalY + 6, pageWidth - 28, 10, 1.5, 1.5, 'F');
+            doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(21, 128, 61);
+            doc.text("[OK] BERSIH! Tidak ditemukan data yatim (orphan records) in database. Integritas tabel 100% valid.", 20, finalY + 12);
+        }
 
         window.open(doc.output('bloburl'), '_blank');
     },

@@ -343,23 +343,23 @@ const BukuSimpananPage = {
 
         // ── Info Rekening Box ──
         doc.setFillColor(241, 245, 249);
-        doc.roundedRect(14, 37, pw - 28, 28, 2, 2, 'F');
+        doc.roundedRect(14, 47, pw - 28, 28, 2, 2, 'F');
         doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
 
         const leftX = 18; const rightX = pw / 2 + 2;
-        doc.setFont('helvetica', 'bold'); doc.text('No. Rekening', leftX, 44);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.no_rekening, leftX + 30, 44);
-        doc.setFont('helvetica', 'bold'); doc.text('Nama Anggota', leftX, 50);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.anggota_nama, leftX + 30, 50);
-        doc.setFont('helvetica', 'bold'); doc.text('No. Anggota', leftX, 56);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.no_anggota, leftX + 30, 56);
+        doc.setFont('helvetica', 'bold'); doc.text('No. Rekening', leftX, 54);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.no_rekening, leftX + 30, 54);
+        doc.setFont('helvetica', 'bold'); doc.text('Nama Anggota', leftX, 60);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.anggota_nama, leftX + 30, 60);
+        doc.setFont('helvetica', 'bold'); doc.text('No. Anggota', leftX, 66);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.no_anggota, leftX + 30, 66);
 
-        doc.setFont('helvetica', 'bold'); doc.text('Jenis Simpanan', rightX, 44);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.jenis_simpanan_nama, rightX + 32, 44);
-        doc.setFont('helvetica', 'bold'); doc.text('Tgl Pembukaan', rightX, 50);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + App.formatDate(rek.tgl_buka), rightX + 32, 50);
-        doc.setFont('helvetica', 'bold'); doc.text('Status', rightX, 56);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + (rek.status || '-').toUpperCase(), rightX + 32, 56);
+        doc.setFont('helvetica', 'bold'); doc.text('Jenis Simpanan', rightX, 54);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.jenis_simpanan_nama, rightX + 32, 54);
+        doc.setFont('helvetica', 'bold'); doc.text('Tgl Pembukaan', rightX, 60);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + App.formatDate(rek.tgl_buka), rightX + 32, 60);
+        doc.setFont('helvetica', 'bold'); doc.text('Status', rightX, 66);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + (rek.status || '-').toUpperCase(), rightX + 32, 66);
 
         // ── Tabel Transaksi ──
         let saldoBerjalan = parseFloat(this.rekeningData?._saldo_awal || 0);
@@ -381,7 +381,7 @@ const BukuSimpananPage = {
         });
 
         doc.autoTable({
-            startY: 70,
+            startY: 80,
             head: [['No', 'Tanggal', 'No. Transaksi', 'Keterangan', 'Debit', 'Kredit', 'Saldo']],
             body,
             theme: 'striped',
@@ -397,7 +397,7 @@ const BukuSimpananPage = {
                 6: { halign: 'right', cellWidth: 30, fontStyle: 'bold' }
             },
             alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { left: 14, right: 14, bottom: 20 },
+            margin: { left: 14, right: 14, top: 48, bottom: 20 },
             didDrawPage: (data) => {
                 App.drawPDFHeader(doc, title);
                 App.drawPDFFooter(doc);

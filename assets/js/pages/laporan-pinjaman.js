@@ -272,10 +272,19 @@ const LaporanPinjamanPage = {
             total_terbayar: App.formatRupiah(r.total_terbayar),
             sisa_pinjaman: App.formatRupiah(r.sisa_pinjaman)
         }));
+
+        const totalPinjaman = exportData.reduce((sum, r) => sum + parseFloat(r.total_pinjaman || 0), 0);
+        const totalTerbayar = exportData.reduce((sum, r) => sum + parseFloat(r.total_terbayar || 0), 0);
+        const totalSisa = exportData.reduce((sum, r) => sum + parseFloat(r.sisa_pinjaman || 0), 0);
         
         App.export(type, 'Laporan Saldo Pinjaman', this.getColumns(), formattedData, {
             filename: 'laporan_pinjaman_saldo',
-            footer: this.footer
+            footer: this.footer,
+            cards: [
+                { label: 'Total Pinjaman', value: App.formatRupiah(totalPinjaman) },
+                { label: 'Total Terbayar', value: App.formatRupiah(totalTerbayar) },
+                { label: 'Saldo Pinjaman (Baki Debet)', value: App.formatRupiah(totalSisa) }
+            ]
         });
     },
 

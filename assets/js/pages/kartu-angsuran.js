@@ -311,12 +311,9 @@ const KartuAngsuranPage = {
         App.drawPDFHeader(doc, title);
         App.drawPDFFooter(doc);
 
-        doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
-        doc.text('KARTU ANGSURAN PINJAMAN', 14, 33);
-
-        // ── Info Box ──
+        // ── Info Box (shifted down to y=47 to prevent overlap with title at y=38.5) ──
         doc.setFillColor(241, 245, 249);
-        doc.roundedRect(14, 37, pw - 28, 28, 2, 2, 'F');
+        doc.roundedRect(14, 47, pw - 28, 28, 2, 2, 'F');
         doc.setFontSize(8); doc.setTextColor(71, 85, 105);
 
         const L = 18, R = pw / 2 + 2;
@@ -324,12 +321,12 @@ const KartuAngsuranPage = {
             doc.setFont('helvetica', 'bold'); doc.text(label, x, y);
             doc.setFont('helvetica', 'normal'); doc.text(': ' + (val || '-'), x + 36, y);
         };
-        row(L, 44, 'No. Pinjaman', p.no_pinjaman);
-        row(L, 50, 'Nama Anggota', p.anggota_nama);
-        row(L, 56, 'No. Anggota', p.no_anggota);
-        row(R, 44, 'Jenis Pinjaman', p.jenis_pinjaman);
-        row(R, 50, 'Jumlah Pinjaman', App.formatRupiah(p.jumlah));
-        row(R, 56, 'Tenor / Bunga', `${p.tenor} bulan / ${p.bunga_persen}%/bln`);
+        row(L, 54, 'No. Pinjaman', p.no_pinjaman);
+        row(L, 60, 'Nama Anggota', p.anggota_nama);
+        row(L, 66, 'No. Anggota', p.no_anggota);
+        row(R, 54, 'Jenis Pinjaman', p.jenis_pinjaman);
+        row(R, 60, 'Jumlah Pinjaman', App.formatRupiah(p.jumlah));
+        row(R, 66, 'Tenor / Bunga', `${p.tenor} bulan / ${p.bunga_persen}%/bln`);
 
         // ── Tabel ──
         const body = txs.map((a, i) => [
@@ -345,7 +342,7 @@ const KartuAngsuranPage = {
         ]);
 
         doc.autoTable({
-            startY: 70,
+            startY: 80,
             head: [['Ke-', 'No. Transaksi', 'Jatuh Tempo', 'Tgl Bayar', 'Pokok', 'Bunga', 'Denda', 'Total', 'Status']],
             body,
             theme: 'striped',
@@ -363,7 +360,7 @@ const KartuAngsuranPage = {
                 8: { halign: 'center', cellWidth: 20 }
             },
             alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { left: 14, right: 14, bottom: 20 },
+            margin: { left: 14, right: 14, top: 48, bottom: 20 },
             didDrawPage: () => {
                 App.drawPDFHeader(doc, title);
                 App.drawPDFFooter(doc);

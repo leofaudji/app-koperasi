@@ -294,10 +294,21 @@ const LaporanSimpananPage = {
             partisipatif: App.formatRupiah(r.partisipatif),
             total_saldo: App.formatRupiah(r.total_saldo)
         }));
+
+        const totalPokok = exportData.reduce((sum, r) => sum + parseFloat(r.pokok || 0), 0);
+        const totalWajib = exportData.reduce((sum, r) => sum + parseFloat(r.wajib || 0), 0);
+        const totalSukarela = exportData.reduce((sum, r) => sum + parseFloat(r.sukarela || 0), 0);
+        const totalSemua = exportData.reduce((sum, r) => sum + parseFloat(r.total_saldo || 0), 0);
         
         App.export(type, 'Laporan Saldo Simpanan', this.getColumns(), formattedData, {
             filename: 'laporan_simpanan',
-            footer: this.footer
+            footer: this.footer,
+            cards: [
+                { label: 'Total Pokok', value: App.formatRupiah(totalPokok) },
+                { label: 'Total Wajib', value: App.formatRupiah(totalWajib) },
+                { label: 'Total Sukarela', value: App.formatRupiah(totalSukarela) },
+                { label: 'Grand Total Saldo', value: App.formatRupiah(totalSemua) }
+            ]
         });
     },
 

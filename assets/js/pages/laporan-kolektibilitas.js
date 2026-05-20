@@ -312,7 +312,22 @@ const KolektibilitasPage = {
             ? `Laporan Kolektibilitas - Kategori Kol ${this._selectedKolek}`
             : 'Laporan Kolektibilitas & NPL';
 
-        App.export(type, title, columns, rows, { filename: 'laporan_kolektibilitas' });
+        const totalBakiDebet = filtered.reduce((sumVal, p) => sumVal + parseFloat(p.sisa_pinjaman || 0), 0);
+        const totalNplCount = filtered.filter(p => p.kolektibilitas >= 3).length;
+        const totalCount = filtered.length;
+        const nplRatio = totalBakiDebet > 0 
+            ? ((filtered.filter(p => p.kolektibilitas >= 3).reduce((sumVal, p) => sumVal + parseFloat(p.sisa_pinjaman || 0), 0) / totalBakiDebet) * 100).toFixed(1)
+            : 0;
+
+        App.export(type, title, columns, rows, { 
+            filename: 'laporan_kolektibilitas',
+            cards: [
+                { label: 'Total Baki Debet', value: App.formatRupiah(totalBakiDebet) },
+                { label: 'Jumlah Rekening', value: `${totalCount} Rekening` },
+                { label: 'Rekening NPL (Kol 3-5)', value: `${totalNplCount} Rekening` },
+                { label: 'Rasio NPL (%)', value: `${nplRatio}%` }
+            ]
+        });
     }
 };
 

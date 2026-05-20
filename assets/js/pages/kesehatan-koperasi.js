@@ -330,96 +330,221 @@ const KesehatanKoperasiPage = {
 
         const title = 'LAPORAN PENILAIAN TINGKAT KESEHATAN KOPERASI';
 
-        // Use App helpers for consistent branding
+        // Get dynamic brand color theme
+        const activeThemeKey = localStorage.getItem('app_theme') || 'indigo';
+        const theme = window.THEMES?.[activeThemeKey] || { shade: '#4f46e5', p: { 50: '#eef2ff', 900: '#312e81' } };
+        const hexToRgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [79, 70, 229];
+        };
+        const brandRGB = hexToRgb(theme.shade);
+        const bgRGB = hexToRgb(theme.p[50] || '#eef2ff');
+
+        // Draw dynamic headers and footers on the first page
         App.drawPDFHeader(doc, title);
         App.drawPDFFooter(doc);
 
-        doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(100);
-        doc.text(`Tahun Penilaian: ${d.tahun}  |  Berdasarkan: Permenkop No. 20/Per/M.KUKM/XI/2008`, 14, 42);
+        // Metadata Subtitle cleanly aligned at y=44 (below title drawn at 38.5)
+        doc.setFontSize(7.5); 
+        doc.setFont('helvetica', 'normal'); 
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.text(`Tahun Buku Penilaian: ${d.tahun}  |  Rujukan: Permenkop RI No. 20/Per/M.KUKM/XI/2008`, 14, 44);
 
-        // ── Skor Box ──
-        const sColor = d.predikat_kode === 'sehat' ? [16, 185, 129]
-            : d.predikat_kode === 'cukup' ? [59, 130, 246]
-                : d.predikat_kode === 'kurang' ? [245, 158, 11]
-                    : [239, 68, 68];
-        doc.setFillColor(...sColor);
-        doc.roundedRect(14, 42, pw - 28, 20, 3, 3, 'F');
-        doc.setFontSize(20); doc.setFont('helvetica', 'black'); doc.setTextColor(255, 255, 255);
-        doc.text(d.predikat.toUpperCase(), pw / 2, 54, { align: 'center' });
-        doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-        doc.text(`Total Skor: ${d.total_skor} / 100 poin`, pw / 2, 59, { align: 'center' });
+        // ── Predikat & Skor Bento Box shifted down to y=47 to prevent overlap ──
+        const sColor = d.predikat_kode === 'sehat' ? [16, 185, 129] // Emerald
+            : d.predikat_kode === 'cukup' ? [59, 130, 246]       // Blue
+                : d.predikat_kode === 'kurang' ? [245, 158, 11]  // Amber
+                    : [239, 68, 68];                             // Red
 
-        // ── Ringkasan Keuangan ──
-        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
-        doc.text('RINGKASAN DATA KEUANGAN', 14, 70);
-        doc.setFillColor(241, 245, 249);
-        doc.roundedRect(14, 72, pw - 28, 22, 2, 2, 'F');
-        doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+        const sTint = d.predikat_kode === 'sehat' ? [220, 252, 231]   // bg-emerald-100
+            : d.predikat_kode === 'cukup' ? [219, 234, 254]           // bg-blue-100
+                : d.predikat_kode === 'kurang' ? [254, 243, 199]      // bg-amber-100
+                    : [254, 242, 242];                                // bg-red-100
 
-        const half = (pw - 28) / 2;
+        const sText = d.predikat_kode === 'sehat' ? [21, 128, 61]     // text-emerald-700
+            : d.predikat_kode === 'cukup' ? [29, 78, 216]             // text-blue-700
+                : d.predikat_kode === 'kurang' ? [180, 83, 9]         // text-amber-700
+                    : [185, 28, 28];                                  // text-red-700
+
+        doc.setFillColor(sTint[0], sTint[1], sTint[2]);
+        doc.roundedRect(14, 47, pw - 28, 17, 2, 2, 'F');
+        
+        doc.setFillColor(sColor[0], sColor[1], sColor[2]);
+        doc.rect(14, 47, 1.8, 17, 'F'); // Left vertical brand accent line
+
+        // Left Column (Total Score)
+        doc.setFontSize(6.5); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.text("TOTAL SKOR PENILAIAN KESEHATAN", 20, 52.5);
+        
+        doc.setFontSize(14); 
+        doc.setFont('helvetica', 'black'); 
+        doc.setTextColor(15, 23, 42); // slate-900
+        doc.text(`${d.total_skor}`, 20, 59);
+        
+        doc.setFontSize(7.5); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.text("/ 100 POIN", 20 + doc.getTextWidth(`${d.total_skor}`) + 1.5, 59);
+
+        // Right Column (Predicate Badge)
+        doc.setFontSize(6.5); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.text("PREDIKAT TINGKAT KESEHATAN KOPERASI", pw - 20, 52.5, { align: 'right' });
+        
+        doc.setFontSize(12); 
+        doc.setFont('helvetica', 'black'); 
+        doc.setTextColor(sText[0], sText[1], sText[2]);
+        doc.text(d.predikat.toUpperCase(), pw - 20, 59, { align: 'right' });
+
+        // ── Ringkasan Keuangan (Executive 3-Column Bento Grid) ──
+        doc.setFontSize(8.5); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.setTextColor(30, 41, 59); // slate-800
+        doc.text('RINGKASAN DATA KEUANGAN', 14, 69.5);
+        
+        doc.setFillColor(bgRGB[0], bgRGB[1], bgRGB[2]);
+        doc.roundedRect(14, 71.5, pw - 28, 20, 2, 2, 'F');
+        
+        doc.setFillColor(brandRGB[0], brandRGB[1], brandRGB[2]);
+        doc.rect(14, 71.5, 1.5, 20, 'F'); // Left vertical brand accent line
+
         const keuData = [
             ['Total Aset', App.formatRupiah(r.total_aset)],
             ['Modal Sendiri', App.formatRupiah(r.modal_sendiri)],
             ['Total Simpanan', App.formatRupiah(r.total_simpanan)],
             ['Sisa Pinjaman', App.formatRupiah(r.sisa_pinjaman)],
-            ['SHU Tahun Berjalan', App.formatRupiah(r.shu)],
-            ['Total Anggota', r.total_anggota + ' orang'],
+            ['SHU Berjalan', App.formatRupiah(r.shu)],
+            ['Total Anggota', r.total_anggota + ' Orang'],
         ];
+
         keuData.forEach(([l, v], i) => {
-            const x = i < 3 ? 18 : 18 + half;
-            const y = 78 + (i % 3) * 5.5;
-            doc.setFont('helvetica', 'bold'); doc.text(l, x, y);
-            doc.setFont('helvetica', 'normal'); doc.text(': ' + v, x + 36, y);
+            const col = Math.floor(i / 2);
+            const row = i % 2;
+            const x = 20 + col * 58;
+            const y = 77 + row * 8.5;
+            
+            // Draw small label
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(6.5);
+            doc.setTextColor(100, 116, 139); // slate-500
+            doc.text(l.toUpperCase(), x, y);
+            
+            // Draw clean bold value
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8.5);
+            doc.setTextColor(15, 23, 42); // slate-900
+            doc.text(v, x, y + 4.2);
         });
 
         // ── Tabel 7 Aspek ──
-        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
-        doc.text('PENILAIAN PER ASPEK', 14, 101);
+        doc.setFontSize(8.5); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.setTextColor(30, 41, 59); // slate-800
+        doc.text('PENILAIAN TINGKAT KESEHATAN PER ASPEK', 14, 97.5);
 
         const body = d.aspek.map(a => {
             const pctA = a.bobot > 0 ? ((a.skor / a.bobot) * 100).toFixed(1) : '0';
             const ket = parseFloat(pctA) >= 80 ? 'Baik' : parseFloat(pctA) >= 60 ? 'Cukup Baik' : parseFloat(pctA) >= 40 ? 'Kurang' : 'Tidak Baik';
             return [a.no, a.nama, a.bobot, a.skor, pctA + '%', ket];
         });
-        body.push(['', 'TOTAL', 100, d.total_skor, d.total_skor + '%', d.predikat]);
+        body.push(['', 'TOTAL PENILAIAN KESEHATAN', 100, d.total_skor, d.total_skor + '%', d.predikat]);
 
         doc.autoTable({
-            startY: 104,
-            head: [['No', 'Aspek Penilaian', 'Bobot', 'Skor', '%', 'Keterangan']],
+            startY: 100.5,
+            head: [['No', 'Aspek Penilaian Tingkat Kesehatan', 'Bobot', 'Skor', '%', 'Keterangan']],
             body,
             theme: 'striped',
-            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold', halign: 'center', cellPadding: 3 },
-            bodyStyles: { fontSize: 8, cellPadding: 3, textColor: [51, 65, 85] },
+            headStyles: { 
+                fillColor: [brandRGB[0], brandRGB[1], brandRGB[2]], 
+                textColor: 255, 
+                fontSize: 8, 
+                fontStyle: 'bold', 
+                halign: 'center', 
+                cellPadding: 3.5 
+            },
+            bodyStyles: { 
+                fontSize: 8, 
+                cellPadding: 3.5, 
+                textColor: [51, 65, 85] 
+            },
             columnStyles: {
                 0: { halign: 'center', cellWidth: 10 },
                 1: { cellWidth: 'auto' },
                 2: { halign: 'center', cellWidth: 18 },
                 3: { halign: 'center', cellWidth: 18, fontStyle: 'bold' },
                 4: { halign: 'center', cellWidth: 18 },
-                5: { halign: 'center', cellWidth: 30 }
+                5: { halign: 'center', cellWidth: 32 }
             },
             alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { left: 14, right: 14, bottom: 20 },
+            margin: { left: 14, right: 14, top: 48, bottom: 20 },
             didParseCell: (data) => {
+                // Style the final total row
                 if (data.row.index === body.length - 1) {
                     data.cell.styles.fontStyle = 'bold';
                     data.cell.styles.fillColor = [241, 245, 249];
+                    data.cell.styles.textColor = [15, 23, 42];
+                    if (data.column.index === 5) {
+                        data.cell.styles.textColor = sText; // Color code the final predicate in the table
+                    }
+                }
+                
+                // Color code the "Keterangan" status column cells
+                if (data.column.index === 5 && data.row.index < body.length - 1) {
+                    const val = String(data.cell.raw).trim();
+                    if (val === 'Baik') {
+                        data.cell.styles.fillColor = [220, 252, 231]; // bg-green-100
+                        data.cell.styles.textColor = [21, 128, 61];   // text-green-700
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (val === 'Cukup Baik') {
+                        data.cell.styles.fillColor = [219, 234, 254]; // bg-blue-100
+                        data.cell.styles.textColor = [29, 78, 216];   // text-blue-700
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (val === 'Kurang') {
+                        data.cell.styles.fillColor = [254, 243, 199]; // bg-amber-100
+                        data.cell.styles.textColor = [180, 83, 9];    // text-amber-700
+                        data.cell.styles.fontStyle = 'bold';
+                    } else {
+                        data.cell.styles.fillColor = [254, 242, 242]; // bg-red-100
+                        data.cell.styles.textColor = [185, 28, 28];   // text-red-700
+                        data.cell.styles.fontStyle = 'bold';
+                    }
                 }
             },
-            didDrawPage: () => {
-                doc.setFontSize(7.5); doc.setTextColor(148, 163, 184);
-                doc.text(`Dicetak: ${App.todayDMY()} | © Koperasi Simpan Pinjam`, pw - 14, ph - 10, { align: 'right' });
+            didDrawPage: (data) => {
+                App.drawPDFHeader(doc, title);
+                App.drawPDFFooter(doc);
             }
         });
 
         // ── Detail per Indikator ──
         let curY = doc.lastAutoTable.finalY + 8;
-        doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59);
-        doc.text('DETAIL INDIKATOR PER ASPEK', 14, curY);
+        if (curY + 25 > ph - 20) {
+            doc.addPage();
+            curY = 46; // FIXED: shifted down below header title to prevent overlap on new page!
+        }
+
+        doc.setFontSize(8.5); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.setTextColor(30, 41, 59); // slate-800
+        doc.text('RANGKUMAN DETAIL INDIKATOR PENILAIAN PER ASPEK', 14, curY);
 
         const detailBody = [];
         d.aspek.forEach(a => {
-            detailBody.push([{ content: `${a.no}. ${a.nama.toUpperCase()}`, colSpan: 4, styles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold', fontSize: 7.5 } }]);
+            // Elegant background matching theme tint for aspect sub-headers inside the body
+            detailBody.push([{ 
+                content: `${a.no}. ${a.nama.toUpperCase()}`, 
+                colSpan: 4, 
+                styles: { 
+                    fillColor: [bgRGB[0], bgRGB[1], bgRGB[2]], 
+                    textColor: [brandRGB[0], brandRGB[1], brandRGB[2]], 
+                    fontStyle: 'bold', 
+                    fontSize: 7.5,
+                    cellPadding: 3.5
+                } 
+            }]);
             a.indikator.forEach(ind => {
                 const nilaiDisplay = ind.satuan === '%' ? `${ind.nilai}%`
                     : ind.satuan === 'Rp' ? App.formatRupiah(ind.nilai)
@@ -430,22 +555,33 @@ const KesehatanKoperasiPage = {
 
         doc.autoTable({
             startY: curY + 3,
-            head: [['Indikator', 'Nilai', 'Bobot', 'Skor']],
+            head: [['Indikator Penilaian Aspek', 'Nilai Riil Koperasi', 'Bobot Poin', 'Skor Perolehan']],
             body: detailBody,
             theme: 'striped',
-            headStyles: { fillColor: [51, 65, 85], textColor: 255, fontSize: 7.5, fontStyle: 'bold', halign: 'center', cellPadding: 2.5 },
-            bodyStyles: { fontSize: 7, cellPadding: 2, textColor: [51, 65, 85] },
+            headStyles: { 
+                fillColor: [brandRGB[0], brandRGB[1], brandRGB[2]], 
+                textColor: 255, 
+                fontSize: 8, 
+                fontStyle: 'bold', 
+                halign: 'center', 
+                cellPadding: 3 
+            },
+            bodyStyles: { 
+                fontSize: 7.5, 
+                cellPadding: 2.5, 
+                textColor: [51, 65, 85] 
+            },
             columnStyles: {
                 0: { cellWidth: 'auto' },
                 1: { halign: 'right', cellWidth: 35 },
-                2: { halign: 'center', cellWidth: 15 },
-                3: { halign: 'center', cellWidth: 15, fontStyle: 'bold' }
+                2: { halign: 'center', cellWidth: 18 },
+                3: { halign: 'center', cellWidth: 18, fontStyle: 'bold' }
             },
             alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { left: 14, right: 14, bottom: 20 },
-            didDrawPage: () => {
-                doc.setFontSize(7.5); doc.setTextColor(148, 163, 184);
-                doc.text(`Dicetak: ${App.todayDMY()} | © Koperasi Simpan Pinjam`, pw - 14, ph - 10, { align: 'right' });
+            margin: { left: 14, right: 14, top: 48, bottom: 20 },
+            didDrawPage: (data) => {
+                App.drawPDFHeader(doc, title);
+                App.drawPDFFooter(doc);
             }
         });
 
