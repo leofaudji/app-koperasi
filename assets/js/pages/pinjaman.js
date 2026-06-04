@@ -313,6 +313,7 @@ const PinjamanPage = {
     },
 
     async form() {
+        this._agunanList = [];
         const jp = await App.api('jenis-pinjaman');
         App.openModal(`<div class="p-6"><h3 class="text-lg font-bold text-gray-800 mb-4"><i class="ri-hand-coin-line text-amber-500 mr-2"></i>Pengajuan Pinjaman Baru</h3>
         
@@ -801,6 +802,65 @@ const PinjamanPage = {
                     </div>
                     <div class="text-[10px] italic text-amber-600 mt-1">* Bunga belum jatuh tempo ${App.formatRupiah(s.bunga_dibebaskan)} dibebaskan.</div>
                 `;
+
+                // Auto copy old agunan if any
+                if (PinjamanPage._activeLoan.agunan) {
+                    try {
+                        let parsedAgunan = null;
+                        const rawAgunan = PinjamanPage._activeLoan.agunan;
+                        if (typeof rawAgunan === 'object') {
+                            parsedAgunan = rawAgunan;
+                        } else if (typeof rawAgunan === 'string') {
+                            const trimmed = rawAgunan.trim();
+                            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                                parsedAgunan = JSON.parse(trimmed);
+                            }
+                        }
+
+                        if (parsedAgunan) {
+                            let list = [];
+                            if (Array.isArray(parsedAgunan)) {
+                                list = parsedAgunan;
+                            } else if (typeof parsedAgunan === 'object' && parsedAgunan.tipe) {
+                                list = [parsedAgunan];
+                            }
+                            
+                            // Map and ensure _label exists for each item
+                            PinjamanPage._agunanList = list.map(item => {
+                                if (!item._label) {
+                                    const noDoc = item.data['No. Sertifikat'] || item.data['No. Bpkb'] || item.data['No. Rekening'] || item.data['No Sertifikat'] || item.data['No Bpkb'] || item.data['No Rekening'] || '';
+                                    const nilai = item.data['Nilai Estimasi'] || item.data['Nominal Saldo'] || item.data['Estimasi Nilai'] || 0;
+                                    item._label = `${item.tipe}${noDoc ? ' — ' + noDoc : ''}${nilai ? ' · ' + App.formatRupiah(parseFloat(String(nilai).replace(/[^0-9]/g, '')) || 0) : ''}`;
+                                }
+                                return item;
+                            });
+                            
+                            PinjamanPage.renderAgunanList();
+                            App.toast('Agunan pinjaman lama berhasil disalin otomatis!', 'info', 2500);
+                        } else if (typeof rawAgunan === 'string' && rawAgunan.trim().length > 0) {
+                            // Fallback for plain text agunan
+                            const text = rawAgunan.trim();
+                            let tipe = "Lainnya";
+                            if (text.includes("Sertifikat")) {
+                                tipe = "Sertifikat Tanah (SHM/SHGB)";
+                            } else if (text.includes("BPKB") || text.includes("Bpkb")) {
+                                tipe = "BPKB Kendaraan";
+                            } else if (text.includes("Deposito") || text.includes("Simpanan")) {
+                                tipe = "Deposito/Simpanan";
+                            }
+                            
+                            PinjamanPage._agunanList = [{
+                                tipe: tipe,
+                                data: { "Keterangan": text },
+                                _label: text
+                            }];
+                            PinjamanPage.renderAgunanList();
+                            App.toast('Agunan pinjaman lama berhasil disalin otomatis!', 'info', 2500);
+                        }
+                    } catch (e) {
+                        console.error("Gagal memproses agunan lama", e);
+                    }
+                }
             } else {
                 App.toast('Gagal memuat detail pelunasan', 'error');
                 document.getElementById('pf-is-topup').checked = false;
@@ -809,6 +869,8 @@ const PinjamanPage = {
         } else {
             details.classList.add('hidden');
             PinjamanPage._topupPelunasan = 0;
+            PinjamanPage._agunanList = [];
+            PinjamanPage.renderAgunanList();
         }
         this.calcSim();
     },

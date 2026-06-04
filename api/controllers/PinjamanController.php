@@ -347,8 +347,29 @@ switch ($method) {
                 $binds[] = "%$search%";
             }
             if ($status) {
-                $where .= " AND p.status = ?";
-                $binds[] = $status;
+                if (strpos($status, ',') !== false) {
+                    $statuses = explode(',', $status);
+                    $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+                    $where .= " AND p.status IN ($placeholders)";
+                    foreach ($statuses as $st) {
+                        $binds[] = trim($st);
+                    }
+                } else {
+                    $where .= " AND p.status = ?";
+                    $binds[] = $status;
+                }
+            }
+
+            $anggotaId = $params['anggota_id'] ?? '';
+            if ($anggotaId) {
+                $where .= " AND p.anggota_id = ?";
+                $binds[] = $anggotaId;
+            }
+
+            $jenisPinjamanId = $params['jenis_pinjaman_id'] ?? '';
+            if ($jenisPinjamanId) {
+                $where .= " AND p.jenis_pinjaman_id = ?";
+                $binds[] = $jenisPinjamanId;
             }
 
             paginatedResponse(
@@ -470,7 +491,7 @@ switch ($method) {
         $yy = date('y', strtotime($tglP));
         $jp = str_pad($jenisPinjaman['kode_numerik'] ?: '00', 2, '0', STR_PAD_LEFT);
 
-        $anggota = $db->fetch("SELECT no_anggota FROM anggota WHERE id = ?", [$anggotaId]);
+        $anggota = $db->fetch("SELECT no_anggota, nama FROM anggota WHERE id = ?", [$anggotaId]);
         preg_match('/\d+/', $anggota['no_anggota'], $matches);
         $aaaaaaa = str_pad($matches[0] ?? '0', 7, '0', STR_PAD_LEFT);
 
@@ -789,7 +810,7 @@ switch ($method) {
 
                 // Clear caches
                 // Clear caches via central helper
-                clearCache(['member' => $pinjaman['anggota_id'], 'loan']);
+                clearCache(['member' => $pinjaman['anggota_id'], 'loan', 'finance', 'audit']);
 
                 logActivity('update', 'pinjaman', $id, [
                     'status' => 'pending'

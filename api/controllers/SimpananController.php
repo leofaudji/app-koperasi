@@ -416,7 +416,7 @@ switch ($method) {
             $db->commit();
 
             // Clear caches via central helper
-            clearCache(['member' => $anggotaId, 'saving']);
+            clearCache(['member' => $anggotaId, 'saving', 'finance', 'audit']);
 
             // Log Activity
             logActivity('create', 'simpanan', $simpananId, null, [

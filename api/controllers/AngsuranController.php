@@ -308,7 +308,7 @@ switch ($method) {
             $db->commit();
             
             // Clear caches via central helper
-            clearCache(['member' => $angsuran['anggota_id'], 'loan']);
+            clearCache(['member' => $angsuran['anggota_id'], 'loan', 'finance', 'audit']);
 
             // Log Activity (Payment)
             logActivity('create', 'angsuran', $angsuranId, null, [
@@ -372,6 +372,11 @@ switch ($method) {
             }
 
             $sisaPokok = (float) $pinjaman['sisa_pinjaman'];
+
+            // Gunakan nilai bunga/denda custom jika diinput manual oleh admin dari frontend
+            if (isset($params['bunga_custom'])) $bungaBerjalan = (float) $params['bunga_custom'];
+            if (isset($params['denda_custom'])) $dendaBerjalan = (float) $params['denda_custom'];
+
             $totalPelunasan = $sisaPokok + $bungaBerjalan + $dendaBerjalan;
             $keterangan = trim($params['keterangan'] ?? '');
 
@@ -419,7 +424,7 @@ switch ($method) {
                 $db->commit();
                 
                 // Clear caches via central helper
-                clearCache(['member' => $pinjaman['anggota_id'], 'loan']);
+                clearCache(['member' => $pinjaman['anggota_id'], 'loan', 'finance', 'audit']);
 
                 // Log Activity (Payoff)
                 logActivity('update', 'pinjaman', $pinjamanId, [

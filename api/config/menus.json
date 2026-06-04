@@ -96,7 +96,15 @@
                         "icon": "ri-file-list-3-line",
                         "url": "#/mutasi-simpanan",
                         "perm": "simpanan.view"
+                    },
+                    {
+                        "id": 4,
+                        "nama": "Jasa Partisipatif",
+                        "url": "#/jasa-partisipatif",
+                        "icon": "ri-hand-heart-line",
+                        "perm": "keuangan.jurnal"
                     }
+
                 ]
             },
             {
@@ -271,6 +279,13 @@
                 "icon": "ri-notification-3-line",
                 "url": "#/pengumuman",
                 "perm": "pengumuman.view"
+            },
+            {
+                "id": 56,
+                "nama": "Pusat Bantuan (FAQ)",
+                "icon": "ri-questionnaire-line",
+                "url": "#/faq",
+                "perm": "dashboard.view"
             },
             {
                 "id": 60,
