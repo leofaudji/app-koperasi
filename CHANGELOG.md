@@ -6,6 +6,18 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v2.0.5] - 2026-06-24
+
+### ✨ Ditambahkan
+- **Shortcut Transaksi Wajib:** Tombol langsung dari halaman Monitoring Simpanan Wajib membuka modal transaksi dengan `jenis_simpanan=SW`.
+- **Tampilan Tabel Simpanan Ringkas:** Penyederhanaan tabel `Simpanan` dengan kolom bergabung dan baris lebih kompak agar data dapat dibaca lebih efisien.
+
+### 🔧 Perbaikan
+- **Perbaikan No. Rekening:** Backend list simpanan sekarang mengikutkan `no_rekening` sehingga data rekening dapat ditampilkan di tabel transaksi.
+- **Filter Rekening Simpanan SW:** Pencarian rekening pada modal simpanan menggunakan `jenis_simpanan=SW` untuk shortcut setoran wajib.
+- **Monitoring Simpanan Wajib Stabil:** API `simpanan/monitoring-wajib` sekarang menyediakan `sp_lunas` dan `sw_months` serta mencegah deteksi `undefined` pada bulan yang belum punya data.
+- **Logika Kepatuhan SW:** Penyederhanaan dan perbaikan logika deteksi tunggakan SW/SP agar anggota yang telah setor teridentifikasi dengan benar.
+
 ## [v2.0.4] - 2026-05-20
 
 ### ✨ Ditambahkan
