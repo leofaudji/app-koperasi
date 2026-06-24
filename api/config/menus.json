@@ -161,11 +161,25 @@
                         "perm": "laporan.simpanan_saldo"
                     },
                     {
+                        "id": 37,
+                        "nama": "Mutasi Simpanan",
+                        "icon": "ri-history-line",
+                        "url": "#/laporan-mutasi-simpanan",
+                        "perm": "laporan.simpanan_saldo"
+                    },
+                    {
                         "id": 36,
                         "nama": "Buku Simpanan",
                         "icon": "ri-book-open-line",
                         "url": "#/buku-simpanan",
                         "perm": "simpanan.view"
+                    },
+                    {
+                        "id": 38,
+                        "nama": "Simpanan Wajib",
+                        "icon": "ri-calendar-todo-line",
+                        "url": "#/monitoring-simpanan-wajib",
+                        "perm": "laporan.simpanan_saldo"
                     }
                 ]
             },

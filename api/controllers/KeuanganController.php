@@ -5,6 +5,434 @@ $db = Database::getInstance();
 $redis = RedisManager::getInstance();
 
 switch ($id) {
+    case 'import-saldo-awal':
+        checkPermission('keuangan.jurnal');
+        if ($method !== 'POST') {
+            errorResponse('Method not allowed', 405);
+        }
+
+        if (empty($_FILES['file'])) {
+            errorResponse('Pilih file CSV terlebih dahulu');
+        }
+
+        $tgl = $params['tgl_transaksi'] ?? date('Y-01-01');
+
+        $file = $_FILES['file']['tmp_name'];
+        $handle = fopen($file, "r");
+        if (!$handle) {
+            errorResponse('Gagal membuka file CSV');
+        }
+
+        // Read headers
+        $headers = fgetcsv($handle, 1000, ",");
+        if (!$headers) {
+            fclose($handle);
+            errorResponse('File CSV kosong atau tidak valid');
+        }
+
+        // Auto detect delimiter (comma or semicolon)
+        if (count($headers) === 1 && strpos($headers[0], ';') !== false) {
+            rewind($handle);
+            $headers = fgetcsv($handle, 1000, ";");
+            $delimiter = ";";
+        } else {
+            $delimiter = ",";
+        }
+
+        $noIdx = -1;
+        $ketIdx = -1;
+        $saldoIdx = -1;
+
+        foreach ($headers as $idx => $header) {
+            $headerClean = strtolower(trim($header));
+            if ($headerClean === 'no' || $headerClean === 'kode' || $headerClean === 'nomor' || $headerClean === 'no_akun') {
+                $noIdx = $idx;
+            } elseif ($headerClean === 'keterangan' || $headerClean === 'nama' || $headerClean === 'nama_akun') {
+                $ketIdx = $idx;
+            } elseif ($headerClean === 'saldo' || $headerClean === 'nominal' || $headerClean === 'saldo_awal') {
+                $saldoIdx = $idx;
+            }
+        }
+
+        // Fallbacks
+        if ($noIdx === -1) $noIdx = 0;
+        if ($ketIdx === -1) $ketIdx = 1;
+        if ($saldoIdx === -1) $saldoIdx = 2;
+
+        $tipeLaporan = $params['tipe_laporan'] ?? 'neraca'; // 'neraca' or 'labarugi'
+        if ($tipeLaporan === 'neraca') {
+            $typesToClear = ['aset', 'kewajiban', 'modal'];
+            $refTipe = 'saldo_awal_neraca';
+            $keteranganJurnal = 'Saldo Awal Neraca dari Import CSV';
+        } else {
+            $typesToClear = ['pendapatan', 'beban'];
+            $refTipe = 'saldo_awal_labarugi';
+            $keteranganJurnal = 'Saldo Awal Laba Rugi dari Import CSV';
+        }
+
+        $db->beginTransaction();
+        try {
+            // Delete existing journals, details, and COA accounts of the specified types
+            $db->execute("SET FOREIGN_KEY_CHECKS = 0");
+            
+            // Delete details associated with these types
+            $db->execute(
+                "DELETE FROM jurnal_detail WHERE akun_id IN (SELECT id FROM akun WHERE tipe IN (" . implode(',', array_map(fn($t) => "'$t'", $typesToClear)) . "))"
+            );
+            
+            // Delete previous saldo awal journal of this specific type
+            $db->execute("DELETE FROM jurnal WHERE ref_tipe = ?", [$refTipe]);
+            
+            // Delete accounts of these types
+            $db->execute(
+                "DELETE FROM akun WHERE tipe IN (" . implode(',', array_map(fn($t) => "'$t'", $typesToClear)) . ")"
+            );
+            
+            // Clean up any empty journals (except the other saldo awal type)
+            $otherRefTipe = ($refTipe === 'saldo_awal_neraca') ? 'saldo_awal_labarugi' : 'saldo_awal_neraca';
+            $db->execute(
+                "DELETE FROM jurnal WHERE id NOT IN (SELECT DISTINCT jurnal_id FROM jurnal_detail) AND ref_tipe != ?",
+                [$otherRefTipe]
+            );
+            
+            $db->execute("SET FOREIGN_KEY_CHECKS = 1");
+
+            $jDetails = [];
+            $countAccountsCreated = 0;
+            $countAccountsUsed = 0;
+
+            while (($row = fgetcsv($handle, 1000, $delimiter)) !== false) {
+                // Skip empty rows or incomplete columns
+                if (empty($row) || count($row) <= max($noIdx, $ketIdx, $saldoIdx)) {
+                    continue;
+                }
+
+                $no = trim($row[$noIdx]);
+                $keterangan = trim($row[$ketIdx]);
+                $saldoStr = trim($row[$saldoIdx]);
+
+                if ($no === '' || strtolower($no) === 'no' || strtolower($no) === 'kode') {
+                    continue; // Skip headers or empty code
+                }
+
+                // Clean and parse Saldo
+                $cleanSaldo = preg_replace('/[^\d,\.-]/', '', $saldoStr);
+                if (strpos($cleanSaldo, ',') !== false && strpos($cleanSaldo, '.') !== false) {
+                    if (strrpos($cleanSaldo, ',') > strrpos($cleanSaldo, '.')) {
+                        $cleanSaldo = str_replace('.', '', $cleanSaldo);
+                        $cleanSaldo = str_replace(',', '.', $cleanSaldo);
+                    } else {
+                        $cleanSaldo = str_replace(',', '', $cleanSaldo);
+                    }
+                } elseif (strpos($cleanSaldo, ',') !== false) {
+                    $parts = explode(',', $cleanSaldo);
+                    if (count($parts) === 2 && strlen($parts[1]) === 2) {
+                        $cleanSaldo = str_replace(',', '.', $cleanSaldo);
+                    } else {
+                        $cleanSaldo = str_replace(',', '', $cleanSaldo);
+                    }
+                }
+                $saldo = (float)$cleanSaldo;
+
+                // Determine Account Type & Normal Balance
+                $num = (int)$no;
+                $tipe = '';
+                $saldoNormal = '';
+
+                if ($num >= 100 && $num <= 199) {
+                    $tipe = 'aset';
+                    $saldoNormal = 'D';
+                } elseif ($num >= 200 && $num <= 299) {
+                    $tipe = 'kewajiban';
+                    $saldoNormal = 'K';
+                } elseif ($num >= 300 && $num <= 399) {
+                    $tipe = 'modal';
+                    $saldoNormal = 'K';
+                } elseif ($num >= 400 && $num <= 499) {
+                    $tipe = 'pendapatan';
+                    $saldoNormal = 'K';
+                } elseif ($num >= 500 && $num <= 599) {
+                    $tipe = 'beban';
+                    $saldoNormal = 'D';
+                } else {
+                    // Fallback to first character
+                    $firstChar = substr((string)$no, 0, 1);
+                    if ($firstChar === '1') {
+                        $tipe = 'aset';
+                        $saldoNormal = 'D';
+                    } elseif ($firstChar === '2') {
+                        $tipe = 'kewajiban';
+                        $saldoNormal = 'K';
+                    } elseif ($firstChar === '3') {
+                        $tipe = 'modal';
+                        $saldoNormal = 'K';
+                    } elseif ($firstChar === '4') {
+                        $tipe = 'pendapatan';
+                        $saldoNormal = 'K';
+                    } elseif ($firstChar === '5') {
+                        $tipe = 'beban';
+                        $saldoNormal = 'D';
+                    }
+                }
+
+                if (empty($tipe)) {
+                    throw new Exception("Kode akun '$no' tidak valid. Harus diawali dengan angka 1-5 (atau range 100-599).");
+                }
+
+                // Validate account type matches selected report type
+                if (!in_array($tipe, $typesToClear)) {
+                    throw new Exception("Kode akun '$no' ({$tipe}) tidak sesuai dengan tipe laporan yang dipilih (" . implode(', ', $typesToClear) . ").");
+                }
+
+                // Check/Create Account
+                $akun = $db->fetch("SELECT id FROM akun WHERE kode = ?", [$no]);
+                if (!$akun) {
+                    $akunId = $db->insert(
+                        "INSERT INTO akun (kode, nama, tipe, saldo_normal, level) VALUES (?, ?, ?, ?, 1)",
+                        [$no, $keterangan, $tipe, $saldoNormal]
+                    );
+                    $countAccountsCreated++;
+                } else {
+                    $akunId = $akun['id'];
+                    // Optionally update name if it changed
+                    $db->execute("UPDATE akun SET nama = ?, tipe = ?, saldo_normal = ? WHERE id = ?", [$keterangan, $tipe, $saldoNormal, $akunId]);
+                }
+                $countAccountsUsed++;
+
+                // Debit & Kredit rules
+                $debit = 0;
+                $kredit = 0;
+                if ($saldoNormal === 'D') {
+                    if ($saldo >= 0) {
+                        $debit = $saldo;
+                    } else {
+                        $kredit = abs($saldo);
+                    }
+                } else {
+                    if ($saldo >= 0) {
+                        $kredit = $saldo;
+                    } else {
+                        $debit = abs($saldo);
+                    }
+                }
+
+                if ($debit > 0 || $kredit > 0) {
+                    $jDetails[] = [
+                        'akun_id' => $akunId,
+                        'debit' => $debit,
+                        'kredit' => $kredit,
+                        'keterangan' => 'Saldo Awal ' . $keterangan
+                    ];
+                }
+            }
+            fclose($handle);
+
+            if (empty($jDetails)) {
+                throw new Exception("Tidak ada saldo akun yang diimport.");
+            }
+
+            // Calculate totals and balance
+            $totalDebit = array_sum(array_column($jDetails, 'debit'));
+            $totalKredit = array_sum(array_column($jDetails, 'kredit'));
+            $diff = $totalDebit - $totalKredit;
+
+            $messageAddon = '';
+            if (abs($diff) > 0.01) {
+                // Need a balancing entry on account 3999
+                $akunBal = $db->fetch("SELECT id FROM akun WHERE kode = '3999'");
+                if (!$akunBal) {
+                    $akunBalId = $db->insert(
+                        "INSERT INTO akun (kode, nama, tipe, saldo_normal, level) VALUES ('3999', 'Selisih Saldo Awal', 'modal', 'K', 1)"
+                    );
+                } else {
+                    $akunBalId = $akunBal['id'];
+                }
+
+                $balDebit = 0;
+                $balKredit = 0;
+                if ($diff > 0) {
+                    // Debit is larger, we need Credit on 3999
+                    $balKredit = $diff;
+                } else {
+                    // Credit is larger, we need Debit on 3999
+                    $balDebit = abs($diff);
+                }
+
+                $jDetails[] = [
+                    'akun_id' => $akunBalId,
+                    'debit' => $balDebit,
+                    'kredit' => $balKredit,
+                    'keterangan' => 'Penyeimbang Selisih Saldo Awal'
+                ];
+
+                $totalDebit += $balDebit;
+                $totalKredit += $balKredit;
+                $messageAddon = " (Ditambahkan penyesuaian selisih sebesar " . formatIDR(abs($diff)) . " pada akun Selisih Saldo Awal [3999])";
+            }
+
+            // Insert Journal
+            $noBukti = generateNo('JRN', 'jurnal', 'no_bukti');
+            $jurnalId = $db->insert(
+                "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, total_debit, total_kredit, created_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [$noBukti, $tgl, $keteranganJurnal, $refTipe, $totalDebit, $totalKredit, $_SESSION['user_id']]
+            );
+
+            foreach ($jDetails as $det) {
+                $db->execute(
+                    "INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?, ?, ?, ?, ?)",
+                    [$jurnalId, $det['akun_id'], $det['debit'], $det['kredit'], $det['keterangan']]
+                );
+            }
+
+            // Sync master data accounts with the new COA IDs
+            // 1. Update jenis_simpanan
+            $allJS = $db->fetchAll("SELECT id, kode, nama FROM jenis_simpanan");
+            foreach ($allJS as $js) {
+                $jsCode = $js['kode'];
+                $jsName = strtolower($js['nama']);
+                
+                $matchedAkun = null;
+                if ($jsCode === 'SP') {
+                    $matchedAkun = $db->fetch("SELECT id FROM akun WHERE kode = '2001' OR (nama LIKE '%pokok%' AND tipe = 'kewajiban') LIMIT 1");
+                } elseif ($jsCode === 'SW') {
+                    $matchedAkun = $db->fetch("SELECT id FROM akun WHERE kode = '2002' OR (nama LIKE '%wajib%' AND tipe = 'kewajiban') LIMIT 1");
+                } elseif ($jsCode === 'SS') {
+                    $matchedAkun = $db->fetch("SELECT id FROM akun WHERE kode = '2003' OR (nama LIKE '%sukarela%' AND tipe = 'kewajiban') LIMIT 1");
+                } elseif ($jsCode === 'SPRT') {
+                    $matchedAkun = $db->fetch("SELECT id FROM akun WHERE kode = '2004' OR ((nama LIKE '%partisipatif%' OR nama LIKE '%partisipasi%') AND tipe = 'kewajiban') LIMIT 1");
+                }
+                
+                if (!$matchedAkun) {
+                    if (strpos($jsName, 'pokok') !== false) {
+                        $matchedAkun = $db->fetch("SELECT id FROM akun WHERE nama LIKE '%pokok%' AND tipe = 'kewajiban' LIMIT 1");
+                    } elseif (strpos($jsName, 'wajib') !== false) {
+                        $matchedAkun = $db->fetch("SELECT id FROM akun WHERE nama LIKE '%wajib%' AND tipe = 'kewajiban' LIMIT 1");
+                    } elseif (strpos($jsName, 'sukarela') !== false) {
+                        $matchedAkun = $db->fetch("SELECT id FROM akun WHERE nama LIKE '%sukarela%' AND tipe = 'kewajiban' LIMIT 1");
+                    } elseif (strpos($jsName, 'partisipatif') !== false || strpos($jsName, 'partisipasi') !== false) {
+                        $matchedAkun = $db->fetch("SELECT id FROM akun WHERE (nama LIKE '%partisipatif%' OR nama LIKE '%partisipasi%') AND tipe = 'kewajiban' LIMIT 1");
+                    }
+                }
+                
+                if (!$matchedAkun) {
+                    $matchedAkun = $db->fetch("SELECT id FROM akun WHERE tipe = 'kewajiban' ORDER BY kode LIMIT 1");
+                }
+                
+                if ($matchedAkun) {
+                    $db->execute("UPDATE jenis_simpanan SET akun_id = ? WHERE id = ?", [$matchedAkun['id'], $js['id']]);
+                }
+            }
+
+            // 2. Update jenis_pinjaman
+            $allJP = $db->fetchAll("SELECT id, kode, nama FROM jenis_pinjaman");
+            foreach ($allJP as $jp) {
+                $jpName = strtolower($jp['nama']);
+                $matchedAkun = null;
+                
+                $codeMap = [
+                    'PR' => '1200', 'PB1' => '1201', 'PB2' => '1202', 'PINS' => '1203', 'PBRG' => '1204'
+                ];
+                if (isset($codeMap[$jp['kode']])) {
+                    $matchedAkun = $db->fetch("SELECT id FROM akun WHERE kode = ? AND tipe = 'aset'", [$codeMap[$jp['kode']]]);
+                }
+                
+                if (!$matchedAkun) {
+                    $searchWord = '';
+                    if (strpos($jpName, 'reguler') !== false) $searchWord = 'reguler';
+                    elseif (strpos($jpName, 'darurat') !== false) $searchWord = 'darurat';
+                    elseif (strpos($jpName, 'konsumtif') !== false) $searchWord = 'konsumtif';
+                    elseif (strpos($jpName, 'berjangka 1') !== false || strpos($jpName, 'berjangka1') !== false) $searchWord = 'berjangka';
+                    elseif (strpos($jpName, 'insidental') !== false) $searchWord = 'insidental';
+                    elseif (strpos($jpName, 'barang') !== false) $searchWord = 'barang';
+                    
+                    if ($searchWord) {
+                        $matchedAkun = $db->fetch("SELECT id FROM akun WHERE nama LIKE ? AND tipe = 'aset' LIMIT 1", ["%{$searchWord}%"]);
+                    }
+                }
+                
+                if (!$matchedAkun) {
+                    $matchedAkun = $db->fetch("SELECT id FROM akun WHERE (kode LIKE '12%' OR nama LIKE '%piutang%') AND tipe = 'aset' ORDER BY kode LIMIT 1");
+                }
+                
+                if ($matchedAkun) {
+                    $db->execute("UPDATE jenis_pinjaman SET akun_id = ? WHERE id = ?", [$matchedAkun['id'], $jp['id']]);
+                }
+            }
+
+            // 3. Update kode_transaksi_simpanan
+            $akunKas = $db->fetch("SELECT id FROM akun WHERE kode = '1000' OR (nama LIKE '%kas%' AND tipe = 'aset') ORDER BY kode LIMIT 1")['id'] ?? null;
+            $akunSimpanan = $db->fetch("SELECT id FROM akun WHERE kode = '2000' OR (nama LIKE '%simpanan%' AND tipe = 'kewajiban') ORDER BY kode LIMIT 1")['id'] ?? null;
+            $akunBebanBunga = $db->fetch("SELECT id FROM akun WHERE kode = '5000' OR (nama LIKE '%beban bunga%' AND tipe = 'beban') ORDER BY kode LIMIT 1")['id'] ?? null;
+            $akunHutangPajak = $db->fetch("SELECT id FROM akun WHERE kode = '2200' OR (nama LIKE '%pajak%' AND tipe = 'kewajiban') ORDER BY kode LIMIT 1")['id'] ?? null;
+            $akunPendapatanAdmin = $db->fetch("SELECT id FROM akun WHERE kode = '4100' OR (nama LIKE '%administrasi%' AND tipe = 'pendapatan') ORDER BY kode LIMIT 1")['id'] ?? null;
+
+            $allKT = $db->fetchAll("SELECT id, kode FROM kode_transaksi_simpanan");
+            foreach ($allKT as $kt) {
+                $debId = null;
+                $kredId = null;
+                
+                switch ($kt['kode']) {
+                    case 'STR':
+                        $debId = $akunKas;
+                        $kredId = $akunSimpanan;
+                        break;
+                    case 'TRK':
+                        $debId = $akunSimpanan;
+                        $kredId = $akunKas;
+                        break;
+                    case 'BNG':
+                        $debId = $akunBebanBunga;
+                        $kredId = $akunSimpanan;
+                        break;
+                    case 'PJK':
+                        $debId = $akunSimpanan;
+                        $kredId = $akunHutangPajak;
+                        break;
+                    case 'ADM':
+                        $debId = $akunSimpanan;
+                        $kredId = $akunPendapatanAdmin;
+                        break;
+                    case 'TRF':
+                        $debId = $akunSimpanan;
+                        $kredId = $akunSimpanan;
+                        break;
+                    case 'TRO':
+                        $debId = $akunSimpanan;
+                        $kredId = $akunSimpanan;
+                        break;
+                    case 'KRD':
+                        $debId = $akunSimpanan;
+                        $kredId = $akunSimpanan;
+                        break;
+                    case 'KRK':
+                        $debId = $akunSimpanan;
+                        $kredId = $akunSimpanan;
+                        break;
+                }
+                
+                $db->execute("UPDATE kode_transaksi_simpanan SET akun_debit_id = ?, akun_kredit_id = ? WHERE id = ?", [$debId, $kredId, $kt['id']]);
+            }
+
+            $db->commit();
+            clearCache(['finance', 'coa', 'audit']);
+
+            successResponse([
+                'created_accounts' => $countAccountsCreated,
+                'used_accounts' => $countAccountsUsed,
+                'total_debit' => $totalDebit,
+                'total_kredit' => $totalKredit
+            ], "Berhasil mengimpor $countAccountsUsed akun dan saldo awal. Pembuatan akun baru: $countAccountsCreated.$messageAddon");
+
+        } catch (Exception $e) {
+            $db->rollBack();
+            if (isset($handle) && is_resource($handle)) {
+                fclose($handle);
+            }
+            errorResponse('Gagal import saldo awal: ' . $e->getMessage());
+        }
+        break;
+
     case 'jurnal':
         checkPermission('keuangan.jurnal');
         if ($method === 'GET') {

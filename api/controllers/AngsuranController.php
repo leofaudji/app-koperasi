@@ -295,15 +295,16 @@ switch ($method) {
             );
 
             if ($totalBayar > 0)
-                $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='1000'), ?, 0)", [$jurnalId, $totalBayar]);
+                $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='1000' LIMIT 1), (SELECT id FROM akun WHERE kode='100' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Kas%' LIMIT 1))), ?, 0)", [$jurnalId, $totalBayar]);
             if ($pokok > 0) {
-                $akunPiutangId = $angsuran['akun_id'] ?: $db->fetch("SELECT id FROM akun WHERE kode='1200' LIMIT 1")['id'];
+                $piutangRow = $db->fetch("SELECT id FROM akun WHERE kode='1200' OR kode='190' OR nama LIKE '%Piutang%' LIMIT 1");
+                $akunPiutangId = $angsuran['akun_id'] ?: ($piutangRow ? $piutangRow['id'] : null);
                 $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunPiutangId, $pokok]);
             }
             if ($bunga > 0)
-                $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4000'), 0, ?)", [$jurnalId, $bunga]);
+                $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4000' LIMIT 1), (SELECT id FROM akun WHERE kode='400' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Pendapatan Jasa%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Bunga%' AND tipe='pendapatan' LIMIT 1))), 0, ?)", [$jurnalId, $bunga]);
             if ($denda > 0)
-                $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4200'), 0, ?)", [$jurnalId, $denda]);
+                $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4200' LIMIT 1), (SELECT id FROM akun WHERE kode='409' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Denda%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Lain-lain%' LIMIT 1))), 0, ?)", [$jurnalId, $denda]);
 
             $db->commit();
             
@@ -408,18 +409,19 @@ switch ($method) {
 
                 // D: Kas — total yang diterima
                 if ($totalPelunasan > 0)
-                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='1000'), ?, 0)", [$jurnalId, $totalPelunasan]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='1000' LIMIT 1), (SELECT id FROM akun WHERE kode='100' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Kas%' LIMIT 1))), ?, 0)", [$jurnalId, $totalPelunasan]);
                 // K: Piutang Pinjaman (Dynamic) — pokok
                 if ($sisaPokok > 0) {
-                    $akunPiutangId = $pinjaman['akun_id'] ?: $db->fetch("SELECT id FROM akun WHERE kode='1200' LIMIT 1")['id'];
+                    $piutangRow = $db->fetch("SELECT id FROM akun WHERE kode='1200' OR kode='190' OR nama LIKE '%Piutang%' LIMIT 1");
+                    $akunPiutangId = $pinjaman['akun_id'] ?: ($piutangRow ? $piutangRow['id'] : null);
                     $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunPiutangId, $sisaPokok]);
                 }
                 // K: Pendapatan Bunga
                 if ($bungaBerjalan > 0)
-                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4000'), 0, ?)", [$jurnalId, $bungaBerjalan]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4000' LIMIT 1), (SELECT id FROM akun WHERE kode='400' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Pendapatan Jasa%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Bunga%' AND tipe='pendapatan' LIMIT 1))), 0, ?)", [$jurnalId, $bungaBerjalan]);
                 // K: Pendapatan Denda
                 if ($dendaBerjalan > 0)
-                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4200'), 0, ?)", [$jurnalId, $dendaBerjalan]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4200' LIMIT 1), (SELECT id FROM akun WHERE kode='409' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Denda%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Lain-lain%' LIMIT 1))), 0, ?)", [$jurnalId, $dendaBerjalan]);
 
                 $db->commit();
                 

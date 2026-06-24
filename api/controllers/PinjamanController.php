@@ -253,7 +253,75 @@ switch ($method) {
                  ORDER BY an.tgl_bayar DESC, an.id DESC",
                 [$from, $to]
             );
-            successResponse($data);
+
+            // Fetch pelunasan journals in date range to identify payoff dates for loans
+            $pelunasanJournals = $db->fetchAll(
+                "SELECT ref_id, tgl_transaksi, no_bukti FROM jurnal WHERE ref_tipe = 'pelunasan_pinjaman' AND tgl_transaksi BETWEEN ? AND ?",
+                [$from, $to]
+            );
+            $pelunasanMap = [];
+            foreach ($pelunasanJournals as $pj) {
+                $pelunasanMap[$pj['ref_id'] . '_' . $pj['tgl_transaksi']] = $pj['no_bukti'];
+            }
+
+            // Group by pinjaman_id and tgl_bayar
+            $grouped = [];
+            foreach ($data as $row) {
+                $key = $row['pinjaman_id'] . '_' . $row['tgl_bayar'];
+                $grouped[$key][] = $row;
+            }
+
+            $consolidated = [];
+            foreach ($grouped as $key => $rows) {
+                $first = $rows[0];
+                $pelunasanKey = $first['pinjaman_id'] . '_' . $first['tgl_bayar'];
+
+                if (count($rows) > 1 || isset($pelunasanMap[$pelunasanKey])) {
+                    $totalPokok = 0;
+                    $totalBunga = 0;
+                    $totalDenda = 0;
+                    $totalTotal = 0;
+                    $angsuranKeList = [];
+                    foreach ($rows as $r) {
+                        $totalPokok += (float)$r['pokok'];
+                        $totalBunga += (float)$r['bunga'];
+                        $totalDenda += (float)$r['denda'];
+                        $totalTotal += (float)$r['total'];
+                        $angsuranKeList[] = $r['angsuran_ke'];
+                    }
+                    sort($angsuranKeList);
+                    $minKe = min($angsuranKeList);
+                    $maxKe = max($angsuranKeList);
+
+                    $label = ($minKe == $maxKe) ? "Pelunasan (Ke $minKe)" : "Pelunasan (Ke $minKe-$maxKe)";
+                    $noTrx = isset($pelunasanMap[$pelunasanKey]) ? $pelunasanMap[$pelunasanKey] : $first['no_transaksi'];
+
+                    $consolidated[] = [
+                        'id' => $first['id'],
+                        'no_transaksi' => $noTrx,
+                        'pinjaman_id' => $first['pinjaman_id'],
+                        'angsuran_ke' => $label,
+                        'tgl_jatuh_tempo' => $first['tgl_jatuh_tempo'],
+                        'tgl_bayar' => $first['tgl_bayar'],
+                        'pokok' => $totalPokok,
+                        'bunga' => $totalBunga,
+                        'denda' => $totalDenda,
+                        'total' => $totalTotal,
+                        'status' => 'lunas',
+                        'created_by' => $first['created_by'],
+                        'created_at' => $first['created_at'],
+                        'no_pinjaman' => $first['no_pinjaman'],
+                        'anggota_nama' => $first['anggota_nama'],
+                        'no_anggota' => $first['no_anggota'],
+                        'jenis_pinjaman' => $first['jenis_pinjaman'],
+                        'is_pelunasan' => true
+                    ];
+                } else {
+                    $consolidated[] = $first;
+                }
+            }
+
+            successResponse($consolidated);
         }
 
         if ($id === 'laporan-agunan') {
@@ -770,12 +838,13 @@ switch ($method) {
                     );
 
                     // 1. D: Piutang Pinjaman (Dynamic) - Gross Plafon
-                    $akunPiutangId = $pinjaman['akun_id'] ?: $db->fetch("SELECT id FROM akun WHERE kode='1200' LIMIT 1")['id'];
+                    $piutangRow = $db->fetch("SELECT id FROM akun WHERE kode='1200' OR kode='190' OR nama LIKE '%Piutang%' LIMIT 1");
+                    $akunPiutangId = $pinjaman['akun_id'] ?: ($piutangRow ? $piutangRow['id'] : null);
                     $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnalId, $akunPiutangId, $pinjaman['jumlah']]);
 
                     // 2. K: Kas (1000) - Sisa Cair (Net)
                     if ($kasKeluar > 0) {
-                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='1000' LIMIT 1), 0, ?)", [$jurnalId, $kasKeluar]);
+                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='1000' LIMIT 1), (SELECT id FROM akun WHERE kode='100' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Kas%' LIMIT 1))), 0, ?)", [$jurnalId, $kasKeluar]);
                     }
 
                     // 3. K: Potongan Biaya -> Pendapatan Administrasi (4300)
@@ -792,14 +861,15 @@ switch ($method) {
                         if ($sisaPokokOld > 0) {
                             // Fetch old loan's account
                             $oldPinj = $db->fetch("SELECT jp.akun_id FROM pinjaman p JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id WHERE p.no_pinjaman = ?", [$pinjaman['topup_no_pinjaman']]);
-                            $akunOldId = ($oldPinj && $oldPinj['akun_id']) ? $oldPinj['akun_id'] : $db->fetch("SELECT id FROM akun WHERE kode='1200' LIMIT 1")['id'];
+                            $piutangRowOld = $db->fetch("SELECT id FROM akun WHERE kode='1200' OR kode='190' OR nama LIKE '%Piutang%' LIMIT 1");
+                            $akunOldId = ($oldPinj && $oldPinj['akun_id']) ? $oldPinj['akun_id'] : ($piutangRowOld ? $piutangRowOld['id'] : null);
                             $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunOldId, $sisaPokokOld]);
                         }
                         if ($bungaOld > 0) {
-                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4000' LIMIT 1), 0, ?)", [$jurnalId, $bungaOld]);
+                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4000' LIMIT 1), (SELECT id FROM akun WHERE kode='400' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Pendapatan Jasa%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Bunga%' AND tipe='pendapatan' LIMIT 1))), 0, ?)", [$jurnalId, $bungaOld]);
                         }
                         if ($dendaOld > 0) {
-                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4200' LIMIT 1), 0, ?)", [$jurnalId, $dendaOld]);
+                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4200' LIMIT 1), (SELECT id FROM akun WHERE kode='409' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Denda%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Lain-lain%' LIMIT 1))), 0, ?)", [$jurnalId, $dendaOld]);
                         }
                     }
 

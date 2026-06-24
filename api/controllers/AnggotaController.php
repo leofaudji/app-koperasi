@@ -105,10 +105,8 @@ switch ($method) {
 
             $db->beginTransaction();
             try {
-                // 1. Clear existing data as requested
+                // 1. Clear existing data (kecuali jurnal & akun COA)
                 $db->execute("SET FOREIGN_KEY_CHECKS = 0");
-                $db->execute("DELETE FROM jurnal_detail");
-                $db->execute("DELETE FROM jurnal");
                 $db->execute("DELETE FROM simpanan");
                 $db->execute("DELETE FROM rekening_simpanan");
                 $db->execute("DELETE FROM angsuran");
@@ -119,51 +117,33 @@ switch ($method) {
                 $db->execute("DELETE FROM anggota");
                 $db->execute("SET FOREIGN_KEY_CHECKS = 1");
 
-                // 2. Map/Create specific Accounts for tidy Neraca (Balance Sheet)
-                $mapAset = 'aset';
-                $mapKewajiban = 'kewajiban';
-                
-                $accountsToCreate = [
-                    ['kode' => '1201', 'nama' => 'Piutang Pinjaman Berjangka 1', 'tipe' => $mapAset, 'normal' => 'D'],
-                    ['kode' => '1202', 'nama' => 'Piutang Pinjaman Berjangka 2', 'tipe' => $mapAset, 'normal' => 'D'],
-                    ['kode' => '1203', 'nama' => 'Piutang Pinjaman Insidental', 'tipe' => $mapAset, 'normal' => 'D'],
-                    ['kode' => '1204', 'nama' => 'Piutang Pinjaman Barang', 'tipe' => $mapAset, 'normal' => 'D'],
-                    ['kode' => '2001', 'nama' => 'Simpanan Pokok', 'tipe' => $mapKewajiban, 'normal' => 'K'],
-                    ['kode' => '2002', 'nama' => 'Simpanan Wajib', 'tipe' => $mapKewajiban, 'normal' => 'K'],
-                    ['kode' => '2003', 'nama' => 'Simpanan Sukarela', 'tipe' => $mapKewajiban, 'normal' => 'K'],
-                    ['kode' => '2004', 'nama' => 'Simpanan Partisipatif', 'tipe' => $mapKewajiban, 'normal' => 'K'],
-                ];
-                
-                foreach ($accountsToCreate as $acc) {
-                    $existAcc = $db->fetch("SELECT id FROM akun WHERE kode = ?", [$acc['kode']]);
-                    if (!$existAcc) {
-                        $db->insert("INSERT INTO akun (kode, nama, tipe, saldo_normal) VALUES (?, ?, ?, ?)", [$acc['kode'], $acc['nama'], $acc['tipe'], $acc['normal']]);
-                    }
-                }
+                // 2. Ambil akun COA yang sudah ada (tidak membuat akun baru)
+                // Sesuai database: piutang = 1200, simpanan = 2000, kas = 1000
+                $akunKas          = $db->fetch("SELECT id FROM akun WHERE kode = '1000' LIMIT 1")['id'] ?? null;
+                $akunPiutang      = $db->fetch("SELECT id FROM akun WHERE kode = '1200' OR (tipe='aset' AND nama LIKE '%piutang%') ORDER BY kode LIMIT 1")['id'] ?? null;
+                $akunSimpanan     = $db->fetch("SELECT id FROM akun WHERE kode = '2000' OR (tipe='kewajiban' AND nama LIKE '%simpanan%') ORDER BY kode LIMIT 1")['id'] ?? null;
 
-                $accIds = [];
-                foreach ($accountsToCreate as $acc) {
-                    $res = $db->fetch("SELECT id FROM akun WHERE kode = ?", [$acc['kode']]);
-                    $accIds[$acc['kode']] = $res ? $res['id'] : null;
-                }
-
-                $akunKas = $db->fetch("SELECT id FROM akun WHERE kode = '1000' LIMIT 1")['id'] ?? null;
-                $akunPiutangDefault = $db->fetch("SELECT id FROM akun WHERE kode = '1200' LIMIT 1")['id'] ?? null;
-
-                // 3. Map/Create Jenis Simpanan with specific accounts
+                // 3. Update Jenis Simpanan — arahkan ke akun simpanan yang ada
                 $jsList = [
-                    ['kode' => 'SP', 'nama' => 'Simpanan Pokok', 'akun_id' => $accIds['2001'], 'numerik' => '01'],
-                    ['kode' => 'SW', 'nama' => 'Simpanan Wajib', 'akun_id' => $accIds['2002'], 'numerik' => '02'],
-                    ['kode' => 'SS', 'nama' => 'Simpanan Sukarela', 'akun_id' => $accIds['2003'], 'numerik' => '03'],
-                    ['kode' => 'SPRT', 'nama' => 'Simpanan Partisipatif', 'akun_id' => $accIds['2004'], 'numerik' => '04'],
+                    ['kode' => 'SP',   'nama' => 'Simpanan Pokok',        'numerik' => '01'],
+                    ['kode' => 'SW',   'nama' => 'Simpanan Wajib',        'numerik' => '02'],
+                    ['kode' => 'SS',   'nama' => 'Simpanan Sukarela',     'numerik' => '03'],
+                    ['kode' => 'SPRT', 'nama' => 'Simpanan Partisipatif', 'numerik' => '04'],
                 ];
-                
+
                 foreach ($jsList as $js) {
+                    // Cari akun khusus per kode dulu, fallback ke akun simpanan umum
+                    $akunJs = $db->fetch(
+                        "SELECT id FROM akun WHERE tipe='kewajiban' AND (kode LIKE '2%') AND nama LIKE ? ORDER BY kode LIMIT 1",
+                        ['%' . explode(' ', $js['nama'])[1] . '%']
+                    );
+                    $akunJsId = $akunJs ? $akunJs['id'] : $akunSimpanan;
+
                     $exist = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = ? OR nama = ?", [$js['kode'], $js['nama']]);
                     if (!$exist) {
-                        $db->insert("INSERT INTO jenis_simpanan (kode, nama, akun_id, kode_numerik, is_active) VALUES (?, ?, ?, ?, 1)", [$js['kode'], $js['nama'], $js['akun_id'], $js['numerik']]);
+                        $db->insert("INSERT INTO jenis_simpanan (kode, nama, akun_id, kode_numerik, is_active) VALUES (?, ?, ?, ?, 1)", [$js['kode'], $js['nama'], $akunJsId, $js['numerik']]);
                     } else {
-                        $db->execute("UPDATE jenis_simpanan SET kode = ?, akun_id = ?, kode_numerik = ? WHERE id = ?", [$js['kode'], $js['akun_id'], $js['numerik'], $exist['id']]);
+                        $db->execute("UPDATE jenis_simpanan SET kode = ?, akun_id = ?, kode_numerik = ? WHERE id = ?", [$js['kode'], $akunJsId, $js['numerik'], $exist['id']]);
                     }
                 }
 
@@ -173,11 +153,12 @@ switch ($method) {
                 $jsPartisipasif = $db->fetch("SELECT id FROM jenis_simpanan WHERE kode = 'SPRT'")['id'] ?? null;
 
                 // 4. Ensure & Map Jenis Pinjaman IDs
+                // Semua jenis pinjaman diarahkan ke akun piutang yang ada di COA (fallback ke 1200)
                 $loanProducts = [
-                    ['kode' => 'PB1', 'nama' => 'Pinjaman Berjangka 1', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '31', 'akun_id' => $accIds['1201']],
-                    ['kode' => 'PB2', 'nama' => 'Pinjaman Berjangka 2', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '32', 'akun_id' => $accIds['1202']],
-                    ['kode' => 'PINS', 'nama' => 'Pinjaman Insidental', 'bunga' => 1.0, 'tipe' => 'insidental', 'numerik' => '33', 'akun_id' => $accIds['1203']],
-                    ['kode' => 'PBRG', 'nama' => 'Pinjaman Barang', 'bunga' => 1.0, 'tipe' => 'flat', 'numerik' => '34', 'akun_id' => $accIds['1204']],
+                    ['kode' => 'PB1',  'nama' => 'Pinjaman Berjangka 1', 'bunga' => 1.0, 'tipe' => 'flat',       'numerik' => '31', 'akun_id' => $akunPiutang],
+                    ['kode' => 'PB2',  'nama' => 'Pinjaman Berjangka 2', 'bunga' => 1.0, 'tipe' => 'flat',       'numerik' => '32', 'akun_id' => $akunPiutang],
+                    ['kode' => 'PINS', 'nama' => 'Pinjaman Insidental',  'bunga' => 1.0, 'tipe' => 'insidental', 'numerik' => '33', 'akun_id' => $akunPiutang],
+                    ['kode' => 'PBRG', 'nama' => 'Pinjaman Barang',      'bunga' => 1.0, 'tipe' => 'flat',       'numerik' => '34', 'akun_id' => $akunPiutang],
                 ];
 
                 $jpIds = [];
@@ -254,15 +235,16 @@ switch ($method) {
                     if (count($data) < 2)
                         continue;
 
-                    $nama = trim($data[1] ?? '');
+                    $nama = substr(trim($data[1] ?? ''), 0, 100);
                     if (empty($nama))
                         continue;
 
                     $no_anggota_new = 'AGT-' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
+                    $no_anggota_lama = trim($data[23] ?? ''); // Kolom paling belakang di CSV
                     $anggotaId = $db->insert(
-                        "INSERT INTO anggota (no_anggota, nama, nik, tempat_lahir, tanggal_lahir, jenis_kelamin, alamat, telepon, email, pekerjaan, tgl_daftar, status)
-                         VALUES (?, ?, '1234567890', 'Malang', '2000-10-10', 'L', 'Alamat Import', '081123456789', 'info@abc.com', 'Swasta', ?, 'aktif')",
-                        [$no_anggota_new, $nama, date('Y-m-d')]
+                        "INSERT INTO anggota (no_anggota, nama, nik, tempat_lahir, tanggal_lahir, jenis_kelamin, alamat, telepon, email, pekerjaan, tgl_daftar, status, no_anggota_lama)
+                         VALUES (?, ?, '1234567890', 'Malang', '2000-10-10', 'L', 'Alamat Import', '081123456789', 'info@abc.com', 'Swasta', ?, 'aktif', ?)",
+                        [$no_anggota_new, $nama, date('Y-m-d'), $no_anggota_lama ?: null]
                     );
 
                     $password = password_hash('10102000', PASSWORD_DEFAULT);
@@ -283,21 +265,13 @@ switch ($method) {
                         if ($b['id']) {
                             $jumlah = $parseAmount($b['val']);
                             if ($jumlah > 0) {
-                                $jenis = $db->fetch("SELECT id, kode, nama, kode_numerik, akun_id FROM jenis_simpanan WHERE id = ?", [$b['id']]);
+                                $jenis = $db->fetch("SELECT id, kode, nama, kode_numerik FROM jenis_simpanan WHERE id = ?", [$b['id']]);
                                 $noRekening = date('y') . "." . str_pad($jenis['kode_numerik'] ?: '00', 2, '0', STR_PAD_LEFT) . "." . str_pad($count + 1, 7, '0', STR_PAD_LEFT) . ".01";
                                 $rekeningId = $db->insert("INSERT INTO rekening_simpanan (no_rekening, anggota_id, jenis_simpanan_id, tgl_buka, saldo, status) VALUES (?,?,?,?,?,?)", [$noRekening, $anggotaId, $b['id'], date('Y-m-d'), $jumlah, 'aktif']);
 
                                 $noTransaksi = 'SMP' . date('Ymd') . str_pad($db->count("SELECT COUNT(*) FROM simpanan WHERE tgl_transaksi = ?", [date('Y-m-d')]) + 1, 4, '0', STR_PAD_LEFT);
-                                $simpananId = $db->insert("INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)", [$noTransaksi, $anggotaId, $b['id'], $rekeningId, $ktSetoran['id'], date('Y-m-d'), $jumlah, 0, $jumlah, 'Saldo Awal Import', 1]);
-
-                                $noBukti = 'JRN' . date('Ymd') . str_pad($db->count("SELECT COUNT(*) FROM jurnal WHERE tgl_transaksi = ?", [date('Y-m-d')]) + 1, 4, '0', STR_PAD_LEFT);
-                                $jurnalId = $db->insert("INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by) VALUES (?,?,?,?,?,?,?,?)", [$noBukti, date('Y-m-d'), "Saldo Awal " . $jenis['nama'] . " - " . $nama, 'simpanan', $simpananId, $jumlah, $jumlah, 1]);
-
-                                $akunDebit = $ktSetoran['akun_debit_id'] ?: ($db->fetch("SELECT id FROM akun WHERE kode = '1000' LIMIT 1")['id'] ?? null);
-                                if ($jenis['akun_id'] && $akunDebit) {
-                                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnalId, $akunDebit, $jumlah]);
-                                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $jenis['akun_id'], $jumlah]);
-                                }
+                                $db->insert("INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)", [$noTransaksi, $anggotaId, $b['id'], $rekeningId, $ktSetoran['id'], date('Y-m-d'), $jumlah, 0, $jumlah, 'Saldo Awal Import', 1]);
+                                // Tidak insert ke jurnal — saldo awal simpanan dicatat via import neraca COA
                             }
                         }
                     }
@@ -347,27 +321,7 @@ switch ($method) {
                                 [$noPinjaman, $anggotaId, $ld['id'], $tglReal, $tglReal, $plafond, $tenor, $totalBunga, $plafond + $totalBunga, $bakiDebet, $rawAgunan]
                             );
 
-                            // JURNAL: Saldo Awal Pinjaman (Baki Debet)
-                            if ($bakiDebet > 0) {
-                                $jenisP = $db->fetch("SELECT nama, akun_id FROM jenis_pinjaman WHERE id = ?", [$ld['id']]);
-                                $noBukti = 'JRN' . date('Ymd') . str_pad($db->count("SELECT COUNT(*) FROM jurnal WHERE tgl_transaksi = ?", [date('Y-m-d')]) + 1, 4, '0', STR_PAD_LEFT);
-                                // Set total_debit = $plafond to satisfy Audit "Selisih Nominal Transaksi vs Jurnal"
-                                $jurnalId = $db->insert("INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by) VALUES (?,?,?,?,?,?,?,?)", [$noBukti, date('Y-m-d'), "Saldo Awal " . $jenisP['nama'] . " - " . $nama, 'pinjaman', $pinjamanId, $plafond, $plafond, 1]);
-
-                                $akunPiutangId = $jenisP['akun_id'] ?: $akunPiutang;
-                                $akunKasId = $db->fetch("SELECT id FROM akun WHERE kode = '1000' LIMIT 1")['id'] ?? null;
-                                if ($akunPiutangId && $akunKasId) {
-                                    // Debit full Plafond
-                                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnalId, $akunPiutangId, $plafond]);
-                                    // Credit Kas only for Baki Debet (Migration)
-                                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunKasId, $bakiDebet]);
-                                    // Credit Piutang for the difference to get net Baki Debet in GL
-                                    $paidAmount = $plafond - $bakiDebet;
-                                    if ($paidAmount > 0) {
-                                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunPiutangId, $paidAmount]);
-                                    }
-                                }
-                            }
+                            // Tidak insert ke jurnal — saldo awal pinjaman dicatat via import neraca COA
 
                             if (!empty($rawAgunan)) {
                                 $db->insert(

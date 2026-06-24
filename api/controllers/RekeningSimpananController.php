@@ -20,11 +20,17 @@ switch ($method) {
             successResponse($data);
         } else {
             $anggotaId = $params['anggota_id'] ?? null;
+            $jenisCode = $params['jenis_simpanan'] ?? null;
             $where = "WHERE 1=1";
             $binds = [];
             if ($anggotaId) {
                 $where .= " AND rs.anggota_id = ?";
                 $binds[] = $anggotaId;
+            }
+
+            if ($jenisCode) {
+                $where .= " AND js.kode = ?";
+                $binds[] = $jenisCode;
             }
 
             $search = $params['search'] ?? '';
@@ -41,7 +47,7 @@ switch ($method) {
                  JOIN anggota a ON rs.anggota_id = a.id
                  JOIN jenis_simpanan js ON rs.jenis_simpanan_id = js.id
                  $where ORDER BY rs.created_at DESC",
-                "SELECT COUNT(*) FROM rekening_simpanan rs JOIN anggota a ON rs.anggota_id = a.id $where",
+                "SELECT COUNT(*) FROM rekening_simpanan rs JOIN anggota a ON rs.anggota_id = a.id JOIN jenis_simpanan js ON rs.jenis_simpanan_id = js.id $where",
                 $binds,
                 $params['page'] ?? 1,
                 $params['per_page'] ?? PER_PAGE

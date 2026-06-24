@@ -5,6 +5,29 @@ $db = Database::getInstance();
 
 switch ($method) {
     case 'GET':
+        if ($id === 'laporan-mutasi-simpanan') {
+            checkPermission('simpanan.view');
+            $from = $params['from'] ?? date('Y-m-01');
+            $to = $params['to'] ?? date('Y-m-t');
+
+            $data = $db->fetchAll(
+                "SELECT s.no_transaksi, s.tgl_transaksi, js.nama as jenis_simpanan,
+                        rs.no_rekening,
+                        kt.nama as nama_transaksi, kt.kode as kode_transaksi, kt.dk,
+                        s.jumlah, s.saldo_sebelum, s.saldo_sesudah, s.keterangan,
+                        a.nama as anggota_nama, a.no_anggota
+                 FROM simpanan s
+                 JOIN anggota a ON s.anggota_id = a.id
+                 JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
+                 JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                 LEFT JOIN rekening_simpanan rs ON s.rekening_id = rs.id
+                 WHERE s.tgl_transaksi BETWEEN ? AND ?
+                 ORDER BY s.tgl_transaksi DESC, s.id DESC",
+                [$from, $to]
+            );
+            successResponse($data);
+        }
+
         if ($id === 'laporan-saldo') {
             checkPermission('laporan.simpanan_saldo');
             $cacheKey = 'rep_simpanan_saldo';
@@ -26,6 +49,142 @@ switch ($method) {
                 );
             });
             successResponse($data);
+        }
+
+        if ($id === 'monitoring-wajib') {
+            checkPermission('simpanan.view');
+            $tahun = isset($params['tahun']) ? (int)$params['tahun'] : (int)date('Y');
+
+            // 1. Get all mandatory savings products (is_wajib = 1)
+            $produkWajib = $db->fetchAll(
+                "SELECT id, kode, nama, bunga_persen 
+                 FROM jenis_simpanan 
+                 WHERE is_wajib = 1 AND is_active = 1 
+                 ORDER BY kode ASC"
+            );
+
+            if (empty($produkWajib)) {
+                successResponse([
+                    'tahun' => $tahun,
+                    'produk' => [],
+                    'data' => []
+                ]);
+            }
+
+            // 2. Get all active members
+            $members = $db->fetchAll(
+                "SELECT id, no_anggota, nama, tgl_daftar, status 
+                 FROM anggota 
+                 WHERE status = 'aktif' 
+                 ORDER BY no_anggota ASC"
+            );
+
+            // 3. For each wajib product, collect data
+            //    - Cumulative total per anggota (for one-time like Simpanan Pokok)
+            //    - Monthly totals for the selected year (for periodic like Simpanan Wajib)
+
+            $produkIds = array_column($produkWajib, 'id');
+            $produkKodeById = [];
+            foreach ($produkWajib as $p) {
+                $produkKodeById[$p['id']] = $p['kode'];
+            }
+
+            // Placeholders for IN clause
+            $placeholders = implode(',', array_fill(0, count($produkIds), '?'));
+
+            // 3a. Cumulative total per anggota per product (all-time)
+            $cumulativeData = $db->fetchAll(
+                "SELECT s.anggota_id, s.jenis_simpanan_id,
+                        SUM(CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) as total
+                 FROM simpanan s
+                 JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                 WHERE s.jenis_simpanan_id IN ($placeholders)
+                 GROUP BY s.anggota_id, s.jenis_simpanan_id",
+                $produkIds
+            );
+
+            // cumMap[anggota_id][jenis_simpanan_id] = total
+            $cumMap = [];
+            foreach ($cumulativeData as $row) {
+                $cumMap[$row['anggota_id']][$row['jenis_simpanan_id']] = (float)$row['total'];
+            }
+
+            // 3b. Monthly totals for the selected year per anggota per product
+            $monthlyParams = array_merge($produkIds, [$tahun]);
+            $monthlyData = $db->fetchAll(
+                "SELECT s.anggota_id, s.jenis_simpanan_id, MONTH(s.tgl_transaksi) as bulan,
+                        SUM(CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END) as total
+                 FROM simpanan s
+                 JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                 WHERE s.jenis_simpanan_id IN ($placeholders) AND YEAR(s.tgl_transaksi) = ?
+                 GROUP BY s.anggota_id, s.jenis_simpanan_id, MONTH(s.tgl_transaksi)",
+                $monthlyParams
+            );
+
+            // monthMap[anggota_id][jenis_simpanan_id][bulan] = total
+            $monthMap = [];
+            foreach ($monthlyData as $row) {
+                $monthMap[$row['anggota_id']][$row['jenis_simpanan_id']][$row['bulan']] = (float)$row['total'];
+            }
+
+            // 4. Find product ids for SP and SW so frontend gets flat flags
+            $spId = null;
+            $swId = null;
+            foreach ($produkWajib as $p) {
+                if ($p['kode'] === 'SP') {
+                    $spId = $p['id'];
+                }
+                if ($p['kode'] === 'SW') {
+                    $swId = $p['id'];
+                }
+            }
+
+            // 5. Combine results
+            $result = [];
+            foreach ($members as $m) {
+                $produkStatus = [];
+                foreach ($produkWajib as $p) {
+                    $pid = $p['id'];
+                    $cumTotal = $cumMap[$m['id']][$pid] ?? 0;
+                    
+                    // Monthly breakdown for this year
+                    $months = [];
+                    for ($b = 1; $b <= 12; $b++) {
+                        $months[$b] = $monthMap[$m['id']][$pid][$b] ?? 0;
+                    }
+
+                    $produkStatus[$pid] = [
+                        'kode' => $p['kode'],
+                        'nama' => $p['nama'],
+                        'cum_total' => $cumTotal,
+                        'lunas' => $cumTotal > 0,   // All-time paid > 0
+                        'months' => $months
+                    ];
+                }
+
+                $spTotal = $spId ? ($cumMap[$m['id']][$spId] ?? 0) : 0;
+                $swMonths = [];
+                for ($b = 1; $b <= 12; $b++) {
+                    $swMonths[$b] = $swId ? ($monthMap[$m['id']][$swId][$b] ?? 0) : 0;
+                }
+
+                $result[] = [
+                    'anggota_id' => $m['id'],
+                    'no_anggota' => $m['no_anggota'],
+                    'nama' => $m['nama'],
+                    'tgl_daftar' => $m['tgl_daftar'],
+                    'sp_lunas' => $spTotal > 0,
+                    'sp_total' => $spTotal,
+                    'sw_months' => $swMonths,
+                    'produk' => $produkStatus
+                ];
+            }
+
+            successResponse([
+                'tahun' => $tahun,
+                'produk_list' => $produkWajib,  // for frontend to know what columns to render
+                'data' => $result
+            ]);
         }
 
         checkPermission('simpanan.view');
@@ -196,11 +355,12 @@ switch ($method) {
             paginatedResponse(
                 "SELECT s.*, a.nama as anggota_nama, a.no_anggota,
                         js.nama as jenis_simpanan, kt.nama as nama_transaksi,
-                        kt.kode as kode_transaksi, kt.dk
+                        kt.kode as kode_transaksi, kt.dk, rs.no_rekening
                  FROM simpanan s
                  JOIN anggota a ON s.anggota_id = a.id
                  JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
                  JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                 LEFT JOIN rekening_simpanan rs ON s.rekening_id = rs.id
                  $where ORDER BY s.created_at DESC",
                 "SELECT COUNT(*) FROM simpanan s JOIN anggota a ON s.anggota_id = a.id $where",
                 $binds,

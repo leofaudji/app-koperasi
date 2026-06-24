@@ -4,7 +4,12 @@ const SimpananPage = {
     async render(container) {
         App.setTitle('Transaksi Simpanan', 'Kelola simpanan anggota');
         this.container = container;
-        this.loadList(container);
+        this.defaultJenisCode = App.queryParams?.jenis_simpanan || '';
+        this.autoOpenForm = App.queryParams?.auto_form === '1';
+        await this.loadList(container);
+        if (this.autoOpenForm) {
+            this.form({ defaultJenisCode: this.defaultJenisCode });
+        }
     },
 
     async loadList(container, page = 1) {
@@ -27,43 +32,42 @@ const SimpananPage = {
             </div>
             <div class="table-wrapper">
                 <table class="data-table w-full text-sm">
-                    <thead><tr class="bg-gray-50"><th class="px-4 py-3 text-left font-medium text-gray-500">No. Transaksi</th><th class="px-4 py-3 text-left font-medium text-gray-500">Tanggal</th><th class="px-4 py-3 text-left font-medium text-gray-500">Anggota</th><th class="px-4 py-3 text-left font-medium text-gray-500">Jenis</th><th class="px-4 py-3 text-left font-medium text-gray-500">Kode Transaksi</th><th class="px-4 py-3 text-center font-medium text-gray-500">D/K</th><th class="px-4 py-3 text-right font-medium text-gray-500">Jumlah</th><th class="px-4 py-3 text-center font-medium text-gray-500">Aksi</th></tr></thead>
+                    <thead><tr class="bg-gray-50"><th class="px-3 py-3 text-left font-medium text-gray-500">No. Transaksi</th><th class="px-3 py-3 text-left font-medium text-gray-500">Tanggal</th><th class="px-3 py-3 text-left font-medium text-gray-500">Anggota / Rekening</th><th class="px-3 py-3 text-left font-medium text-gray-500">Jenis / Transaksi</th><th class="px-3 py-3 text-right font-medium text-gray-500">Jumlah</th><th class="px-3 py-3 text-center font-medium text-gray-500">Aksi</th></tr></thead>
                     <tbody>${res.data.map(s => `<tr class="border-t border-gray-50">
-                        <td class="px-4 py-3 font-mono text-xs text-primary-600">${s.no_transaksi}</td>
-                        <td class="px-4 py-3 text-gray-500">${App.formatDate(s.tgl_transaksi)}</td>
-                        <td class="px-4 py-3"><span class="font-medium">${s.anggota_nama}</span><br><span class="text-xs text-gray-400">${s.no_anggota}</span></td>
-                        <td class="px-4 py-3 text-gray-500">
-                            <span class="font-medium">${s.jenis_simpanan}</span>
-                            ${s.no_rekening ? `<br><span class="font-mono text-[0.7rem] bg-primary-50 text-primary-600 px-1.5 py-0.5 rounded">${s.no_rekening}</span>` : ''}
-                        </td>
-                        <td class="px-4 py-3"><span class="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">${s.kode_transaksi}</span> ${s.nama_transaksi}</td>
-                        <td class="px-4 py-3 text-center">${App.dkBadge(s.dk)}</td>
-                        <td class="px-4 py-3 text-right font-semibold ${s.dk === 'D' ? 'text-emerald-600' : 'text-red-500'}">${s.dk === 'D' ? '+' : '-'}${App.formatRupiah(s.jumlah)}</td>
-                        <td class="px-4 py-3 text-center">
-                            ${s.keterangan?.includes('REVERSAL') ? `<span class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded font-bold uppercase">Reversed</span>` : `
+                        <td class="px-3 py-3 font-mono text-xs text-primary-600">${s.no_transaksi}</td>
+                        <td class="px-3 py-3 text-gray-500">${App.formatDate(s.tgl_transaksi)}</td>
+                        <td class="px-3 py-3"><div class="font-medium text-gray-800">${s.anggota_nama}</div><div class="text-[11px] text-gray-400 mt-1">${s.no_anggota}${s.no_rekening ? ` · ${s.no_rekening}` : ''}</div></td>
+                        <td class="px-3 py-3 text-gray-500"><div class="font-medium">${s.jenis_simpanan}</div><div class="text-[11px] text-gray-400 mt-1"><span class="font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded">${s.kode_transaksi}</span> ${s.nama_transaksi}</div></td>
+                        <td class="px-3 py-3 text-right font-semibold ${s.dk === 'D' ? 'text-emerald-600' : 'text-red-500'}"><span class="inline-flex items-center gap-1"><span class="text-[10px] ${s.dk === 'D' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} rounded-full px-2 py-1">${s.dk}</span>${s.dk === 'D' ? '+' : '-'}${App.formatRupiah(s.jumlah)}</span></td>
+                        <td class="px-3 py-3 text-center">
+                            ${s.keterangan?.includes('REVERSAL') ? `<span class="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded font-bold uppercase">Reversed</span>` : `
                             <button onclick="SimpananPage.confirmReverse(${s.id}, '${s.no_transaksi}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Reverse Transaksi"><i class="ri-arrow-go-back-line"></i></button>
                             `}
                         </td>
                     </tr>`).join('')}
-                    ${res.data.length === 0 ? '<tr><td colspan="8" class="text-center py-8 text-gray-400">Tidak ada transaksi</td></tr>' : ''}</tbody>
+                    ${res.data.length === 0 ? '<tr><td colspan="6" class="text-center py-8 text-gray-400">Tidak ada transaksi</td></tr>' : ''}</tbody>
                 </table>
             </div>
             ${App.renderPagination(res.pagination, 'SimpananPage.paginate')}
         </div>`;
     },
 
-    async form() {
+    async form(options = {}) {
         const ktRes = await App.api('kode-transaksi');
         const kodeList = ktRes?.data || [];
+        const defaultJenisCode = options.defaultJenisCode || this.defaultJenisCode || '';
+        const jenisLabel = defaultJenisCode === 'SW' ? 'Simpanan Wajib' : defaultJenisCode === 'SP' ? 'Simpanan Pokok' : defaultJenisCode === 'SS' ? 'Simpanan Sukarela' : '';
+        const jenisFilter = defaultJenisCode ? `&jenis_simpanan=${defaultJenisCode}` : '';
 
         App.openModal(`<div class="p-6">
             <h3 class="text-lg font-bold text-gray-800 mb-6"><i class="ri-exchange-funds-line text-emerald-500 mr-2"></i>Transaksi Simpanan</h3>
+            ${jenisLabel ? `<div class="rounded-2xl border border-primary-100 bg-primary-50 text-primary-700 px-4 py-3 mb-4 text-sm">Mode shortcut: <strong>${jenisLabel}</strong>. Pilih rekening anggota yang memiliki jenis simpanan ini.</div>` : ''}
             <form id="simp-form" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Cari Rekening atau Anggota *</label>
                     <div class="relative">
                         <i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                        <input type="text" id="sf-search" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary-500" placeholder="Ketik nomor rekening, nama, atau no anggota..." autocomplete="off">
+                        <input type="text" id="sf-search" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary-500" placeholder="${jenisLabel ? `Ketik nomor rekening / anggota untuk ${jenisLabel}...` : 'Ketik nomor rekening, nama, atau no anggota...'}" autocomplete="off">
                     </div>
                     <div id="sf-results" class="hidden border border-gray-200 rounded-xl mt-1 max-h-60 overflow-auto bg-white shadow-xl z-50"></div>
                 </div>
@@ -85,6 +89,7 @@ const SimpananPage = {
                 <input type="hidden" id="sf-rekening-id">
                 <input type="hidden" id="sf-anggota-id">
                 <input type="hidden" id="sf-jenis-id">
+                <input type="hidden" id="sf-default-jenis" value="${defaultJenisCode}">
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -130,7 +135,8 @@ const SimpananPage = {
             }
 
             debounce = setTimeout(async () => {
-                const res = await App.api(`rekening-simpanan?search=${encodeURIComponent(q)}&per_page=5`);
+                const jenisFilter = defaultJenisCode ? `&jenis_simpanan=${defaultJenisCode}` : '';
+                const res = await App.api(`rekening-simpanan?search=${encodeURIComponent(q)}&per_page=5${jenisFilter}`);
                 if (res?.data?.length) {
                     resultsDiv.innerHTML = res.data.map(r => `
                         <div class="px-4 py-3 hover:bg-emerald-50 cursor-pointer border-b border-gray-50 last:border-0" 
