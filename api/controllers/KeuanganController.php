@@ -4,6 +4,34 @@ authCheck();
 $db = Database::getInstance();
 $redis = RedisManager::getInstance();
 
+function normalizeKelompokAkun($tipe, $kode = '', $nama = '', $kelompok = '') {
+    $kelompok = trim((string) ($kelompok ?: ''));
+    if ($kelompok !== '') return $kelompok;
+
+    $text = strtolower(($kode ?: '') . ' ' . ($nama ?: ''));
+
+    if ($tipe === 'aset') {
+        if (preg_match('/(penyertaan|investasi|saham|surat berharga|modal jangka panjang|sekuritas)/', $text)) {
+            return 'Penyertaan Modal Jangka Panjang';
+        }
+        if (preg_match('/(tanah|bangunan|gedung|kendaraan|mobil|motor|peralatan|mesin|inventaris|aktiva tetap|furniture|perlengkapan|aset tetap|kenderaan)/', $text)) {
+            return 'Aktiva Tetap';
+        }
+        return 'Aktiva Lancar';
+    }
+
+    if ($tipe === 'kewajiban') {
+        if (preg_match('/(jangka panjang|pinjaman|obligasi|leasing|hipotek|kewajiban jangka panjang|utang jangka panjang)/', $text)) {
+            return 'Jangka Panjang';
+        }
+        return 'Jangka Pendek';
+    }
+
+    if ($tipe === 'modal') return 'Modal';
+    if (in_array($tipe, ['pendapatan', 'beban'])) return 'Laba/Rugi';
+    return null;
+}
+
 switch ($id) {
     case 'import-saldo-awal':
         checkPermission('keuangan.jurnal');
@@ -42,6 +70,7 @@ switch ($id) {
         $noIdx = -1;
         $ketIdx = -1;
         $saldoIdx = -1;
+        $kelompokIdx = -1;
 
         foreach ($headers as $idx => $header) {
             $headerClean = strtolower(trim($header));
@@ -51,6 +80,8 @@ switch ($id) {
                 $ketIdx = $idx;
             } elseif ($headerClean === 'saldo' || $headerClean === 'nominal' || $headerClean === 'saldo_awal') {
                 $saldoIdx = $idx;
+            } elseif ($headerClean === 'kelompok' || $headerClean === 'group' || $headerClean === 'group_akun' || $headerClean === 'kelompok_akun') {
+                $kelompokIdx = $idx;
             }
         }
 
@@ -110,6 +141,7 @@ switch ($id) {
                 $no = trim($row[$noIdx]);
                 $keterangan = trim($row[$ketIdx]);
                 $saldoStr = trim($row[$saldoIdx]);
+                $kelompok = $kelompokIdx !== -1 && isset($row[$kelompokIdx]) ? trim($row[$kelompokIdx]) : '';
 
                 if ($no === '' || strtolower($no) === 'no' || strtolower($no) === 'kode') {
                     continue; // Skip headers or empty code
@@ -187,15 +219,16 @@ switch ($id) {
                 // Check/Create Account
                 $akun = $db->fetch("SELECT id FROM akun WHERE kode = ?", [$no]);
                 if (!$akun) {
+                    $kelompokFinal = normalizeKelompokAkun($tipe, $no, $keterangan, $kelompok);
                     $akunId = $db->insert(
-                        "INSERT INTO akun (kode, nama, tipe, saldo_normal, level) VALUES (?, ?, ?, ?, 1)",
-                        [$no, $keterangan, $tipe, $saldoNormal]
+                        "INSERT INTO akun (kode, nama, tipe, saldo_normal, level, kelompok) VALUES (?, ?, ?, ?, 1, ?)",
+                        [$no, $keterangan, $tipe, $saldoNormal, $kelompokFinal]
                     );
                     $countAccountsCreated++;
                 } else {
                     $akunId = $akun['id'];
-                    // Optionally update name if it changed
-                    $db->execute("UPDATE akun SET nama = ?, tipe = ?, saldo_normal = ? WHERE id = ?", [$keterangan, $tipe, $saldoNormal, $akunId]);
+                    $kelompokFinal = normalizeKelompokAkun($tipe, $no, $keterangan, $kelompok);
+                    $db->execute("UPDATE akun SET nama = ?, tipe = ?, saldo_normal = ?, kelompok = ? WHERE id = ?", [$keterangan, $tipe, $saldoNormal, $kelompokFinal, $akunId]);
                 }
                 $countAccountsUsed++;
 
@@ -902,7 +935,7 @@ switch ($id) {
         $cacheKey = "rep_neraca_{$tgl}_{$mode}";
         $responseData = getCachedData($cacheKey, function() use ($db, $tgl, $mode, $modeFilter) {
             $akuns = $db->fetchAll(
-                "SELECT ak.kode, ak.nama, ak.tipe, ak.saldo_normal,
+                "SELECT ak.kode, ak.nama, ak.tipe, ak.saldo_normal, ak.kelompok,
                     CASE WHEN ak.saldo_normal='D' 
                         THEN COALESCE(SUM(jd.debit),0) - COALESCE(SUM(jd.kredit),0)
                         ELSE COALESCE(SUM(jd.kredit),0) - COALESCE(SUM(jd.debit),0)
@@ -980,7 +1013,7 @@ switch ($id) {
         $cacheKey = "rep_labarugi_{$dari}_{$sampai}_{$mode}";
         $responseData = getCachedData($cacheKey, function() use ($db, $dari, $sampai, $mode, $modeFilter) {
             $akuns = $db->fetchAll(
-                "SELECT ak.kode, ak.nama, ak.tipe, ak.saldo_normal,
+                "SELECT ak.id, ak.kode, ak.nama, ak.tipe, ak.saldo_normal, ak.kelompok_beban,
                     CASE WHEN ak.saldo_normal='D' 
                         THEN COALESCE(SUM(jd.debit),0) - COALESCE(SUM(jd.kredit),0)
                         ELSE COALESCE(SUM(jd.kredit),0) - COALESCE(SUM(jd.debit),0)
@@ -994,19 +1027,43 @@ switch ($id) {
             );
 
             $pendapatan = array_filter($akuns, fn($a) => $a['tipe'] === 'pendapatan');
-            $beban = array_filter($akuns, fn($a) => $a['tipe'] === 'beban');
+            
+            // Group beban by kelompok_beban
+            $beban_operasional = [];
+            $beban_pajak = [];
+            foreach ($akuns as $a) {
+                if ($a['tipe'] === 'beban') {
+                    if ($a['kelompok_beban'] === 'Pajak') {
+                        $beban_pajak[] = $a;
+                    } else {
+                        $beban_operasional[] = $a;
+                    }
+                }
+            }
 
             $totalPendapatan = array_sum(array_column(array_values($pendapatan), 'saldo'));
-            $totalBeban = array_sum(array_column(array_values($beban), 'saldo'));
+            $totalBebanOp = array_sum(array_column($beban_operasional, 'saldo'));
+            $totalBebanPajak = array_sum(array_column($beban_pajak, 'saldo'));
+            $totalBeban = $totalBebanOp + $totalBebanPajak;
+
+            $labaKotor = $totalPendapatan - $totalBebanOp;
+            $labaSebelumPajak = $labaKotor - 0; // Currently no other deductions between gross and before tax
+            $labaSetelahPajak = $labaSebelumPajak - $totalBebanPajak;
 
             return [
                 'periode' => ['dari' => $dari, 'sampai' => $sampai],
                 'mode' => $mode,
                 'pendapatan' => array_values($pendapatan),
-                'beban' => array_values($beban),
+                'beban_operasional' => array_values($beban_operasional),
+                'beban_pajak' => array_values($beban_pajak),
                 'total_pendapatan' => $totalPendapatan,
+                'total_beban_operasional' => $totalBebanOp,
+                'total_beban_pajak' => $totalBebanPajak,
                 'total_beban' => $totalBeban,
-                'laba_rugi' => $totalPendapatan - $totalBeban
+                'laba_kotor' => $labaKotor,
+                'laba_sebelum_pajak' => $labaSebelumPajak,
+                'laba_setelah_pajak' => $labaSetelahPajak,
+                'laba_rugi' => $labaSetelahPajak
             ];
         });
 
@@ -1043,18 +1100,21 @@ switch ($id) {
                 errorResponse('Kode akun sudah digunakan');
 
             $saldoNormal = in_array($tipe, ['aset', 'beban']) ? 'D' : 'K';
+            $kelompok = normalizeKelompokAkun($tipe, $kode, $nama, $params['kelompok'] ?? '');
             $newId = $db->insert(
-                "INSERT INTO akun (kode, nama, tipe, saldo_normal) VALUES (?,?,?,?)",
-                [$kode, $nama, $tipe, $params['saldo_normal'] ?? $saldoNormal]
+                "INSERT INTO akun (kode, nama, tipe, saldo_normal, kelompok) VALUES (?,?,?,?,?)",
+                [$kode, $nama, $tipe, $params['saldo_normal'] ?? $saldoNormal, $kelompok]
             );
             clearCache(['coa']);
             successResponse(['id' => $newId], 'Akun berhasil ditambahkan', 201);
         } elseif ($method === 'PUT') {
             if (!$action)
                 errorResponse('ID akun diperlukan');
+            $tipe = $params['tipe'] ?? 'aset';
+            $kelompok = normalizeKelompokAkun($tipe, $params['kode'] ?? '', $params['nama'] ?? '', $params['kelompok'] ?? '');
             $db->execute(
-                "UPDATE akun SET nama=?, tipe=?, saldo_normal=?, is_active=? WHERE id=?",
-                [$params['nama'] ?? '', $params['tipe'] ?? 'aset', $params['saldo_normal'] ?? 'D', $params['is_active'] ?? 1, $action]
+                "UPDATE akun SET nama=?, tipe=?, saldo_normal=?, kelompok=?, is_active=? WHERE id=?",
+                [$params['nama'] ?? '', $tipe, $params['saldo_normal'] ?? 'D', $kelompok, $params['is_active'] ?? 1, $action]
             );
             clearCache(['coa' => $action]);
             successResponse(null, 'Akun berhasil diupdate');

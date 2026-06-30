@@ -4,6 +4,97 @@ const NeracaPage = {
     tanggal: '',
     mode: 'sesudah', // 'sebelum' | 'sesudah'
 
+    sumSaldo(accounts = []) {
+        return (accounts || []).reduce((total, item) => total + (Number(item.saldo) || 0), 0);
+    },
+
+    groupAset(accounts = []) {
+        const groups = {
+            aktiva_lancar: [],
+            penyertaan_modal_jangka_panjang: [],
+            aktiva_tetap: []
+        };
+
+        (accounts || []).forEach(account => {
+            const key = this.classifyAset(account);
+            if (groups[key]) {
+                groups[key].push(account);
+            } else {
+                groups.aktiva_lancar.push(account);
+            }
+        });
+
+        return groups;
+    },
+
+    groupKewajiban(accounts = []) {
+        const groups = {
+            jangka_pendek: [],
+            jangka_panjang: []
+        };
+
+        (accounts || []).forEach(account => {
+            const key = this.classifyKewajiban(account);
+            if (groups[key]) {
+                groups[key].push(account);
+            } else {
+                groups.jangka_pendek.push(account);
+            }
+        });
+
+        return groups;
+    },
+
+    normalizeKelompok(value = '') {
+        return String(value || '').trim().toLowerCase();
+    },
+
+    classifyAset(account) {
+        const kelompok = this.normalizeKelompok(account?.kelompok);
+        if (kelompok === 'penyertaan modal jangka panjang' || kelompok === 'penyertaan modal jangka panjang') {
+            return 'penyertaan_modal_jangka_panjang';
+        }
+        if (kelompok === 'aktiva tetap') {
+            return 'aktiva_tetap';
+        }
+
+        const text = `${account.kode || ''} ${account.nama || ''}`.toLowerCase();
+        if (/(penyertaan|investasi|saham|surat berharga|modal jangka panjang|sekuritas)/.test(text)) {
+            return 'penyertaan_modal_jangka_panjang';
+        }
+        if (/(tanah|bangunan|gedung|kendaraan|mobil|motor|peralatan|mesin|inventaris|aktiva tetap|furniture|perlengkapan|aset tetap|kenderaan)/.test(text)) {
+            return 'aktiva_tetap';
+        }
+        return 'aktiva_lancar';
+    },
+
+    classifyKewajiban(account) {
+        const kelompok = this.normalizeKelompok(account?.kelompok);
+        if (kelompok === 'jangka panjang') {
+            return 'jangka_panjang';
+        }
+
+        const text = `${account.kode || ''} ${account.nama || ''}`.toLowerCase();
+        if (/(jangka panjang|pinjaman|obligasi|leasing|hipotek|kewajiban jangka panjang|utang jangka panjang)/.test(text)) {
+            return 'jangka_panjang';
+        }
+        return 'jangka_pendek';
+    },
+
+    renderAccountRows(accounts = []) {
+        if (!accounts || !accounts.length) {
+            return `<div class="px-2 py-2 text-xs text-gray-400 italic">Tidak ada akun</div>`;
+        }
+
+        return accounts.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors">
+            <div class="flex flex-col">
+                <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">${a.kode}</span>
+                <span class="text-gray-700 font-medium">${a.nama}</span>
+            </div>
+            <span class="font-mono font-bold text-gray-900">${App.formatRupiah(a.saldo)}</span>
+        </div>`).join('');
+    },
+
     async render(container) {
         App.setTitle('Laporan Neraca', 'Posisi keuangan koperasi');
         this.container = container;
@@ -22,6 +113,34 @@ const NeracaPage = {
 
         this.data = res.data;
         const d = this.data;
+        const asetGroups = this.groupAset(d.aset || []);
+        const kewajibanGroups = this.groupKewajiban(d.kewajiban || []);
+        const asetMarkup = [
+            { key: 'aktiva_lancar', label: 'Aktiva Lancar', badgeClass: 'bg-sky-400', icon: 'ri-bank-card-line' },
+            { key: 'penyertaan_modal_jangka_panjang', label: 'Penyertaan Modal Jangka Panjang', badgeClass: 'bg-violet-400', icon: 'ri-building-2-line' },
+            { key: 'aktiva_tetap', label: 'Aktiva Tetap', badgeClass: 'bg-amber-400', icon: 'ri-home-2-line' }
+        ].map(group => `
+            <div class="mb-6">
+                <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full ${group.badgeClass}"></span> ${group.label}
+                    <span class="ml-auto text-[10px] font-semibold text-gray-500">${App.formatRupiah(this.sumSaldo(asetGroups[group.key] || []))}</span>
+                </h4>
+                <div class="space-y-1">${this.renderAccountRows(asetGroups[group.key] || [])}</div>
+            </div>
+        `).join('');
+
+        const kewajibanMarkup = [
+            { key: 'jangka_pendek', label: 'Jangka Pendek', badgeClass: 'bg-amber-400', icon: 'ri-time-line' },
+            { key: 'jangka_panjang', label: 'Jangka Panjang', badgeClass: 'bg-rose-400', icon: 'ri-calendar-2-line' }
+        ].map(group => `
+            <div class="mb-6">
+                <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full ${group.badgeClass}"></span> ${group.label}
+                    <span class="ml-auto text-[10px] font-semibold text-gray-500">${App.formatRupiah(this.sumSaldo(kewajibanGroups[group.key] || []))}</span>
+                </h4>
+                <div class="space-y-1">${this.renderAccountRows(kewajibanGroups[group.key] || [])}</div>
+            </div>
+        `).join('');
 
         this.container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -81,13 +200,7 @@ const NeracaPage = {
                         <i class="ri-wallet-3-line text-primary-500"></i>
                     </h3>
                     <div class="space-y-1">
-                        ${d.aset.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors">
-                            <div class="flex flex-col">
-                                <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">${a.kode}</span>
-                                <span class="text-gray-700 font-medium">${a.nama}</span>
-                            </div>
-                            <span class="font-mono font-bold text-gray-900">${App.formatRupiah(a.saldo)}</span>
-                        </div>`).join('')}
+                        ${asetMarkup}
                     </div>
                 </div>
 
@@ -103,13 +216,7 @@ const NeracaPage = {
                             <span class="w-2 h-2 rounded-full bg-amber-400"></span> KEWAJIBAN
                         </h4>
                         <div class="space-y-1">
-                            ${d.kewajiban.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors">
-                                <div class="flex flex-col">
-                                    <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">${a.kode}</span>
-                                    <span class="text-gray-700 font-medium">${a.nama}</span>
-                                </div>
-                                <span class="font-mono font-bold text-gray-900">${App.formatRupiah(a.saldo)}</span>
-                            </div>`).join('')}
+                            ${kewajibanMarkup}
                         </div>
                     </div>
 
@@ -172,59 +279,79 @@ const NeracaPage = {
     export(type) {
         if (!this.data) return;
         const d = this.data;
+        const asetGroups = this.groupAset(d.aset || []);
+        const kewajibanGroups = this.groupKewajiban(d.kewajiban || []);
+
+        const leftRows = [
+            { keterangan: 'AKTIVA', nominal: '', isGroup: true },
+            { keterangan: 'Aktiva Lancar', nominal: '', isGroup: true }
+        ];
+        (asetGroups.aktiva_lancar || []).forEach(a => leftRows.push({ keterangan: `${a.kode} ${a.nama}`, nominal: App.formatRupiah(a.saldo), isGroup: false }));
+        leftRows.push({ keterangan: 'Penyertaan Modal Jangka Panjang', nominal: '', isGroup: true });
+        (asetGroups.penyertaan_modal_jangka_panjang || []).forEach(a => leftRows.push({ keterangan: `${a.kode} ${a.nama}`, nominal: App.formatRupiah(a.saldo), isGroup: false }));
+        leftRows.push({ keterangan: 'Aktiva Tetap', nominal: '', isGroup: true });
+        (asetGroups.aktiva_tetap || []).forEach(a => leftRows.push({ keterangan: `${a.kode} ${a.nama}`, nominal: App.formatRupiah(a.saldo), isGroup: false }));
+        leftRows.push({ keterangan: 'TOTAL AKTIVA', nominal: App.formatRupiah(d.total_aset), isGroup: true, isTotal: true });
+
+        const rightRows = [
+            { keterangan: 'PASIVA', nominal: '', isGroup: true },
+            { keterangan: 'Kewajiban', nominal: '', isGroup: true },
+            { keterangan: 'Jangka Pendek', nominal: '', isGroup: true }
+        ];
+        (kewajibanGroups.jangka_pendek || []).forEach(a => rightRows.push({ keterangan: `${a.kode} ${a.nama}`, nominal: App.formatRupiah(a.saldo), isGroup: false }));
+        rightRows.push({ keterangan: 'Jangka Panjang', nominal: '', isGroup: true });
+        (kewajibanGroups.jangka_panjang || []).forEach(a => rightRows.push({ keterangan: `${a.kode} ${a.nama}`, nominal: App.formatRupiah(a.saldo), isGroup: false }));
+        rightRows.push({ keterangan: 'Modal', nominal: '', isGroup: true });
+        (d.modal || []).forEach(a => rightRows.push({ keterangan: `${a.kode} ${a.nama}`, nominal: App.formatRupiah(a.saldo), isGroup: false }));
+        const lrb = d.laba_rugi_berjalan ?? 0;
+        rightRows.push({ keterangan: `Laba/Rugi Berjalan (1 Jan – ${App.formatDate(d.tanggal)})`, nominal: App.formatRupiah(lrb), isGroup: false });
+        rightRows.push({ keterangan: 'TOTAL PASIVA', nominal: App.formatRupiah(d.total_pasiva), isGroup: true, isTotal: true });
+
         const rows = [];
-
-        // For PDF table structure
-        if (type === 'pdf') {
-            // Aktiva
-            rows.push([{ content: 'AKTIVA', colSpan: 3, styles: { fillColor: [241, 245, 249], fontStyle: 'bold' } }]);
-            d.aset.forEach(a => rows.push([a.kode, a.nama, App.formatRupiah(a.saldo)]));
-            rows.push(['', { content: 'TOTAL AKTIVA', styles: { fontStyle: 'bold' } }, { content: App.formatRupiah(d.total_aset), styles: { fontStyle: 'bold' } }]);
-
-            // Spacer
-            rows.push([{ content: '', colSpan: 3, styles: { minCellHeight: 5 } }]);
-
-            // Kewajiban
-            rows.push([{ content: 'KEWAJIBAN', colSpan: 3, styles: { fillColor: [241, 245, 249], fontStyle: 'bold' } }]);
-            d.kewajiban.forEach(a => rows.push([a.kode, a.nama, App.formatRupiah(a.saldo)]));
-
-            // Modal
-            rows.push([{ content: 'MODAL', colSpan: 3, styles: { fillColor: [241, 245, 249], fontStyle: 'bold' } }]);
-            d.modal.forEach(a => rows.push([a.kode, a.nama, App.formatRupiah(a.saldo)]));
-
-            // Laba/Rugi Berjalan (dalam bagian modal)
-            const lrb = d.laba_rugi_berjalan ?? 0;
-            const lrbLabel = `Laba/Rugi Berjalan (1 Jan – ${App.formatDate(d.tanggal)})`;
-            rows.push([
-                { content: 'LRB', styles: { fontStyle: 'bold', textColor: lrb >= 0 ? [5, 150, 105] : [220, 38, 38] } },
-                { content: lrbLabel, styles: { fontStyle: 'bold', textColor: lrb >= 0 ? [5, 150, 105] : [220, 38, 38] } },
-                { content: App.formatRupiah(lrb), styles: { fontStyle: 'bold', textColor: lrb >= 0 ? [5, 150, 105] : [220, 38, 38], halign: 'right' } }
-            ]);
-
-            rows.push(['', { content: 'TOTAL PASIVA', styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } },
-                { content: App.formatRupiah(d.total_pasiva), styles: { fontStyle: 'bold', fillColor: [241, 245, 249], halign: 'right' } }]);
-        } else {
-            // For CSV/Other flat structure
-            rows.push({ kode: 'AKTIVA', nama: '', saldo: '' });
-            d.aset.forEach(a => rows.push({ kode: a.kode, nama: a.nama, saldo: App.formatRupiah(a.saldo) }));
-            rows.push({ kode: 'TOTAL AKTIVA', nama: '', saldo: App.formatRupiah(d.total_aset) });
-            rows.push({ kode: '', nama: '', saldo: '' });
-            rows.push({ kode: 'KEWAJIBAN', nama: '', saldo: '' });
-            d.kewajiban.forEach(a => rows.push({ kode: a.kode, nama: a.nama, saldo: App.formatRupiah(a.saldo) }));
-            rows.push({ kode: 'MODAL', nama: '', saldo: '' });
-            d.modal.forEach(a => rows.push({ kode: a.kode, nama: a.nama, saldo: App.formatRupiah(a.saldo) }));
-            const lrb = d.laba_rugi_berjalan ?? 0;
-            rows.push({ kode: 'LRB', nama: `Laba/Rugi Berjalan (1 Jan – ${App.formatDate(d.tanggal)})`, saldo: App.formatRupiah(lrb) });
-            rows.push({ kode: 'TOTAL PASIVA', nama: '', saldo: App.formatRupiah(d.total_pasiva) });
+        // Find index of totals
+        const leftTotalIdx = leftRows.findIndex(r => r.isTotal);
+        const rightTotalIdx = rightRows.findIndex(r => r.isTotal);
+        
+        // Build rows up to the maximum of both (excluding totals)
+        const leftNonTotal = leftRows.slice(0, leftTotalIdx);
+        const rightNonTotal = rightRows.slice(0, rightTotalIdx);
+        const maxNonTotalRows = Math.max(leftNonTotal.length, rightNonTotal.length);
+        
+        for (let i = 0; i < maxNonTotalRows; i++) {
+            const left = leftNonTotal[i] || { keterangan: '', nominal: '', isGroup: false };
+            const right = rightNonTotal[i] || { keterangan: '', nominal: '', isGroup: false };
+            rows.push({
+                aktiva_keterangan: left.keterangan,
+                aktiva_nominal: left.nominal,
+                aktiva_isGroup: left.isGroup,
+                aktiva_isTotal: false,
+                pasiva_keterangan: right.keterangan,
+                pasiva_nominal: right.nominal,
+                pasiva_isGroup: right.isGroup,
+                pasiva_isTotal: false
+            });
         }
+        
+        // Add total row - both on the same row
+        rows.push({
+            aktiva_keterangan: leftRows[leftTotalIdx]?.keterangan || '',
+            aktiva_nominal: leftRows[leftTotalIdx]?.nominal || '',
+            aktiva_isGroup: true,
+            aktiva_isTotal: true,
+            pasiva_keterangan: rightRows[rightTotalIdx]?.keterangan || '',
+            pasiva_nominal: rightRows[rightTotalIdx]?.nominal || '',
+            pasiva_isGroup: true,
+            pasiva_isTotal: true
+        });
 
         const cols = [
-            { title: 'Kode', key: 'kode' },
-            { title: 'Nama Akun', key: 'nama' },
-            { title: 'Saldo', key: 'saldo', align: 'right' }
+            { title: 'AKTIVA (Keterangan)', key: 'aktiva_keterangan' },
+            { title: 'AKTIVA (Nominal)', key: 'aktiva_nominal', align: 'right' },
+            { title: 'PASIVA (Keterangan)', key: 'pasiva_keterangan' },
+            { title: 'PASIVA (Nominal)', key: 'pasiva_nominal', align: 'right' }
         ];
 
-        App.export(type, `Laporan Neraca per ${App.formatDate(this.tanggal)}`, cols, rows, { filename: 'laporan_neraca' });
+        App.export(type, `Laporan Neraca T per ${App.formatDate(this.tanggal)}`, cols, rows, { filename: 'laporan_neraca_t' });
     },
 
     async importForm() {
@@ -235,6 +362,7 @@ const NeracaPage = {
                     <p class="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg border border-blue-100 leading-relaxed">
                         <i class="ri-information-line text-blue-500 mr-1"></i>
                         Pastikan file CSV memiliki kolom: <b>No, Keterangan, Saldo</b>.<br>
+                        Jika ada, kolom <b>Kelompok</b> juga akan dipakai untuk mengisi master akun kolom <b>kelompok</b>.<br>
                         Sistem hanya akan menghapus dan memperbarui akun yang sesuai dengan jenis laporan pilihan Anda.
                     </p>
                     <div>

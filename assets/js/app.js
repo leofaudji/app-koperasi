@@ -1009,7 +1009,9 @@ const App = {
         });
 
         let tableBody = rows;
+        let rowsMetadata = null;
         if (rows.length > 0 && !Array.isArray(rows[0])) {
+            rowsMetadata = rows; // Keep original rows for metadata lookup
             tableBody = rows.map((row, i) => columns.map(col => col.key === 'no' ? (i + 1) : row[col.key]));
         }
 
@@ -1022,8 +1024,35 @@ const App = {
             ...tableStyle,
             columnStyles: { ...columnStyles, ...options.columnStyles },
             didParseCell: (data) => {
+                // Check if this row has isGroup metadata (from rowsMetadata)
+                const origRow = rowsMetadata && rowsMetadata[data.row.index];
+                const colKey = columns[data.column.index]?.key || '';
+                
+                // Build the metadata keys to check
+                const groupKeyForThisCol = colKey.replace('_keterangan', '_isGroup').replace('_nominal', '_isGroup');
+                const totalKeyForThisCol = colKey.replace('_keterangan', '_isTotal').replace('_nominal', '_isTotal');
+                
+                const isGroupRow = origRow && origRow[groupKeyForThisCol] === true;
+                const isTotalRow = origRow && origRow[totalKeyForThisCol] === true;
+                
+                // Style group/category rows and total rows with stronger visual emphasis
+                if (isGroupRow) {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.textColor = [15, 23, 42];
+                    data.cell.styles.lineColor = [226, 232, 240];
+                    data.cell.styles.lineWidth = 0.12;
+                    
+                    if (isTotalRow) {
+                        data.cell.styles.fillColor = primary50RGB;
+                        data.cell.styles.textColor = primary900RGB;
+                        data.cell.styles.lineColor = [203, 213, 225];
+                        data.cell.styles.lineWidth = 0.2;
+                    } else {
+                        data.cell.styles.fillColor = [248, 250, 252];
+                    }
+                }
                 // Style footer summary row with soft color matching current active theme and slate-300 borders
-                if (footer && data.row.index === tableBody.length - 1) {
+                else if (footer && data.row.index === tableBody.length - 1) {
                     data.cell.styles.fontStyle = 'bold';
                     data.cell.styles.fillColor = primary50RGB;
                     data.cell.styles.textColor = primary900RGB;
@@ -1080,14 +1109,48 @@ const App = {
     },
 
     exportCSV(filename, columns, data, footer = null) {
-        let csv = columns.map(col => `"${col.title}"`).join(',') + '\n';
+        let csv = columns
+            .filter(col => !col.key.includes('_isGroup') && !col.key.includes('_isTotal'))
+            .map(col => `"${col.title}"`)
+            .join(',') + '\n';
+        
         data.forEach((row, i) => {
-            csv += columns.map(col => {
-                const val = col.key === 'no' ? (i + 1) : (row[col.key] === null || row[col.key] === undefined ? '' : row[col.key]);
-                return `"${String(val).replace(/"/g, '""')}"`;
-            }).join(',') + '\n';
+            const csvRow = columns
+                .filter(col => !col.key.includes('_isGroup') && !col.key.includes('_isTotal'))
+                .map((col, colIdx) => {
+                    const val = col.key === 'no' ? (i + 1) : (row[col.key] === null || row[col.key] === undefined ? '' : row[col.key]);
+                    const strVal = String(val);
+                    
+                    // Get isGroup and isTotal flags
+                    const groupKey = col.key.replace('_keterangan', '_isGroup').replace('_nominal', '_isGroup');
+                    const totalKey = col.key.replace('_keterangan', '_isTotal').replace('_nominal', '_isTotal');
+                    const isGroup = row[groupKey] === true;
+                    const isTotal = row[totalKey] === true;
+                    
+                    // Format: add markers only for keterangan columns
+                    let finalVal = strVal;
+                    if (col.key.includes('_keterangan')) {
+                        if (isTotal) {
+                            finalVal = '=== ' + strVal + ' ===';
+                        } else if (isGroup) {
+                            finalVal = '>> ' + strVal;
+                        }
+                    }
+                    
+                    return `"${finalVal.replace(/"/g, '""')}"`;
+                })
+                .join(',');
+            
+            csv += csvRow + '\n';
         });
-        if (footer) csv += columns.map(col => `"${footer[col.key] || ''}"`).join(',') + '\n';
+        
+        if (footer) {
+            const footerRow = columns
+                .filter(col => !col.key.includes('_isGroup') && !col.key.includes('_isTotal'))
+                .map(col => `"${(footer[col.key] || '').replace(/"/g, '""')}"`)
+                .join(',');
+            csv += footerRow + '\n';
+        }
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');

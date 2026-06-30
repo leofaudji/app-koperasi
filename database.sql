@@ -216,6 +216,7 @@ CREATE TABLE akun (
     parent_id INT DEFAULT NULL,
     level INT DEFAULT 1,
     saldo_normal ENUM('D','K') NOT NULL,
+    kelompok VARCHAR(50) DEFAULT NULL,
     is_active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (parent_id) REFERENCES akun(id) ON DELETE SET NULL
@@ -350,24 +351,24 @@ INSERT INTO jenis_pinjaman (kode, nama, bunga_persen, max_tenor, max_jumlah, ket
 ('PK', 'Pinjaman Konsumtif',   1.75, 36, 100000000.00, 'Pinjaman konsumtif bunga 1.75% per bulan flat');
 
 -- Chart of Accounts
-INSERT INTO akun (kode, nama, tipe, saldo_normal, level) VALUES
-('1000', 'Kas',                        'aset',       'D', 1),
-('1100', 'Bank',                       'aset',       'D', 1),
-('1200', 'Piutang Pinjaman',           'aset',       'D', 1),
-('1300', 'Pendapatan Bunga YMH Terima','aset',       'D', 1),
-('2000', 'Simpanan Anggota',           'kewajiban',  'K', 1),
-('2100', 'Hutang Bunga Simpanan',      'kewajiban',  'K', 1),
-('2200', 'Hutang Pajak',               'kewajiban',  'K', 1),
-('3000', 'Modal Koperasi',             'modal',      'K', 1),
-('3100', 'SHU Tahun Berjalan',         'modal',      'K', 1),
-('4000', 'Pendapatan Bunga Pinjaman',  'pendapatan', 'K', 1),
-('4100', 'Pendapatan Administrasi',    'pendapatan', 'K', 1),
-('4200', 'Pendapatan Denda',           'pendapatan', 'K', 1),
-('4300', 'Pendapatan Lain-lain',       'pendapatan', 'K', 1),
-('5000', 'Beban Bunga Simpanan',       'beban',      'D', 1),
-('5100', 'Beban Administrasi',         'beban',      'D', 1),
-('5200', 'Beban Operasional',          'beban',      'D', 1),
-('5300', 'Beban Lain-lain',            'beban',      'D', 1);
+INSERT INTO akun (kode, nama, tipe, saldo_normal, level, kelompok) VALUES
+('1000', 'Kas',                        'aset',       'D', 1, 'Aktiva Lancar'),
+('1100', 'Bank',                       'aset',       'D', 1, 'Aktiva Lancar'),
+('1200', 'Piutang Pinjaman',           'aset',       'D', 1, 'Aktiva Lancar'),
+('1300', 'Pendapatan Bunga YMH Terima','aset',       'D', 1, 'Aktiva Lancar'),
+('2000', 'Simpanan Anggota',           'kewajiban',  'K', 1, 'Jangka Pendek'),
+('2100', 'Hutang Bunga Simpanan',      'kewajiban',  'K', 1, 'Jangka Pendek'),
+('2200', 'Hutang Pajak',               'kewajiban',  'K', 1, 'Jangka Pendek'),
+('3000', 'Modal Koperasi',             'modal',      'K', 1, 'Modal'),
+('3100', 'SHU Tahun Berjalan',         'modal',      'K', 1, 'Modal'),
+('4000', 'Pendapatan Bunga Pinjaman',  'pendapatan', 'K', 1, 'Laba/Rugi'),
+('4100', 'Pendapatan Administrasi',    'pendapatan', 'K', 1, 'Laba/Rugi'),
+('4200', 'Pendapatan Denda',           'pendapatan', 'K', 1, 'Laba/Rugi'),
+('4300', 'Pendapatan Lain-lain',       'pendapatan', 'K', 1, 'Laba/Rugi'),
+('5000', 'Beban Bunga Simpanan',       'beban',      'D', 1, 'Laba/Rugi'),
+('5100', 'Beban Administrasi',         'beban',      'D', 1, 'Laba/Rugi'),
+('5200', 'Beban Operasional',          'beban',      'D', 1, 'Laba/Rugi'),
+('5300', 'Beban Lain-lain',            'beban',      'D', 1, 'Laba/Rugi');
 
 -- Default Admin User (password: admin123)
 INSERT INTO anggota (no_anggota, nama, nik, alamat, telepon, tgl_daftar, status) VALUES

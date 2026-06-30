@@ -28,34 +28,35 @@ const LabaRugiPage = {
         const d = this.data;
 
         this.container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <div class="flex flex-wrap gap-2 w-full sm:w-auto items-end">
-                    <div>
+            <div class="flex flex-col gap-4 mb-8">
+                <div class="flex flex-col md:flex-row md:items-end gap-3 md:gap-4">
+                    <div class="w-full md:w-auto">
                         <label class="block text-xs font-semibold text-gray-400 mb-1">Dari</label>
-                        <input type="text" id="lr-dari" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Dari">
+                        <input type="text" id="lr-dari" class="w-full md:w-auto border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Dari">
                     </div>
-                    <div>
+                    <div class="w-full md:w-auto">
                         <label class="block text-xs font-semibold text-gray-400 mb-1">Sampai</label>
-                        <input type="text" id="lr-sampai" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Sampai">
+                        <input type="text" id="lr-sampai" class="w-full md:w-auto border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Sampai">
                     </div>
                     <!-- Toggle Mode -->
-                    <div class="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-                        <label class="flex items-center gap-1.5 px-3 py-2 rounded-lg cursor-pointer text-sm font-semibold transition-all
+                    <div class="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-full md:w-auto">
+                        <label class="flex items-center gap-1.5 px-3 py-2 rounded-lg cursor-pointer text-sm font-semibold transition-all flex-1 md:flex-initial
                             ${this.mode === 'sebelum' ? 'bg-white shadow text-amber-700' : 'text-gray-500 hover:text-gray-700'}">
                             <input type="radio" name="lr-mode" value="sebelum" ${this.mode === 'sebelum' ? 'checked' : ''} class="hidden" onchange="LabaRugiPage.load()">
-                            <i class="ri-time-line"></i> Sebelum
+                            <i class="ri-time-line"></i> <span class="hidden sm:inline">Sebelum</span>
                         </label>
-                        <label class="flex items-center gap-1.5 px-3 py-2 rounded-lg cursor-pointer text-sm font-semibold transition-all
+                        <label class="flex items-center gap-1.5 px-3 py-2 rounded-lg cursor-pointer text-sm font-semibold transition-all flex-1 md:flex-initial
                             ${this.mode === 'sesudah' ? 'bg-white shadow text-emerald-700' : 'text-gray-500 hover:text-gray-700'}">
                             <input type="radio" name="lr-mode" value="sesudah" ${this.mode === 'sesudah' ? 'checked' : ''} class="hidden" onchange="LabaRugiPage.load()">
-                            <i class="ri-checkbox-circle-line"></i> Sesudah
+                            <i class="ri-checkbox-circle-line"></i> <span class="hidden sm:inline">Sesudah</span>
                         </label>
                     </div>
-                    <button onclick="LabaRugiPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors">Tampilkan</button>
+                    <button onclick="LabaRugiPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors w-full md:w-auto">Tampilkan</button>
                 </div>
-                <div class="flex items-center gap-2">
+                
+                <div class="flex flex-col md:flex-row gap-2 md:justify-end">
                     ${App.hasPerm('keuangan.jurnal') ? `
-                    <button onclick="LabaRugiPage.importForm()" class="bg-white border border-gray-200 hover:border-primary-500 hover:text-primary-600 text-gray-600 px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all" title="Import Saldo Awal CSV">
+                    <button onclick="LabaRugiPage.importForm()" class="bg-white border border-gray-200 hover:border-primary-500 hover:text-primary-600 text-gray-600 px-5 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all">
                         <i class="ri-file-upload-line"></i> Import Saldo Awal
                     </button>
                     ` : ''}
@@ -71,9 +72,9 @@ const LabaRugiPage = {
                 </div>
             </div>
 
-            <div class="text-center mb-10">
-                <h2 class="text-2xl font-black text-gray-800 tracking-tight uppercase">LAPORAN LABA RUGI</h2>
-                <p class="text-gray-400 font-medium">${App.formatDate(d.periode.dari)} s/d ${App.formatDate(d.periode.sampai)}</p>
+            <div class="text-center mb-8 md:mb-10">
+                <h2 class="text-xl md:text-2xl font-black text-gray-800 tracking-tight uppercase">LAPORAN LABA RUGI</h2>
+                <p class="text-xs md:text-sm text-gray-400 font-medium mt-1">${App.formatDate(d.periode.dari)} s/d ${App.formatDate(d.periode.sampai)}</p>
                 <span class="inline-flex items-center gap-1.5 mt-2 text-xs font-bold px-3 py-1 rounded-full
                     ${d.mode === 'sebelum' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">
                     <i class="${d.mode === 'sebelum' ? 'ri-time-line' : 'ri-checkbox-circle-line'}"></i>
@@ -81,66 +82,74 @@ const LabaRugiPage = {
                 </span>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                <!-- Column PENDAPATAN -->
-                <div>
-                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b-2 border-primary-500 flex justify-between uppercase tracking-wider text-sm">
-                        <span>PENDAPATAN</span>
-                        <i class="ri-funds-box-line text-primary-500"></i>
-                    </h3>
-                    <div class="space-y-1">
-                        ${d.pendapatan.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors">
-                            <div class="flex flex-col">
-                                <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">${a.kode}</span>
-                                <span class="text-gray-700 font-medium">${a.nama}</span>
-                            </div>
-                            <span class="font-mono font-bold text-emerald-600">${App.formatRupiah(a.saldo)}</span>
-                        </div>`).join('')}
+            <div class="max-w-3xl mx-auto space-y-1">
+                <!-- PENDAPATAN -->
+                <div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors bg-gray-100">
+                    <span class="text-gray-700 font-bold">PENDAPATAN</span>
+                    <span class="font-mono font-bold text-gray-900"></span>
+                </div>
+                ${d.pendapatan.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors ml-4">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">${a.kode}</span>
+                        <span class="text-gray-700">${a.nama}</span>
                     </div>
+                    <span class="font-mono font-bold text-emerald-600">${App.formatRupiah(a.saldo)}</span>
+                </div>`).join('')}
+                
+                <div class="flex justify-between py-2 text-sm border-b-2 border-gray-300 px-2 rounded-lg mt-2 font-bold">
+                    <span class="text-gray-700">Total Pendapatan</span>
+                    <span class="font-mono text-gray-900">${App.formatRupiah(d.total_pendapatan)}</span>
                 </div>
 
-                <!-- Column BEBAN -->
-                <div>
-                    <h3 class="font-bold text-gray-700 mb-4 pb-2 border-b-2 border-primary-500 flex justify-between uppercase tracking-wider text-sm">
-                        <span>BEBAN OPERASIONAL</span>
-                        <i class="ri-send-plane-2-line text-primary-500"></i>
-                    </h3>
-                    <div class="space-y-1">
-                        ${d.beban.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors">
-                            <div class="flex flex-col">
-                                <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">${a.kode}</span>
-                                <span class="text-gray-700 font-medium">${a.nama}</span>
-                            </div>
-                            <span class="font-mono font-bold text-red-500">${App.formatRupiah(a.saldo)}</span>
-                        </div>`).join('')}
-                    </div>
+                <!-- BEBAN OPERASIONAL -->
+                <div class="flex justify-between py-3 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors bg-gray-100 mt-4 font-bold">
+                    <span class="text-gray-700">BEBAN OPERASIONAL</span>
+                    <span class="font-mono text-gray-900"></span>
                 </div>
-            </div>
+                ${d.beban_operasional.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors ml-4">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">${a.kode}</span>
+                        <span class="text-gray-700">${a.nama}</span>
+                    </div>
+                    <span class="font-mono font-bold text-red-500">${App.formatRupiah(a.saldo)}</span>
+                </div>`).join('')}
+                
+                <div class="flex justify-between py-2 text-sm border-b-2 border-gray-300 px-2 rounded-lg font-bold">
+                    <span class="text-gray-700">Total Beban Operasional</span>
+                    <span class="font-mono text-gray-900">${App.formatRupiah(d.total_beban_operasional)}</span>
+                </div>
 
-            <!-- Totals Row (Aligned Sebaris) -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-8">
-                <div class="flex justify-between py-5 bg-emerald-600 px-6 rounded-2xl shadow-lg shadow-emerald-100 text-white font-black">
-                    <span class="uppercase tracking-widest text-xs opacity-80">Total Pendapatan</span>
-                    <span class="text-lg font-mono">${App.formatRupiah(d.total_pendapatan)}</span>
+                <!-- LABA KOTOR -->
+                <div class="flex justify-between py-3 text-sm px-2 rounded-lg mt-3 font-bold bg-blue-50 border border-blue-200">
+                    <span class="text-blue-700">LABA KOTOR</span>
+                    <span class="font-mono text-blue-900">${App.formatRupiah(d.laba_kotor)}</span>
                 </div>
-                <div class="flex justify-between py-5 bg-red-600 px-6 rounded-2xl shadow-lg shadow-red-100 text-white font-black">
-                    <span class="uppercase tracking-widest text-xs opacity-80">Total Beban</span>
-                    <span class="text-lg font-mono">${App.formatRupiah(d.total_beban)}</span>
-                </div>
-            </div>
 
-            <div class="mt-8 flex justify-center">
-                <div class="w-full max-w-lg flex justify-between py-6 px-10 bg-gray-900 rounded-[2.5rem] text-white shadow-2xl shadow-gray-200 border-4 border-white relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-4 opacity-10">
-                        <i class="ri-funds-line text-8xl"></i>
+                <!-- BEBAN PAJAK -->
+                ${d.beban_pajak.length > 0 ? `
+                <div class="flex justify-between py-3 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors bg-gray-100 mt-4 font-bold">
+                    <span class="text-gray-700">PAJAK</span>
+                    <span class="font-mono text-gray-900"></span>
+                </div>
+                ${d.beban_pajak.map(a => `<div class="flex justify-between py-2 text-sm border-b border-gray-50 hover:bg-gray-50/50 px-2 rounded-lg transition-colors ml-4">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-mono text-gray-400 leading-none mb-0.5">${a.kode}</span>
+                        <span class="text-gray-700">${a.nama}</span>
                     </div>
-                    <div class="flex flex-col relative z-10">
-                        <span class="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">${d.laba_rugi >= 0 ? 'Surplus Hasil Usaha' : 'Defisit Hasil Usaha'}</span>
-                        <span class="text-2xl font-black">${d.laba_rugi >= 0 ? 'SHU (LABA)' : 'RUGI BERSIH'}</span>
-                    </div>
-                    <div class="text-3xl font-black self-center relative z-10 ${d.laba_rugi >= 0 ? 'text-emerald-400' : 'text-red-400'}">
-                        ${App.formatRupiah(Math.abs(d.laba_rugi))}
-                    </div>
+                    <span class="font-mono font-bold text-orange-600">${App.formatRupiah(a.saldo)}</span>
+                </div>`).join('')}
+                
+                <div class="flex justify-between py-2 text-sm border-b-2 border-gray-300 px-2 rounded-lg font-bold">
+                    <span class="text-gray-700">Total Pajak</span>
+                    <span class="font-mono text-gray-900">${App.formatRupiah(d.total_beban_pajak)}</span>
+                </div>
+                ` : ''}
+
+                <!-- LABA SETELAH PAJAK -->
+                <div class="flex justify-between py-4 px-4 rounded-lg mt-4 font-black text-white text-lg
+                    ${d.laba_setelah_pajak >= 0 ? 'bg-emerald-600 shadow-lg shadow-emerald-100' : 'bg-red-600 shadow-lg shadow-red-100'}">
+                    <span>${d.laba_setelah_pajak >= 0 ? 'SISA HASIL USAHA (SHU)' : 'RUGI BERSIH'}</span>
+                    <span class="font-mono">${App.formatRupiah(Math.abs(d.laba_setelah_pajak))}</span>
                 </div>
             </div>
         </div>`;
@@ -151,47 +160,117 @@ const LabaRugiPage = {
     export(type) {
         if (!this.data) return;
         const d = this.data;
+        
+        // Build row data with metadata for grouping
         const rows = [];
-
-        if (type === 'pdf') {
-            // Pendapatan
-            rows.push([{ content: 'PENDAPATAN', colSpan: 3, styles: { fillColor: [241, 245, 249], fontStyle: 'bold' } }]);
-            d.pendapatan.forEach(a => rows.push([a.kode, a.nama, App.formatRupiah(a.saldo)]));
-            rows.push(['', { content: 'TOTAL PENDAPATAN', styles: { fontStyle: 'bold' } }, { content: App.formatRupiah(d.total_pendapatan), styles: { fontStyle: 'bold' } }]);
-
-            rows.push([{ content: '', colSpan: 3, styles: { minCellHeight: 5 } }]);
-
-            // Beban
-            rows.push([{ content: 'BEBAN', colSpan: 3, styles: { fillColor: [241, 245, 249], fontStyle: 'bold' } }]);
-            d.beban.forEach(a => rows.push([a.kode, a.nama, App.formatRupiah(a.saldo)]));
-            rows.push(['', { content: 'TOTAL BEBAN', styles: { fontStyle: 'bold' } }, { content: App.formatRupiah(d.total_beban), styles: { fontStyle: 'bold' } }]);
-
-            rows.push([{ content: '', colSpan: 3, styles: { minCellHeight: 8 } }]);
-
-            const label = d.laba_rugi >= 0 ? 'SISA HASIL USAHA (SHU)' : 'RUGI BERSIH';
-            rows.push([
-                { content: label, colSpan: 2, styles: { fontStyle: 'bold', fontSize: 11, fillColor: [15, 23, 42], textColor: [255, 255, 255] } },
-                { content: App.formatRupiah(Math.abs(d.laba_rugi)), styles: { fontStyle: 'bold', fontSize: 11, fillColor: [15, 23, 42], textColor: [255, 255, 255], halign: 'right' } }
-            ]);
-        } else {
-            rows.push({ kode: 'PENDAPATAN', nama: '', saldo: '' });
-            d.pendapatan.forEach(a => rows.push({ kode: a.kode, nama: a.nama, saldo: App.formatRupiah(a.saldo) }));
-            rows.push({ kode: 'TOTAL PENDAPATAN', nama: '', saldo: App.formatRupiah(d.total_pendapatan) });
-            rows.push({ kode: '', nama: '', saldo: '' });
-            rows.push({ kode: 'BEBAN', nama: '', saldo: '' });
-            d.beban.forEach(a => rows.push({ kode: a.kode, nama: a.nama, saldo: App.formatRupiah(a.saldo) }));
-            rows.push({ kode: 'TOTAL BEBAN', nama: '', saldo: App.formatRupiah(d.total_beban) });
-            rows.push({ kode: '', nama: '', saldo: '' });
-            rows.push({ kode: d.laba_rugi >= 0 ? 'SHU (LABA)' : 'RUGI', nama: '', saldo: App.formatRupiah(Math.abs(d.laba_rugi)) });
+        
+        // PENDAPATAN
+        rows.push({
+            keterangan: 'PENDAPATAN',
+            nominal: '',
+            keterangan_isGroup: true,
+            keterangan_isTotal: false,
+            nominal_isGroup: true,
+            nominal_isTotal: false
+        });
+        d.pendapatan.forEach(a => rows.push({
+            keterangan: `${a.kode} ${a.nama}`,
+            nominal: App.formatRupiah(a.saldo),
+            keterangan_isGroup: false,
+            keterangan_isTotal: false,
+            nominal_isGroup: false,
+            nominal_isTotal: false
+        }));
+        rows.push({
+            keterangan: 'Total Pendapatan',
+            nominal: App.formatRupiah(d.total_pendapatan),
+            keterangan_isGroup: true,
+            keterangan_isTotal: true,
+            nominal_isGroup: true,
+            nominal_isTotal: true
+        });
+        
+        // BEBAN OPERASIONAL
+        rows.push({
+            keterangan: 'BEBAN OPERASIONAL',
+            nominal: '',
+            keterangan_isGroup: true,
+            keterangan_isTotal: false,
+            nominal_isGroup: true,
+            nominal_isTotal: false
+        });
+        d.beban_operasional.forEach(a => rows.push({
+            keterangan: `${a.kode} ${a.nama}`,
+            nominal: App.formatRupiah(a.saldo),
+            keterangan_isGroup: false,
+            keterangan_isTotal: false,
+            nominal_isGroup: false,
+            nominal_isTotal: false
+        }));
+        rows.push({
+            keterangan: 'Total Beban Operasional',
+            nominal: App.formatRupiah(d.total_beban_operasional),
+            keterangan_isGroup: true,
+            keterangan_isTotal: false,
+            nominal_isGroup: true,
+            nominal_isTotal: false
+        });
+        
+        // LABA KOTOR
+        rows.push({
+            keterangan: 'LABA KOTOR',
+            nominal: App.formatRupiah(d.laba_kotor),
+            keterangan_isGroup: true,
+            keterangan_isTotal: true,
+            nominal_isGroup: true,
+            nominal_isTotal: true
+        });
+        
+        // PAJAK
+        if (d.beban_pajak && d.beban_pajak.length > 0) {
+            rows.push({
+                keterangan: 'PAJAK',
+                nominal: '',
+                keterangan_isGroup: true,
+                keterangan_isTotal: false,
+                nominal_isGroup: true,
+                nominal_isTotal: false
+            });
+            d.beban_pajak.forEach(a => rows.push({
+                keterangan: `${a.kode} ${a.nama}`,
+                nominal: App.formatRupiah(a.saldo),
+                keterangan_isGroup: false,
+                keterangan_isTotal: false,
+                nominal_isGroup: false,
+                nominal_isTotal: false
+            }));
+            rows.push({
+                keterangan: 'Total Pajak',
+                nominal: App.formatRupiah(d.total_beban_pajak),
+                keterangan_isGroup: true,
+                keterangan_isTotal: false,
+                nominal_isGroup: true,
+                nominal_isTotal: false
+            });
         }
-
+        
+        // LABA SETELAH PAJAK
+        const finalLabel = d.laba_setelah_pajak >= 0 ? 'SISA HASIL USAHA (SHU)' : 'RUGI BERSIH';
+        rows.push({
+            keterangan: finalLabel,
+            nominal: App.formatRupiah(Math.abs(d.laba_setelah_pajak)),
+            keterangan_isGroup: true,
+            keterangan_isTotal: true,
+            nominal_isGroup: true,
+            nominal_isTotal: true
+        });
+        
         const cols = [
-            { title: 'Kode', key: 'kode' },
-            { title: 'Keterangan', key: 'nama' },
-            { title: 'Jumlah', key: 'saldo', align: 'right' }
+            { title: 'Keterangan', key: 'keterangan' },
+            { title: 'Jumlah', key: 'nominal', align: 'right' }
         ];
 
-        App.export(type, `Laporan Laba Rugi`, cols, rows, { filename: 'laporan_laba_rugi' });
+        App.export(type, `Laporan Laba Rugi ${App.formatDate(d.periode.dari)} s/d ${App.formatDate(d.periode.sampai)}`, cols, rows, { filename: 'laporan_laba_rugi' });
     },
 
     async importForm() {
@@ -202,6 +281,7 @@ const LabaRugiPage = {
                     <p class="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg border border-blue-100 leading-relaxed">
                         <i class="ri-information-line text-blue-500 mr-1"></i>
                         Pastikan file CSV memiliki kolom: <b>No, Keterangan, Saldo</b>.<br>
+                        Jika ada, kolom <b>Kelompok</b> juga akan dipakai untuk mengisi master akun kolom <b>kelompok</b>.<br>
                         Sistem hanya akan menghapus dan memperbarui akun yang sesuai dengan jenis laporan pilihan Anda.
                     </p>
                     <div>
