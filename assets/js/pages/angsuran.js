@@ -62,14 +62,22 @@ const AngsuranPage = {
                         ${App.statusBadge(a.status)}
                         ${a.metode_pembayaran ? `<div class="text-[10px] text-gray-500 mt-1 uppercase font-semibold tracking-wider font-mono">${a.metode_pembayaran === 'transfer' ? '💳 Transfer' : '💵 Tunai'}</div>` : ''}
                     </td>
-                    <td class="px-4 py-3 text-center">
+                    <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
                         ${a.status === 'belum' && App.hasPerm('angsuran.create') ? `
-                            <button onclick="AngsuranPage.form(${a.pinjaman_id})" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium"><i class="ri-money-dollar-circle-line mr-1"></i>Bayar</button>
+                            <button onclick="AngsuranPage.form(${a.pinjaman_id})" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-md shadow-emerald-200 transition-all"><i class="ri-money-dollar-circle-line mr-1"></i>Bayar</button>
                         ` : (a.tgl_bayar ? `
-                            <div class="flex items-center justify-center gap-1.5">
-                                <span class="text-xs text-gray-500 mr-1">${App.formatDate(a.tgl_bayar)}</span>
-                                <button onclick="AngsuranPage.form(null, { editId: ${a.id} })" class="inline-flex items-center gap-0.5 px-2.5 py-1 text-xs font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-all mr-1" title="Koreksi Data (Edit)"><i class="ri-edit-line"></i> Koreksi</button>
-                                <button onclick="AngsuranPage.confirmReverse(${a.id}, '${a.no_pinjaman}', ${a.angsuran_ke})" class="inline-flex items-center gap-0.5 px-2 py-1 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all" title="Batal Pembayaran (Reversal)"><i class="ri-arrow-go-back-line"></i> Reversal</button>
+                            <div class="flex items-center justify-center gap-2">
+                                <span class="text-xs text-gray-500">${App.formatDate(a.tgl_bayar)}</span>
+                                <div class="relative inline-block text-left">
+                                    <button onclick="App.toggleRowDropdown(this)" class="row-dropdown-trigger p-1 px-2.5 text-gray-500 hover:text-gray-700 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1">
+                                        Aksi <i class="ri-arrow-down-s-line"></i>
+                                    </button>
+                                    <div class="row-dropdown-menu hidden absolute right-0 mt-1 w-32 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-fadeIn">
+                                        <button onclick="App.printReceipt('angsuran', ${a.id})" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-1.5"><i class="ri-printer-line text-sm"></i> Struk</button>
+                                        <button onclick="AngsuranPage.form(null, { editId: ${a.id} })" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-primary-600 hover:bg-primary-50 transition-colors flex items-center gap-1.5"><i class="ri-edit-line text-sm"></i> Koreksi</button>
+                                        <button onclick="AngsuranPage.confirmReverse(${a.id}, '${a.no_pinjaman}', ${a.angsuran_ke})" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1.5"><i class="ri-arrow-go-back-line text-sm"></i> Reversal</button>
+                                    </div>
+                                </div>
                             </div>
                         ` : '-')}
                     </td>

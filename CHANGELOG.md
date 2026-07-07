@@ -6,6 +6,16 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v2.1.4] - 2026-07-07
+
+### 🎨 Desain & UI
+- **Grup Dropdown Aksi Tabel:** Mengganti deretan tombol aksi (Struk, Koreksi, Reversal) pada tabel Transaksi Simpanan dan Pembayaran Angsuran dengan satu tombol dropdown **"Aksi"** yang ringkas dan elegan, menghemat ruang horizontal tabel dan membuat tampilan jauh lebih rapi.
+
+## [v2.1.3] - 2026-07-07
+
+### ✨ Ditambahkan
+- **Cetak Struk Thermal POS (POS Printer Receipt Layout):** Tombol "Struk" baru pada daftar Transaksi Simpanan dan Pembayaran Angsuran untuk memicu cetak bukti bayar thermal POS (lebar 76mm/80mm) yang rapi, lengkap dengan detail baris, nama kasir, dan kolom tanda tangan ganda (kasir & anggota).
+
 ## [v2.1.2] - 2026-07-07
 
 ### ✨ Ditambahkan

@@ -118,14 +118,15 @@ switch ($method) {
             $binds = [];
 
             if ($search) {
-                $where .= " AND (a.nama LIKE ? OR p.no_pinjaman LIKE ?)";
+                $where .= " AND (a.nama LIKE ? OR p.no_pinjaman LIKE ? OR ag.no_transaksi LIKE ?)";
+                $binds[] = "%$search%";
                 $binds[] = "%$search%";
                 $binds[] = "%$search%";
             }
             if ($status) {
                 $where .= " AND ag.status = ?";
                 $binds[] = $status;
-            } else {
+            } elseif (empty($search)) {
                 $where .= " AND ag.tgl_bayar IS NOT NULL";
             }
             if ($pinjamanId) {

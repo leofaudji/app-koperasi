@@ -52,10 +52,18 @@ const SimpananPage = {
                         <td class="px-3 py-3"><div class="font-medium text-gray-800">${s.anggota_nama}</div><div class="text-[11px] text-gray-400 mt-1">${s.no_anggota}${s.no_rekening ? ` · ${s.no_rekening}` : ''}</div></td>
                         <td class="px-3 py-3 text-gray-500"><div class="font-medium">${s.jenis_simpanan}</div><div class="text-[11px] text-gray-400 mt-1"><span class="font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded">${s.kode_transaksi}</span> ${s.nama_transaksi}</div></td>
                         <td class="px-3 py-3 text-right font-semibold ${s.dk === 'D' ? 'text-emerald-600' : 'text-red-500'}"><span class="inline-flex items-center gap-1"><span class="text-[10px] ${s.dk === 'D' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'} rounded-full px-2 py-1">${s.dk}</span>${s.dk === 'D' ? '+' : '-'}${App.formatRupiah(s.jumlah)}</span></td>
-                        <td class="px-3 py-3 text-center">
+                        <td class="px-3 py-3 text-center" onclick="event.stopPropagation()">
                             ${s.keterangan?.includes('REVERSAL') ? `<span class="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded font-bold uppercase font-mono">Dikoreksi</span>` : `
-                            <button onclick="SimpananPage.form({ editId: ${s.id} })" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-all mr-1.5" title="Koreksi Data (Edit)"><i class="ri-edit-line"></i> Koreksi</button>
-                            <button onclick="SimpananPage.confirmReverse(${s.id}, '${s.no_transaksi}')" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all" title="Batal Transaksi (Reversal)"><i class="ri-arrow-go-back-line"></i> Reversal</button>
+                            <div class="relative inline-block text-left">
+                                <button onclick="App.toggleRowDropdown(this)" class="row-dropdown-trigger p-1 px-2.5 text-gray-500 hover:text-gray-700 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1">
+                                    Aksi <i class="ri-arrow-down-s-line"></i>
+                                </button>
+                                <div class="row-dropdown-menu hidden absolute right-0 mt-1 w-32 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-fadeIn">
+                                    <button onclick="App.printReceipt('simpanan', ${s.id})" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-1.5"><i class="ri-printer-line text-sm"></i> Struk</button>
+                                    <button onclick="SimpananPage.form({ editId: ${s.id} })" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-primary-600 hover:bg-primary-50 transition-colors flex items-center gap-1.5"><i class="ri-edit-line text-sm"></i> Koreksi</button>
+                                    <button onclick="SimpananPage.confirmReverse(${s.id}, '${s.no_transaksi}')" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1.5"><i class="ri-arrow-go-back-line text-sm"></i> Reversal</button>
+                                </div>
+                            </div>
                             `}
                         </td>
                     </tr>`).join('')}

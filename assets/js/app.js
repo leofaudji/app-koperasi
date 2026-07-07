@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '2.1.2', // Traceability Link & Audit Trail History
+    version: '2.1.4', // Aksi Dropdown Group for tables
     API_BASE: (() => {
         // Best way: find the root based on where this script is loaded from
         const script = document.currentScript || document.querySelector('script[src*="assets/js/app.js"]');
@@ -75,6 +75,12 @@ const App = {
         document.getElementById('current-date').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         document.getElementById('login-form').addEventListener('submit', e => { e.preventDefault(); this.login(); });
         document.querySelectorAll('.copyright-year').forEach(el => el.textContent = new Date().getFullYear());
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.row-dropdown-trigger')) {
+                document.querySelectorAll('.row-dropdown-menu').forEach(el => el.classList.add('hidden'));
+            }
+        });
 
         // 1. Load global settings first (publicly accessible now)
         const settRes = await this.api('settings');
@@ -1215,6 +1221,154 @@ const App = {
                 </div>
             </div>`;
         document.body.appendChild(modal);
+    },
+
+    async printReceipt(type, id) {
+        const res = await this.api(`${type}/${id}`);
+        if (!res?.success || !res.data) {
+            this.toast('Gagal memuat detail transaksi untuk mencetak', 'error');
+            return;
+        }
+
+        const trx = res.data;
+        const kopName = this.settings['nama_koperasi']?.value || this.settings['app_name']?.value || 'KSP APP KOPERASI';
+        const kopAddress = this.settings['alamat_koperasi']?.value || 'Alamat Koperasi';
+        const kasirName = this.user?.nama_lengkap || 'Kasir';
+
+        let itemsHtml = '';
+        let totalAmount = 0;
+
+        if (type === 'simpanan') {
+            totalAmount = parseFloat(trx.jumlah);
+            itemsHtml = `
+                <tr>
+                    <td>Setoran ${trx.jenis_simpanan}<br><span style="font-size:8px;color:#555;">(${trx.nama_transaksi})</span></td>
+                    <td class="text-right" style="vertical-align:middle;">${this.formatRupiah(totalAmount)}</td>
+                </tr>
+            `;
+        } else if (type === 'angsuran') {
+            totalAmount = parseFloat(trx.total);
+            const pokok = parseFloat(trx.pokok || 0);
+            const bunga = parseFloat(trx.bunga || 0);
+            const denda = parseFloat(trx.denda || 0);
+            itemsHtml = `
+                <tr>
+                    <td>Pokok Angsuran</td>
+                    <td class="text-right">${this.formatRupiah(pokok)}</td>
+                </tr>
+                ${bunga > 0 ? `<tr>
+                    <td>Jasa/Bunga Pinjaman</td>
+                    <td class="text-right">${this.formatRupiah(bunga)}</td>
+                </tr>` : ''}
+                ${denda > 0 ? `<tr>
+                    <td>Denda Keterlambatan</td>
+                    <td class="text-right" style="color:red;">${this.formatRupiah(denda)}</td>
+                </tr>` : ''}
+            `;
+        }
+
+        let printFrame = document.getElementById('receipt-print-frame');
+        if (!printFrame) {
+            printFrame = document.createElement('iframe');
+            printFrame.id = 'receipt-print-frame';
+            printFrame.style.position = 'fixed';
+            printFrame.style.right = '0';
+            printFrame.style.bottom = '0';
+            printFrame.style.width = '0';
+            printFrame.style.height = '0';
+            printFrame.style.border = '0';
+            document.body.appendChild(printFrame);
+        }
+
+        const doc = printFrame.contentWindow.document;
+        doc.open();
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Cetak Struk POS</title>
+                <style>
+                    @media print {
+                        @page { margin: 0; size: auto; }
+                        body { margin: 0; }
+                    }
+                    body {
+                        font-family: 'Courier New', Courier, monospace;
+                        font-size: 11px;
+                        color: #000;
+                        width: 76mm;
+                        padding: 3mm 3mm 8mm 3mm;
+                        box-sizing: border-box;
+                        background: #fff;
+                    }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .bold { font-weight: bold; }
+                    .divider { border-top: 1px dashed #000; margin: 6px 0; }
+                    .title { font-size: 12px; font-weight: bold; margin-bottom: 2px; text-transform: uppercase; }
+                    .subtitle { font-size: 9px; margin-bottom: 6px; }
+                    .info-table, .item-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+                    .info-table td { padding: 1.5px 0; vertical-align: top; }
+                    .item-table th, .item-table td { padding: 3px 0; vertical-align: top; }
+                    .item-table th { border-bottom: 1px dashed #000; text-align: left; }
+                    .footer { margin-top: 12px; font-size: 9px; line-height: 1.3; }
+                    .sig-box { margin-top: 15px; display: flex; justify-content: space-between; font-size: 9px; }
+                    .sig-col { text-align: center; width: 45%; }
+                </style>
+            </head>
+            <body>
+                <div class="text-center">
+                    <div class="title">${kopName}</div>
+                    <div class="subtitle">${kopAddress}</div>
+                </div>
+                <div class="divider"></div>
+                <table class="info-table">
+                    <tr><td>No Trx : ${trx.no_transaksi}</td><td class="text-right">${moment(trx.tgl_transaksi || trx.tgl_bayar).format('DD/MM/YYYY')}</td></tr>
+                    <tr><td>Anggota: ${trx.no_anggota}</td><td class="text-right">${trx.anggota_nama}</td></tr>
+                    ${trx.no_rekening ? `<tr><td>Rekening: ${trx.no_rekening}</td><td></td></tr>` : ''}
+                    ${trx.no_pinjaman ? `<tr><td>Pinjaman: ${trx.no_pinjaman}</td><td></td></tr>` : ''}
+                    ${trx.angsuran_ke ? `<tr><td>Angsuran: Ke-${trx.angsuran_ke}</td><td></td></tr>` : ''}
+                </table>
+                <div class="divider"></div>
+                <table class="item-table">
+                    <thead>
+                        <tr><th>Keterangan</th><th class="text-right">Jumlah</th></tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                </table>
+                <div class="divider"></div>
+                <table class="info-table">
+                    <tr class="bold"><td>TOTAL BAYAR</td><td class="text-right">${this.formatRupiah(totalAmount)}</td></tr>
+                    <tr><td>Metode: ${trx.metode_pembayaran ? trx.metode_pembayaran.toUpperCase() : 'TUNAI'}</td><td></td></tr>
+                </table>
+                <div class="divider"></div>
+                <div class="text-center footer">
+                    Simpan struk ini sebagai bukti pembayaran resmi.<br>
+                    Terima kasih atas partisipasi Anda.
+                </div>
+                <div class="sig-box">
+                    <div class="sig-col">Anggota<br><br><br><br>( ${trx.anggota_nama.split(',')[0]} )</div>
+                    <div class="sig-col">Kasir<br><br><br><br>( ${kasirName} )</div>
+                </div>
+            </body>
+            </html>
+        `);
+        doc.close();
+
+        setTimeout(() => {
+            printFrame.contentWindow.focus();
+            printFrame.contentWindow.print();
+        }, 300);
+    },
+
+    toggleRowDropdown(button) {
+        const menu = button.nextElementSibling;
+        document.querySelectorAll('.row-dropdown-menu').forEach(el => {
+            if (el !== menu) el.classList.add('hidden');
+        });
+        menu.classList.toggle('hidden');
     }
 };
 
