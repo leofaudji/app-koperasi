@@ -9,7 +9,7 @@ const AngsuranPage = {
 
     async loadList(container, page = 1) {
         this.page = page;
-        const search = document.getElementById('ags-search')?.value || '';
+        const search = document.getElementById('ags-search')?.value || App.queryParams?.search || '';
         const status = document.getElementById('ags-status')?.value || '';
         const metode = document.getElementById('ags-filter-metode')?.value || '';
         const res = await App.api(`angsuran?page=${page}&search=${encodeURIComponent(search)}&status=${status}&metode_pembayaran=${metode}`);
@@ -38,8 +38,8 @@ const AngsuranPage = {
                     ${App.hasPerm('angsuran.create') ? '<button onclick="AngsuranPage.form()" class="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-emerald-500/25"><i class="ri-money-dollar-circle-line"></i> Bayar Angsuran</button>' : ''}
                 </div>
             </div>
-            <div class="table-wrapper"><table class="data-table w-full text-sm">
-                <thead><tr class="bg-gray-50"><th class="px-4 py-3 text-left font-medium text-gray-500">Informasi Pinjaman</th><th class="px-4 py-3 text-left font-medium text-gray-500">Jatuh Tempo</th><th class="px-4 py-3 text-right font-medium text-gray-500">Pokok</th><th class="px-4 py-3 text-right font-medium text-gray-500">Bunga</th><th class="px-4 py-3 text-right font-medium text-gray-500">Total</th><th class="px-4 py-3 text-center font-medium text-gray-500">Status</th><th class="px-4 py-3 text-center font-medium text-gray-500">Aksi</th></tr></thead>
+             <div class="table-wrapper"><table class="data-table w-full text-sm">
+                <thead><tr class="bg-gray-50"><th class="px-4 py-3 text-left font-medium text-gray-500">Informasi Pinjaman</th><th class="px-4 py-3 text-left font-medium text-gray-500">Jatuh Tempo</th><th class="px-4 py-3 text-right font-medium text-gray-500">Rincian Pembayaran</th><th class="px-4 py-3 text-center font-medium text-gray-500">Status</th><th class="px-4 py-3 text-center font-medium text-gray-500">Aksi</th></tr></thead>
                 <tbody>${res.data.map(a => `<tr class="border-t border-gray-50">
                     <td class="px-4 py-3">
                         <div class="flex flex-col">
@@ -47,21 +47,29 @@ const AngsuranPage = {
                             <div class="flex items-center gap-2 mt-1">
                                 <span class="font-mono text-[10px] text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded border border-primary-100">${a.no_pinjaman}</span>
                                 <span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">KE-${a.angsuran_ke}</span>
+                                ${a.is_edited > 0 ? `<span onclick="App.showAuditHistory('angsuran', ${a.id})" class="cursor-pointer text-[9px] bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold uppercase transition-all inline-flex items-center gap-0.5" title="Klik untuk lihat riwayat perubahan"><i class="ri-history-line"></i> Diedit</span>` : ''}
                             </div>
                         </div>
                     </td>
                     <td class="px-4 py-3 text-gray-500">${App.formatDate(a.tgl_jatuh_tempo)}</td>
-                    <td class="px-4 py-3 text-right">${App.formatRupiah(a.pokok)}</td>
-                    <td class="px-4 py-3 text-right">${App.formatRupiah(a.bunga)}</td>
-                    <td class="px-4 py-3 text-right font-semibold">${App.formatRupiah(a.total)}</td>
-                    <td class="px-4 py-3 text-center">${App.statusBadge(a.status)}</td>
+                    <td class="px-4 py-3 text-right">
+                        <div class="font-bold text-gray-900">${App.formatRupiah(a.total)}</div>
+                        <div class="text-[10px] text-gray-400 mt-1">
+                            Pokok: ${App.formatRupiah(a.pokok)} · Bunga: ${App.formatRupiah(a.bunga)}${parseFloat(a.denda) > 0 ? ` · Denda: <span class="text-red-500 font-medium">${App.formatRupiah(a.denda)}</span>` : ''}
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        ${App.statusBadge(a.status)}
+                        ${a.metode_pembayaran ? `<div class="text-[10px] text-gray-500 mt-1 uppercase font-semibold tracking-wider font-mono">${a.metode_pembayaran === 'transfer' ? '💳 Transfer' : '💵 Tunai'}</div>` : ''}
+                    </td>
                     <td class="px-4 py-3 text-center">
                         ${a.status === 'belum' && App.hasPerm('angsuran.create') ? `
                             <button onclick="AngsuranPage.form(${a.pinjaman_id})" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium"><i class="ri-money-dollar-circle-line mr-1"></i>Bayar</button>
                         ` : (a.tgl_bayar ? `
-                            <div class="flex items-center justify-center gap-2">
-                                <span class="text-xs text-gray-500">${App.formatDate(a.tgl_bayar)}</span>
-                                <button onclick="AngsuranPage.confirmReverse(${a.id}, '${a.no_pinjaman}', ${a.angsuran_ke})" class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-all" title="Reverse Pembayaran"><i class="ri-arrow-go-back-line"></i></button>
+                            <div class="flex items-center justify-center gap-1.5">
+                                <span class="text-xs text-gray-500 mr-1">${App.formatDate(a.tgl_bayar)}</span>
+                                <button onclick="AngsuranPage.form(null, { editId: ${a.id} })" class="inline-flex items-center gap-0.5 px-2.5 py-1 text-xs font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-all mr-1" title="Koreksi Data (Edit)"><i class="ri-edit-line"></i> Koreksi</button>
+                                <button onclick="AngsuranPage.confirmReverse(${a.id}, '${a.no_pinjaman}', ${a.angsuran_ke})" class="inline-flex items-center gap-0.5 px-2 py-1 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all" title="Batal Pembayaran (Reversal)"><i class="ri-arrow-go-back-line"></i> Reversal</button>
                             </div>
                         ` : '-')}
                     </td>
@@ -70,47 +78,59 @@ const AngsuranPage = {
             ${App.renderPagination(res.pagination, 'AngsuranPage.paginate')}</div>`;
     },
 
-    async form(pinjamanId = null) {
+    async form(pinjamanId = null, options = {}) {
         let accounts = [];
         const resAkun = await App.api('keuangan/akun');
         if (resAkun?.success) {
             accounts = resAkun.data;
         }
 
+        const isEdit = !!options.editId;
+        let trx = null;
+        if (isEdit) {
+            const editRes = await App.api('angsuran/' + options.editId);
+            if (editRes?.success) {
+                trx = editRes.data;
+            } else {
+                App.toast('Gagal memuat data angsuran', 'error');
+                return;
+            }
+        }
+
         App.openModal(`<div class="p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-6"><i class="ri-money-dollar-circle-line text-emerald-500 mr-2"></i>Pembayaran Angsuran</h3>
+            <h3 class="text-lg font-bold text-gray-800 mb-6"><i class="ri-money-dollar-circle-line text-emerald-500 mr-2"></i>${isEdit ? `Koreksi Pembayaran Angsuran: ${trx.no_pinjaman}` : 'Pembayaran Angsuran'}</h3>
             <form id="ags-form" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Cari Anggota atau No. Pinjaman *</label>
                     <div class="relative">
                         <i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                        <input type="text" id="af-search" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary-500" placeholder="Ketik nama atau no pinjaman..." autocomplete="off">
+                        <input type="text" id="af-search" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 ${isEdit ? 'bg-gray-50 text-gray-500 cursor-not-allowed border-gray-200' : ''}" placeholder="Ketik nama atau no pinjaman..." autocomplete="off" ${isEdit ? 'disabled' : ''} value="${isEdit ? `${trx.no_pinjaman} - ${trx.anggota_nama}` : ''}">
                     </div>
                     <div id="af-results" class="hidden border border-gray-200 rounded-xl mt-1 max-h-60 overflow-auto bg-white shadow-xl z-50"></div>
                 </div>
 
-                <div id="af-loan-box" class="hidden bg-emerald-50 border border-emerald-100 rounded-xl p-4 animate-fadeIn">
+                <div id="af-loan-box" class="${isEdit ? '' : 'hidden'} bg-emerald-50 border border-emerald-100 rounded-xl p-4 animate-fadeIn">
                     <div class="flex justify-between items-start mb-3">
                         <div>
-                            <div id="info-nama" class="font-bold text-gray-800 text-base"></div>
-                            <div id="info-pinjaman" class="font-mono text-xs text-primary-600"></div>
+                            <div id="info-nama" class="font-bold text-gray-800 text-base">${isEdit ? trx.anggota_nama : ''}</div>
+                            <div id="info-pinjaman" class="font-mono text-xs text-primary-600">${isEdit ? trx.no_pinjaman : ''}</div>
                         </div>
                         <div class="text-right">
-                            <div class="text-[0.65rem] text-gray-400 uppercase tracking-wider">Sisa Hutang</div>
-                            <div id="info-sisa" class="font-bold text-emerald-700 text-lg"></div>
+                            <div class="text-[0.65rem] text-gray-400 uppercase tracking-wider">${isEdit ? 'Saldo Sebelum' : 'Sisa Hutang'}</div>
+                            <div id="info-sisa" class="font-bold text-emerald-700 text-lg">${isEdit ? App.formatRupiah(trx.sisa_pinjaman || 0) : ''}</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-4 text-xs">
                         <div class="bg-white/50 px-2.5 py-1 rounded-lg border border-emerald-100">
-                            <span class="text-gray-400">Angsuran Ke:</span> <span id="info-ke" class="font-bold text-gray-700"></span>
+                            <span class="text-gray-400">Angsuran Ke:</span> <span id="info-ke" class="font-bold text-gray-700">${isEdit ? trx.angsuran_ke : ''}</span>
                         </div>
                         <div class="bg-white/50 px-2.5 py-1 rounded-lg border border-emerald-100">
-                            <span class="text-gray-400">Status:</span> <span id="info-status" class="font-bold text-gray-700"></span>
+                            <span class="text-gray-400">Status:</span> <span id="info-status" class="font-bold text-gray-700">${isEdit ? trx.status : ''}</span>
                         </div>
                     </div>
                 </div>
 
-                <input type="hidden" id="af-angsuran-id">
+                <input type="hidden" id="af-angsuran-id" value="${isEdit ? trx.id : ''}">
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -120,17 +140,17 @@ const AngsuranPage = {
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Metode Pembayaran *</label>
                         <select id="af-metode" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500">
-                            <option value="tunai">Tunai (Kas)</option>
-                            <option value="transfer">Transfer Bank</option>
+                            <option value="tunai" ${isEdit && trx.metode_pembayaran === 'tunai' ? 'selected' : ''}>Tunai (Kas)</option>
+                            <option value="transfer" ${isEdit && trx.metode_pembayaran === 'transfer' ? 'selected' : ''}>Transfer Bank</option>
                         </select>
                     </div>
                 </div>
 
-                <div id="af-akun-kas-container" class="hidden">
+                <div id="af-akun-kas-container" class="${isEdit && trx.metode_pembayaran === 'transfer' ? '' : 'hidden'}">
                     <label class="block text-sm font-medium text-gray-600 mb-1">Pilih Rekening Bank/COA *</label>
                     <div class="relative" id="af-akun-kas-wrapper">
                         <input type="text" id="af-akun-kas-search" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Ketik untuk mencari akun..." autocomplete="off">
-                        <input type="hidden" id="af-akun-kas">
+                        <input type="hidden" id="af-akun-kas" value="${isEdit ? trx.akun_kas_id || '' : ''}">
                         <div id="af-akun-kas-results" class="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl hidden"></div>
                     </div>
                 </div>
@@ -138,15 +158,15 @@ const AngsuranPage = {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Pokok (Rp) *</label>
-                        <input type="number" id="af-pokok" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 font-medium" placeholder="0">
+                        <input type="number" id="af-pokok" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 font-medium" placeholder="0" value="${isEdit ? trx.pokok : ''}">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Jasa/Bunga (Rp) *</label>
-                        <input type="number" id="af-bunga" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 font-medium" placeholder="0">
+                        <input type="number" id="af-bunga" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 font-medium" placeholder="0" value="${isEdit ? trx.bunga : ''}">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1 text-red-600">Denda Terlambat (Rp)</label>
-                        <input type="number" id="af-denda" class="w-full border border-red-200 bg-red-50 focus:ring-2 focus:ring-red-500 rounded-xl px-4 py-2.5 text-sm font-bold text-red-600" placeholder="0">
+                        <input type="number" id="af-denda" class="w-full border border-red-200 bg-red-50 focus:ring-2 focus:ring-red-500 rounded-xl px-4 py-2.5 text-sm font-bold text-red-600" placeholder="0" value="${isEdit ? trx.denda : ''}">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Total Bayar (Rp)</label>
@@ -156,17 +176,17 @@ const AngsuranPage = {
 
                 <div>
                     <label class="block text-sm font-medium text-gray-600 mb-1">Keterangan</label>
-                    <textarea id="af-ket" rows="2" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Contoh: Angsuran k-3 lancar..."></textarea>
+                    <textarea id="af-ket" rows="2" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Contoh: Angsuran k-3 lancar...">${isEdit ? trx.keterangan || '' : ''}</textarea>
                 </div>
 
                 <div class="flex justify-end gap-3 pt-4 border-t">
                     <button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm hover:bg-gray-50 text-gray-600">Batal</button>
-                    <button type="submit" id="af-submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Simpan Pembayaran</button>
+                    <button type="submit" id="af-submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-lg shadow-emerald-600/20" ${isEdit ? '' : 'disabled'}>${isEdit ? 'Simpan Koreksi' : 'Simpan Pembayaran'}</button>
                 </div>
             </form>
         </div>`);
 
-        App.datepicker('#af-tgl', { defaultDate: 'today' });
+        App.datepicker('#af-tgl', { defaultDate: isEdit ? App.formatDate(trx.tgl_bayar) : 'today' });
 
         const searchInput = document.getElementById('af-search');
         const resultsDiv = document.getElementById('af-results');
@@ -180,7 +200,6 @@ const AngsuranPage = {
         const hiddenCoaInput = document.getElementById('af-akun-kas');
         const dropCoaContainer = document.getElementById('af-akun-kas-results');
 
-        // Filter and populate accounts
         const assetAccounts = accounts.filter(a => a.tipe === 'aset');
 
         const filterCoa = (q = '') => {
@@ -203,6 +222,13 @@ const AngsuranPage = {
                 dropCoaContainer.classList.remove('hidden');
             }
         };
+
+        if (isEdit && trx.akun_kas_id) {
+            const activeAcc = assetAccounts.find(a => a.id == trx.akun_kas_id);
+            if (activeAcc) {
+                searchCoaInput.value = `${activeAcc.kode} - ${activeAcc.nama}`;
+            }
+        }
 
         searchCoaInput.addEventListener('focus', () => {
             filterCoa(searchCoaInput.value);
@@ -239,8 +265,6 @@ const AngsuranPage = {
             }
         });
 
-        let debounce;
-
         const calculateTotal = () => {
             const p = parseFloat(pokokInput.value) || 0;
             const b = parseFloat(bungaInput.value) || 0;
@@ -252,38 +276,45 @@ const AngsuranPage = {
             el.addEventListener('input', calculateTotal);
         });
 
-        searchInput.addEventListener('input', e => {
-            clearTimeout(debounce);
-            const q = e.target.value.trim();
-            if (q.length < 2) { resultsDiv.classList.add('hidden'); return; }
+        if (isEdit) {
+            calculateTotal();
+        }
 
-            debounce = setTimeout(async () => {
-                const res = await App.api(`pinjaman?search=${encodeURIComponent(q)}&status=cair&per_page=5`);
-                if (res?.data?.length) {
-                    resultsDiv.innerHTML = res.data.map(p => `
-                        <div class="px-4 py-3 hover:bg-emerald-50 cursor-pointer border-b border-gray-50 last:border-0" 
-                             onclick="AngsuranPage.selectLoan(${p.id})">
-                            <div class="flex justify-between items-center">
-                                <span class="font-medium text-gray-800">${p.anggota_nama}</span>
-                                <span class="text-[0.65rem] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">${p.no_pinjaman}</span>
+        let debounce;
+        if (!isEdit) {
+            searchInput.addEventListener('input', e => {
+                clearTimeout(debounce);
+                const q = e.target.value.trim();
+                if (q.length < 2) { resultsDiv.classList.add('hidden'); return; }
+
+                debounce = setTimeout(async () => {
+                    const res = await App.api(`pinjaman?search=${encodeURIComponent(q)}&status=cair&per_page=5`);
+                    if (res?.data?.length) {
+                        resultsDiv.innerHTML = res.data.map(p => `
+                            <div class="px-4 py-3 hover:bg-emerald-50 cursor-pointer border-b border-gray-50 last:border-0" 
+                                 onclick="AngsuranPage.selectLoan(${p.id})">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-medium text-gray-800">${p.anggota_nama}</span>
+                                    <span class="text-[0.65rem] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">${p.no_pinjaman}</span>
+                                </div>
+                                <div class="text-xs text-gray-400 mt-0.5">${p.jenis_pinjaman} | Sisa: ${App.formatRupiah(p.sisa_pinjaman)}</div>
                             </div>
-                            <div class="text-xs text-gray-400 mt-0.5">${p.jenis_pinjaman} | Sisa: ${App.formatRupiah(p.sisa_pinjaman)}</div>
-                        </div>
-                    `).join('');
-                    resultsDiv.classList.remove('hidden');
-                } else {
-                    resultsDiv.innerHTML = '<div class="px-4 py-3 text-gray-400 text-xs italic">Pinjaman aktif tidak ditemukan</div>';
-                    resultsDiv.classList.remove('hidden');
-                }
-            }, 300);
-        });
+                        `).join('');
+                        resultsDiv.classList.remove('hidden');
+                    } else {
+                        resultsDiv.innerHTML = '<div class="px-4 py-3 text-gray-400 text-xs italic">Pinjaman aktif tidak ditemukan</div>';
+                        resultsDiv.classList.remove('hidden');
+                    }
+                }, 300);
+            });
+        }
 
-        if (pinjamanId) this.selectLoan(pinjamanId);
+        if (!isEdit && pinjamanId) this.selectLoan(pinjamanId);
 
         document.getElementById('ags-form').onsubmit = async e => {
             e.preventDefault();
             const angsuranId = document.getElementById('af-angsuran-id').value;
-            const loanId = this.currentLoanId;
+            const loanId = isEdit ? trx.pinjaman_id : this.currentLoanId;
 
             const body = {
                 angsuran_id: angsuranId,
@@ -293,16 +324,22 @@ const AngsuranPage = {
                 denda: parseFloat(dendaInput.value) || 0,
                 tgl_transaksi: App.dateToISO(document.getElementById('af-tgl').value),
                 metode_pembayaran: metodeSelect.value,
-                akun_kas_id: metodeSelect.value === 'transfer' ? akunKasSelect.value : null,
+                akun_kas_id: metodeSelect.value === 'transfer' ? hiddenCoaInput.value : null,
                 keterangan: document.getElementById('af-ket').value
             };
 
-            const res = await App.api('angsuran', { method: 'POST', body });
+            const url = isEdit ? `angsuran/${options.editId}` : 'angsuran';
+            const method = isEdit ? 'PUT' : 'POST';
+            const res = await App.api(url, { method, body });
 
             if (res?.success) {
                 App.closeModal();
-                const d = res.data;
-                App.toast(`Berhasil: Angsuran ${d.angsuran_ke === 'Manual' ? 'Manual' : 'ke-' + d.angsuran_ke} telah dibayar. Total: ${App.formatRupiah(d.total_bayar)}`, 'success', 5000);
+                if (isEdit) {
+                    App.toast(`Berhasil mengoreksi data pembayaran angsuran.`, 'success', 5000);
+                } else {
+                    const d = res.data;
+                    App.toast(`Berhasil: Angsuran ${d.angsuran_ke === 'Manual' ? 'Manual' : 'ke-' + d.angsuran_ke} telah dibayar. Total: ${App.formatRupiah(d.total_bayar)}`, 'success', 5000);
+                }
                 this.loadList(this.container, this.page);
             } else {
                 App.toast(res?.message || 'Gagal menyimpan pembayaran', 'error');

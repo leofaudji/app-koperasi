@@ -1,7 +1,7 @@
 <?php
 // Application Configuration
 define('APP_NAME', 'Koperasi Simpan Pinjam');
-define('APP_VERSION', '2.1.0');
+define('APP_VERSION', '2.1.2');
 define('APP_URL', 'http://app-koperasi.test');
 
 // Session

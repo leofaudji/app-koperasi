@@ -328,12 +328,14 @@ switch ($method) {
         // Single or list
         elseif ($id && is_numeric($id)) {
             $data = $db->fetch(
-                "SELECT s.*, a.nama as anggota_nama, a.no_anggota,
-                        js.nama as jenis_simpanan, kt.nama as nama_transaksi, kt.kode as kode_transaksi, kt.dk
+                "SELECT s.*, a.nama as anggota_nama, a.no_anggota, rs.no_rekening,
+                        js.nama as jenis_simpanan, kt.nama as nama_transaksi, kt.kode as kode_transaksi, kt.dk,
+                        (SELECT COUNT(*) FROM audit_logs WHERE table_name = 'simpanan' AND record_id = s.id AND action = 'update') as is_edited
                  FROM simpanan s
                  JOIN anggota a ON s.anggota_id = a.id
                  JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
                  JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                 LEFT JOIN rekening_simpanan rs ON s.rekening_id = rs.id
                  WHERE s.id = ?",
                 [$id]
             );
@@ -370,7 +372,8 @@ switch ($method) {
             paginatedResponse(
                 "SELECT s.*, a.nama as anggota_nama, a.no_anggota,
                         js.nama as jenis_simpanan, kt.nama as nama_transaksi,
-                        kt.kode as kode_transaksi, kt.dk, rs.no_rekening
+                        kt.kode as kode_transaksi, kt.dk, rs.no_rekening,
+                        (SELECT COUNT(*) FROM audit_logs WHERE table_name = 'simpanan' AND record_id = s.id AND action = 'update') as is_edited
                  FROM simpanan s
                  JOIN anggota a ON s.anggota_id = a.id
                  JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
@@ -535,7 +538,7 @@ switch ($method) {
  
         $db->beginTransaction();
         try {
-            $noTransaksi = generateNo('SMP', 'simpanan', 'no_transaksi');
+            $noTransaksi = generateNo('TB', 'simpanan', 'no_transaksi');
  
             $simpananId = $db->insert(
                 "INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by, metode_pembayaran, akun_kas_id)
@@ -564,7 +567,7 @@ switch ($method) {
  
             // Create jurnal entry
             $jenisSimpanan = $db->fetch("SELECT nama, akun_id FROM jenis_simpanan WHERE id = ?", [$jenisId]);
-            $noBukti = generateNo('JRN', 'jurnal', 'no_bukti');
+            $noBukti = generateNo('TB', 'jurnal', 'no_bukti');
             $keterangan = $kodeTransaksi['nama'] . ' ' . $jenisSimpanan['nama'] . ' - ' . $anggota['nama'];
             if (!empty($params['keterangan'])) {
                 $keterangan .= ' (' . $params['keterangan'] . ')';
@@ -628,6 +631,171 @@ switch ($method) {
         } catch (Exception $e) {
             $db->rollBack();
             errorResponse('Gagal menyimpan transaksi: ' . $e->getMessage());
+        }
+        break;
+
+    case 'PUT':
+        checkPermission('simpanan.create');
+        if (empty($id)) {
+            errorResponse('ID Transaksi diperlukan');
+        }
+
+        $original = $db->fetch(
+            "SELECT s.*, kt.dk, js.nama as jenis_nama, js.akun_id as akun_simpanan_id,
+                    kt.akun_debit_id, kt.akun_kredit_id
+             FROM simpanan s
+             JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+             JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
+             WHERE s.id = ?",
+            [$id]
+        );
+        if (!$original) {
+            errorResponse('Transaksi tidak ditemukan');
+        }
+
+        if (strpos($original['keterangan'], 'REVERSAL') !== false) {
+            errorResponse('Transaksi reversal/dikoreksi tidak dapat diubah');
+        }
+        $reversed = $db->fetch("SELECT id FROM simpanan WHERE keterangan LIKE ?", ["%REVERSAL OF {$original['no_transaksi']}%"]);
+        if ($reversed) {
+            errorResponse('Transaksi yang sudah direversal/dikoreksi tidak dapat diubah');
+        }
+
+        $kodeTransaksiId = $params['kode_transaksi_id'] ?? $original['kode_transaksi_id'];
+        $tgl = $params['tgl_transaksi'] ?? $original['tgl_transaksi'];
+        $metodePembayaran = $params['metode_pembayaran'] ?? $original['metode_pembayaran'];
+        $akunKasId = $params['akun_kas_id'] ?? $original['akun_kas_id'];
+        $jumlah = floatval($params['jumlah'] ?? $original['jumlah']);
+        $keterangan = $params['keterangan'] ?? $original['keterangan'];
+
+        if ($jumlah <= 0) {
+            errorResponse('Jumlah transaksi harus lebih dari 0');
+        }
+
+        $kodeTransaksi = $db->fetch("SELECT * FROM kode_transaksi_simpanan WHERE id = ? AND is_active = 1", [$kodeTransaksiId]);
+        if (!$kodeTransaksi) {
+            errorResponse('Kode transaksi tidak valid');
+        }
+
+        // Calculate adjustment effect on current balance
+        $old_effect = ($original['dk'] === 'D') ? floatval($original['jumlah']) : -floatval($original['jumlah']);
+        $new_effect = ($kodeTransaksi['dk'] === 'D') ? $jumlah : -$jumlah;
+        $adjustment = $new_effect - $old_effect;
+
+        if ($original['rekening_id']) {
+            $rekening = $db->fetch("SELECT * FROM rekening_simpanan WHERE id = ?", [$original['rekening_id']]);
+            $saldoSekarang = floatval($rekening['saldo']);
+            $new_saldo = $saldoSekarang + $adjustment;
+        } else {
+            $currentSaldo = $db->fetch(
+                "SELECT COALESCE(SUM(CASE WHEN kt.dk='D' THEN s.jumlah ELSE -s.jumlah END),0) as saldo
+                 FROM simpanan s
+                 JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                 WHERE s.anggota_id = ? AND s.jenis_simpanan_id = ?",
+                [$original['anggota_id'], $original['jenis_simpanan_id']]
+            );
+            $saldoSekarang = floatval($currentSaldo['saldo']);
+            $new_saldo = $saldoSekarang + $adjustment;
+        }
+
+        if ($new_saldo < 0) {
+            errorResponse('Saldo tidak mencukupi untuk melakukan koreksi ini. Saldo akhir setelah penyesuaian akan menjadi negatif: Rp ' . number_format($new_saldo, 0, ',', '.'));
+        }
+
+        $db->beginTransaction();
+        try {
+            $new_saldo_sesudah = $original['saldo_sebelum'] + $new_effect;
+
+            $db->execute(
+                "UPDATE simpanan SET 
+                    kode_transaksi_id = ?, 
+                    tgl_transaksi = ?, 
+                    jumlah = ?, 
+                    saldo_sesudah = ?, 
+                    metode_pembayaran = ?, 
+                    akun_kas_id = ?, 
+                    keterangan = ? 
+                 WHERE id = ?",
+                [
+                    $kodeTransaksiId,
+                    $tgl,
+                    $jumlah,
+                    $new_saldo_sesudah,
+                    $metodePembayaran,
+                    $metodePembayaran === 'transfer' ? $akunKasId : null,
+                    $keterangan,
+                    $id
+                ]
+            );
+
+            if ($original['rekening_id']) {
+                $db->execute("UPDATE rekening_simpanan SET saldo = ? WHERE id = ?", [$new_saldo, $original['rekening_id']]);
+            }
+
+            // Update Journal
+            $jurnal = $db->fetch("SELECT id FROM jurnal WHERE ref_tipe='simpanan' AND ref_id=?", [$id]);
+            if ($jurnal) {
+                $jenisSimpanan = $db->fetch("SELECT nama, akun_id FROM jenis_simpanan WHERE id = ?", [$original['jenis_simpanan_id']]);
+                $anggota = $db->fetch("SELECT nama FROM anggota WHERE id = ?", [$original['anggota_id']]);
+                $ketJurnal = $kodeTransaksi['nama'] . ' ' . $jenisSimpanan['nama'] . ' - ' . $anggota['nama'];
+                if (!empty($keterangan)) {
+                    $ketJurnal .= ' (' . $keterangan . ')';
+                }
+
+                $db->execute(
+                    "UPDATE jurnal SET 
+                        tgl_transaksi = ?, 
+                        keterangan = ?, 
+                        total_debit = ?, 
+                        total_kredit = ? 
+                     WHERE id = ?",
+                    [$tgl, $ketJurnal, $jumlah, $jumlah, $jurnal['id']]
+                );
+
+                $db->execute("DELETE FROM jurnal_detail WHERE jurnal_id = ?", [$jurnal['id']]);
+
+                $akunSimpanan = $jenisSimpanan['akun_id'];
+                if ($kodeTransaksi['dk'] === 'D') {
+                    $akunDebit = $kodeTransaksi['akun_debit_id'] ?: $akunSimpanan;
+                    if ($metodePembayaran === 'transfer' && !empty($akunKasId)) {
+                        $checkedAkun = $db->fetch("SELECT id FROM akun WHERE id = ? AND is_active = 1", [$akunKasId]);
+                        if ($checkedAkun) {
+                            $akunDebit = $checkedAkun['id'];
+                        }
+                    }
+                    $akunKredit = $akunSimpanan;
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnal['id'], $akunDebit, $jumlah]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnal['id'], $akunKredit, $jumlah]);
+                } else {
+                    $akunDebit = $akunSimpanan;
+                    $akunKredit = $kodeTransaksi['akun_kredit_id'] ?: $akunSimpanan;
+                    if ($metodePembayaran === 'transfer' && !empty($akunKasId)) {
+                        $checkedAkun = $db->fetch("SELECT id FROM akun WHERE id = ? AND is_active = 1", [$akunKasId]);
+                        if ($checkedAkun) {
+                            $akunKredit = $checkedAkun['id'];
+                        }
+                    }
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnal['id'], $akunDebit, $jumlah]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnal['id'], $akunKredit, $jumlah]);
+                }
+            }
+
+            $db->commit();
+            clearCache(['member' => $original['anggota_id'], 'saving', 'finance', 'audit']);
+            
+            logActivity('update', 'simpanan', $id, $original, [
+                'kode_transaksi_id' => $kodeTransaksiId,
+                'tgl_transaksi' => $tgl,
+                'jumlah' => $jumlah,
+                'metode_pembayaran' => $metodePembayaran,
+                'akun_kas_id' => $akunKasId,
+                'keterangan' => $keterangan
+            ]);
+
+            successResponse(['id' => $id, 'saldo_sesudah' => $new_saldo], 'Koreksi data transaksi simpanan berhasil');
+        } catch (Exception $e) {
+            $db->rollBack();
+            errorResponse('Gagal mengoreksi transaksi: ' . $e->getMessage());
         }
         break;
 

@@ -96,7 +96,8 @@ switch ($method) {
 
         if ($id && is_numeric($id)) {
             $data = $db->fetch(
-                "SELECT ag.*, p.no_pinjaman, a.nama as anggota_nama, a.no_anggota
+                "SELECT ag.*, p.no_pinjaman, a.nama as anggota_nama, a.no_anggota,
+                        (SELECT COUNT(*) FROM audit_logs WHERE table_name = 'angsuran' AND record_id = ag.id AND action = 'update') as is_edited
                  FROM angsuran ag
                  JOIN pinjaman p ON ag.pinjaman_id = p.id
                  JOIN anggota a ON p.anggota_id = a.id
@@ -124,6 +125,8 @@ switch ($method) {
             if ($status) {
                 $where .= " AND ag.status = ?";
                 $binds[] = $status;
+            } else {
+                $where .= " AND ag.tgl_bayar IS NOT NULL";
             }
             if ($pinjamanId) {
                 $where .= " AND ag.pinjaman_id = ?";
@@ -137,7 +140,8 @@ switch ($method) {
             }
 
             paginatedResponse(
-                "SELECT ag.*, p.no_pinjaman, a.nama as anggota_nama, a.no_anggota
+                "SELECT ag.*, p.no_pinjaman, a.nama as anggota_nama, a.no_anggota,
+                        (SELECT COUNT(*) FROM audit_logs WHERE table_name = 'angsuran' AND record_id = ag.id AND action = 'update') as is_edited
                  FROM angsuran ag
                  JOIN pinjaman p ON ag.pinjaman_id = p.id
                  JOIN anggota a ON p.anggota_id = a.id
@@ -289,7 +293,7 @@ switch ($method) {
                     ]
                 );
             } else {
-                $noTrx = generateNo('AGS', 'angsuran', 'no_transaksi');
+                $noTrx = generateNo('AG', 'angsuran', 'no_transaksi');
                 $angsuranId = $db->insert(
                     "INSERT INTO angsuran (no_transaksi, pinjaman_id, angsuran_ke, tgl_jatuh_tempo, tgl_bayar, pokok, bunga, denda, total, status, created_by, metode_pembayaran, akun_kas_id)
                      VALUES (?,?,0,?,?,?,?,?,?,?,?,?,?)",
@@ -318,7 +322,7 @@ switch ($method) {
             }
 
             $anggota = $db->fetch("SELECT nama FROM anggota WHERE id = ?", [$angsuran['anggota_id']]);
-            $noBukti = generateNo('JRN', 'jurnal', 'no_bukti');
+            $noBukti = generateNo('AG', 'jurnal', 'no_bukti');
             $ket = 'Angsuran ' . ($angsuran['angsuran_ke'] === 'Manual' ? 'Manual' : 'ke-' . $angsuran['angsuran_ke']) . ' ' . $angsuran['no_pinjaman'] . ' - ' . $anggota['nama'];
             if (!empty($params['keterangan']))
                 $ket .= ' (' . $params['keterangan'] . ')';
@@ -382,7 +386,7 @@ switch ($method) {
         break;
 
     case 'PUT':
-        if ($action === 'pelunasan') {
+        if (isset($action) && $action === 'pelunasan') {
             checkPermission('angsuran.create');
             if (!$id || !is_numeric($id))
                 errorResponse('ID pinjaman diperlukan');
@@ -444,7 +448,7 @@ switch ($method) {
                 );
 
                 // Buat jurnal pelunasan
-                $noBukti = generateNo('JRN', 'jurnal', 'no_bukti');
+                $noBukti = generateNo('AG', 'jurnal', 'no_bukti');
                 $ket = 'Pelunasan Pinjaman ' . $pinjaman['no_pinjaman'] . ' - ' . $pinjaman['anggota_nama'];
                 if ($keterangan)
                     $ket .= ' (' . $keterangan . ')';
@@ -497,6 +501,161 @@ switch ($method) {
                 $db->rollBack();
                 errorResponse('Gagal memproses pelunasan: ' . $e->getMessage());
             }
+        } else {
+            checkPermission('angsuran.create');
+        if (empty($id)) {
+            errorResponse('ID Angsuran diperlukan');
+        }
+
+        $original = $db->fetch(
+            "SELECT ag.*, p.anggota_id, p.id as p_id, p.no_pinjaman, p.jumlah as jumlah_pinjaman, p.sisa_pinjaman, jp.akun_id
+             FROM angsuran ag 
+             JOIN pinjaman p ON ag.pinjaman_id = p.id
+             JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+             WHERE ag.id = ?",
+            [$id]
+        );
+        if (!$original) {
+            errorResponse('Data angsuran tidak ditemukan');
+        }
+        if ($original['status'] === 'belum') {
+            errorResponse('Angsuran belum dibayar, tidak dapat dikoreksi');
+        }
+
+        $pinjaman = $db->fetch("SELECT * FROM pinjaman WHERE id = ?", [$original['pinjaman_id']]);
+        if (!$pinjaman) {
+            errorResponse('Pinjaman tidak ditemukan');
+        }
+
+        $manualPokok = $params['pokok'] ?? $original['pokok'];
+        $manualBunga = $params['bunga'] ?? $original['bunga'];
+        $manualDenda = $params['denda'] ?? $original['denda'];
+        $tglTransaksi = $params['tgl_transaksi'] ?? $original['tgl_bayar'];
+        $metodePembayaran = $params['metode_pembayaran'] ?? $original['metode_pembayaran'];
+        $akunKasId = $params['akun_kas_id'] ?? $original['akun_kas_id'];
+
+        $tglBayar = $tglTransaksi ? $tglTransaksi : date('Y-m-d');
+        $pokok = floatval($manualPokok);
+        $bunga = floatval($manualBunga);
+        $denda = floatval($manualDenda);
+        $totalBayar = $pokok + $bunga + $denda;
+
+        $adjustment = floatval($original['pokok']) - $pokok;
+        $newSisaPinjaman = floatval($pinjaman['sisa_pinjaman']) + $adjustment;
+
+        if ($newSisaPinjaman < 0) {
+            errorResponse('Sisa pinjaman tidak boleh negatif setelah koreksi. Sisa pinjaman saat ini: Rp ' . number_format($pinjaman['sisa_pinjaman'], 0, ',', '.'));
+        }
+
+        $db->beginTransaction();
+        try {
+            $statusAng = $denda > 0 ? 'terlambat' : 'lunas';
+
+            $db->execute(
+                "UPDATE angsuran SET 
+                    tgl_bayar = ?, 
+                    pokok = ?, 
+                    bunga = ?, 
+                    denda = ?, 
+                    total = ?, 
+                    status = ?, 
+                    metode_pembayaran = ?, 
+                    akun_kas_id = ? 
+                 WHERE id = ?",
+                [
+                    $tglBayar,
+                    $pokok,
+                    $bunga,
+                    $denda,
+                    $totalBayar,
+                    $statusAng,
+                    $metodePembayaran,
+                    $metodePembayaran === 'transfer' ? $akunKasId : null,
+                    $id
+                ]
+            );
+
+            $db->execute(
+                "UPDATE pinjaman SET sisa_pinjaman = ? WHERE id = ?",
+                [$newSisaPinjaman, $original['pinjaman_id']]
+            );
+
+            $jurnal = $db->fetch("SELECT id FROM jurnal WHERE ref_tipe='angsuran' AND ref_id=?", [$id]);
+            if ($jurnal) {
+                $anggota = $db->fetch("SELECT nama FROM anggota WHERE id = ?", [$pinjaman['anggota_id']]);
+                $ket = "Angsuran Ke-" . $original['angsuran_ke'] . " - " . $anggota['nama'] . " (Pinjaman: " . $pinjaman['no_pinjaman'] . ")";
+                if (!empty($params['keterangan'])) {
+                    $ket .= ' (' . $params['keterangan'] . ')';
+                }
+
+                $db->execute(
+                    "UPDATE jurnal SET 
+                        tgl_transaksi = ?, 
+                        keterangan = ?, 
+                        total_debit = ?, 
+                        total_kredit = ? 
+                     WHERE id = ?",
+                    [$tglBayar, $ket, $totalBayar, $totalBayar, $jurnal['id']]
+                );
+
+                $db->execute("DELETE FROM jurnal_detail WHERE jurnal_id = ?", [$jurnal['id']]);
+
+                if ($totalBayar > 0) {
+                    $debitAkunId = null;
+                    if ($metodePembayaran === 'transfer' && !empty($akunKasId)) {
+                        $checkedAkun = $db->fetch("SELECT id FROM akun WHERE id = ? AND is_active = 1", [$akunKasId]);
+                        if ($checkedAkun) {
+                            $debitAkunId = $checkedAkun['id'];
+                        }
+                    }
+                    
+                    if ($debitAkunId) {
+                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnal['id'], $debitAkunId, $totalBayar]);
+                    } else {
+                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='1000' LIMIT 1), (SELECT id FROM akun WHERE kode='100' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Kas%' LIMIT 1))), ?, 0)", [$jurnal['id'], $totalBayar]);
+                    }
+                }
+                if ($pokok > 0) {
+                    $piutangRow = $db->fetch("SELECT id FROM akun WHERE kode='1200' OR kode='190' OR nama LIKE '%Piutang%' LIMIT 1");
+                    $akunPiutangId = $original['akun_id'] ?: ($piutangRow ? $piutangRow['id'] : null);
+                    if ($akunPiutangId) {
+                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnal['id'], $akunPiutangId, $pokok]);
+                    }
+                }
+                if ($bunga > 0) {
+                    $pendapatanRow = $db->fetch("SELECT id FROM akun WHERE kode='4100' OR kode='410' OR nama LIKE '%Pendapatan Bunga%' OR nama LIKE '%Pendapatan Jasa%' LIMIT 1");
+                    $akunPendapatanId = $pendapatanRow ? $pendapatanRow['id'] : null;
+                    if ($akunPendapatanId) {
+                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnal['id'], $akunPendapatanId, $bunga]);
+                    }
+                }
+                if ($denda > 0) {
+                    $dendaRow = $db->fetch("SELECT id FROM akun WHERE kode='4200' OR kode='420' OR nama LIKE '%Pendapatan Denda%' OR nama LIKE '%Denda%' LIMIT 1");
+                    $akunDendaId = $dendaRow ? $dendaRow['id'] : null;
+                    if ($akunDendaId) {
+                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnal['id'], $akunDendaId, $denda]);
+                    }
+                }
+            }
+
+            $db->commit();
+            clearCache(['member' => $pinjaman['anggota_id'], 'loan', 'finance', 'audit']);
+
+            logActivity('update', 'angsuran', $id, $original, [
+                'tgl_bayar' => $tglBayar,
+                'pokok' => $pokok,
+                'bunga' => $bunga,
+                'denda' => $denda,
+                'total' => $totalBayar,
+                'metode_pembayaran' => $metodePembayaran,
+                'akun_kas_id' => $akunKasId
+            ]);
+
+            successResponse(['id' => $id, 'sisa_pinjaman' => $newSisaPinjaman], 'Koreksi pembayaran angsuran berhasil');
+        } catch (Exception $e) {
+            $db->rollBack();
+            errorResponse('Gagal mengoreksi pembayaran: ' . $e->getMessage());
+        }
         }
         break;
 

@@ -469,6 +469,31 @@ switch ($id) {
     case 'jurnal':
         checkPermission('keuangan.jurnal');
         if ($method === 'GET') {
+            if ($action && is_numeric($action)) {
+                $jurnal = $db->fetch(
+                    "SELECT j.*,
+                            (CASE 
+                                WHEN j.ref_tipe = 'simpanan' THEN (SELECT no_transaksi FROM simpanan WHERE id = j.ref_id)
+                                WHEN j.ref_tipe = 'angsuran' THEN (SELECT no_transaksi FROM angsuran WHERE id = j.ref_id)
+                                WHEN j.ref_tipe = 'pinjaman' THEN (SELECT no_pinjaman FROM pinjaman WHERE id = j.ref_id)
+                                ELSE NULL 
+                             END) as ref_no_transaksi,
+                            (SELECT COUNT(*) FROM audit_logs WHERE table_name = 'jurnal' AND record_id = j.id AND action = 'update') as is_edited
+                     FROM jurnal j WHERE j.id = ?",
+                    [$action]
+                );
+                if (!$jurnal) {
+                    errorResponse('Jurnal tidak ditemukan', 404);
+                }
+                $jurnal['details'] = $db->fetchAll(
+                    "SELECT jd.*, ak.kode as akun_kode, ak.nama as akun_nama
+                     FROM jurnal_detail jd JOIN akun ak ON jd.akun_id = ak.id
+                     WHERE jd.jurnal_id = ? ORDER BY jd.debit DESC",
+                    [$jurnal['id']]
+                );
+                successResponse($jurnal);
+            }
+
             $dari = $params['dari'] ?? date('Y-m-01');
             $sampai = $params['sampai'] ?? date('Y-m-d');
             $page = $params['page'] ?? 1;
@@ -476,6 +501,19 @@ switch ($id) {
 
             $where = "WHERE j.tgl_transaksi BETWEEN ? AND ?";
             $binds = [$dari, $sampai];
+
+            $tipe = $params['tipe'] ?? '';
+            if ($tipe) {
+                if ($tipe === 'simpanan') {
+                    $where .= " AND j.ref_tipe = 'simpanan'";
+                } elseif ($tipe === 'pinjaman') {
+                    $where .= " AND j.ref_tipe IN ('pinjaman', 'pelunasan_pinjaman')";
+                } elseif ($tipe === 'angsuran') {
+                    $where .= " AND j.ref_tipe = 'angsuran'";
+                } elseif ($tipe === 'manual') {
+                    $where .= " AND j.ref_tipe IN ('manual', 'saldo_awal_neraca', 'saldo_awal_labarugi', 'reversal')";
+                }
+            }
 
             if (!empty($params['search'])) {
                 $where .= " AND (j.no_bukti LIKE ? OR j.keterangan LIKE ?)";
@@ -487,7 +525,14 @@ switch ($id) {
             $total = $db->count("SELECT COUNT(*) FROM jurnal j $where", $binds);
 
             $jurnals = $db->fetchAll(
-                "SELECT j.*, u.nama_lengkap as created_by_nama
+                "SELECT j.*, u.nama_lengkap as created_by_nama,
+                        (CASE 
+                            WHEN j.ref_tipe = 'simpanan' THEN (SELECT no_transaksi FROM simpanan WHERE id = j.ref_id)
+                            WHEN j.ref_tipe = 'angsuran' THEN (SELECT no_transaksi FROM angsuran WHERE id = j.ref_id)
+                            WHEN j.ref_tipe = 'pinjaman' THEN (SELECT no_pinjaman FROM pinjaman WHERE id = j.ref_id)
+                            ELSE NULL 
+                         END) as ref_no_transaksi,
+                        (SELECT COUNT(*) FROM audit_logs WHERE table_name = 'jurnal' AND record_id = j.id AND action = 'update') as is_edited
                  FROM jurnal j LEFT JOIN users u ON j.created_by = u.id
                  $where ORDER BY j.tgl_transaksi DESC, j.id DESC
                  LIMIT $perPage OFFSET $offset",
@@ -515,13 +560,113 @@ switch ($id) {
                 ]
             ]);
         } elseif ($method === 'POST') {
-            // Manual journal entry
-            $tgl = $params['tgl_transaksi'] ?? date('Y-m-d');
-            $keterangan = $params['keterangan'] ?? '';
+            if ($action === 'reverse') {
+                // Reversal of journal
+                $targetId = $params['id'] ?? null;
+                if (!$targetId)
+                    errorResponse('ID Jurnal diperlukan');
+
+                $original = $db->fetch("SELECT * FROM jurnal WHERE id = ?", [$targetId]);
+                if (!$original)
+                    errorResponse('Jurnal tidak ditemukan');
+
+                // Check if already reversed
+                $exists = $db->fetch("SELECT id FROM jurnal WHERE ref_tipe = 'reversal' AND ref_id = ?", [$targetId]);
+                if ($exists)
+                    errorResponse('Jurnal ini sudah pernah direversal');
+
+                $details = $db->fetchAll("SELECT * FROM jurnal_detail WHERE jurnal_id = ?", [$targetId]);
+
+                $db->beginTransaction();
+                try {
+                    $noBukti = generateNo('REV', 'jurnal', 'no_bukti');
+                    $tgl = date('Y-m-d');
+                    $keterangan = "[REVERSAL] " . $original['no_bukti'] . " - " . $original['keterangan'];
+
+                    $revId = $db->insert(
+                        "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by)
+                         VALUES (?,?,?, 'reversal', ?, ?, ?, ?)",
+                        [$noBukti, $tgl, $keterangan, $targetId, $original['total_debit'], $original['total_kredit'], $_SESSION['user_id']]
+                    );
+
+                    foreach ($details as $detail) {
+                        // Swap Debit & Kredit
+                        $db->execute(
+                            "INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?,?,?,?,?)",
+                            [$revId, $detail['akun_id'], $detail['kredit'], $detail['debit'], $detail['keterangan']]
+                        );
+                    }
+
+                    $db->commit();
+                    clearCache(['finance', 'audit']);
+                    successResponse(['id' => $revId, 'no_bukti' => $noBukti], 'Jurnal reversal berhasil dibuat');
+                } catch (Exception $e) {
+                    $db->rollBack();
+                    errorResponse('Gagal melakukan reversal: ' . $e->getMessage());
+                }
+            } else {
+                // Manual journal entry
+                $tgl = $params['tgl_transaksi'] ?? date('Y-m-d');
+                $keterangan = $params['keterangan'] ?? '';
+                $details = $params['details'] ?? [];
+
+                if (empty($details))
+                    errorResponse('Detail jurnal wajib diisi');
+
+                $totalDebit = array_sum(array_column($details, 'debit'));
+                $totalKredit = array_sum(array_column($details, 'kredit'));
+
+                if (abs($totalDebit - $totalKredit) > 0.01) {
+                    errorResponse('Total debit harus sama dengan total kredit');
+                }
+
+                $db->beginTransaction();
+                try {
+                    $noBukti = generateNo('JR', 'jurnal', 'no_bukti');
+                    $jurnalId = $db->insert(
+                        "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, total_debit, total_kredit, created_by)
+                         VALUES (?,?,?,'manual',?,?,?)",
+                        [$noBukti, $tgl, $keterangan, $totalDebit, $totalKredit, $_SESSION['user_id']]
+                    );
+
+                    foreach ($details as $detail) {
+                        $db->execute(
+                            "INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?,?,?,?,?)",
+                            [$jurnalId, $detail['akun_id'], $detail['debit'] ?? 0, $detail['kredit'] ?? 0, $detail['keterangan'] ?? '']
+                        );
+                    }
+
+                    $db->commit();
+                    // Clear all related caches via central helper
+                    clearCache(['finance', 'audit']);
+
+                    successResponse(['id' => $jurnalId, 'no_bukti' => $noBukti], 'Jurnal berhasil dibuat', 201);
+                } catch (Exception $e) {
+                    $db->rollBack();
+                    errorResponse('Gagal membuat jurnal: ' . $e->getMessage());
+                }
+            }
+        } elseif ($method === 'PUT') {
+            $targetId = $action;
+            if (!$targetId || !is_numeric($targetId)) {
+                errorResponse('ID Jurnal diperlukan');
+            }
+
+            $original = $db->fetch("SELECT * FROM jurnal WHERE id = ?", [$targetId]);
+            if (!$original) {
+                errorResponse('Jurnal tidak ditemukan');
+            }
+            if (!empty($original['ref_tipe']) && $original['ref_tipe'] !== 'manual') {
+                errorResponse('Hanya jurnal manual yang dapat dikoreksi secara langsung. Jurnal otomatis dari transaksi simpanan/pinjaman/angsuran harus dikoreksi melalui menu transaksi yang bersangkutan.');
+            }
+
+            $tgl = $params['tgl_transaksi'] ?? $original['tgl_transaksi'];
+            $keterangan = $params['keterangan'] ?? $original['keterangan'];
             $details = $params['details'] ?? [];
 
-            if (empty($details))
+            if (empty($details)) {
                 errorResponse('Detail jurnal wajib diisi');
+            }
 
             $totalDebit = array_sum(array_column($details, 'debit'));
             $totalKredit = array_sum(array_column($details, 'kredit'));
@@ -532,72 +677,26 @@ switch ($id) {
 
             $db->beginTransaction();
             try {
-                $noBukti = generateNo('JRN', 'jurnal', 'no_bukti');
-                $jurnalId = $db->insert(
-                    "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, total_debit, total_kredit, created_by)
-                     VALUES (?,?,?,'manual',?,?,?)",
-                    [$noBukti, $tgl, $keterangan, $totalDebit, $totalKredit, $_SESSION['user_id']]
+                $db->execute(
+                    "UPDATE jurnal SET tgl_transaksi = ?, keterangan = ?, total_debit = ?, total_kredit = ? WHERE id = ?",
+                    [$tgl, $keterangan, $totalDebit, $totalKredit, $targetId]
                 );
+
+                $db->execute("DELETE FROM jurnal_detail WHERE jurnal_id = ?", [$targetId]);
 
                 foreach ($details as $detail) {
                     $db->execute(
                         "INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?,?,?,?,?)",
-                        [$jurnalId, $detail['akun_id'], $detail['debit'] ?? 0, $detail['kredit'] ?? 0, $detail['keterangan'] ?? '']
-                    );
-                }
-
-                $db->commit();
-                // Clear all related caches via central helper
-                clearCache(['finance', 'audit']);
-
-                successResponse(['id' => $jurnalId, 'no_bukti' => $noBukti], 'Jurnal berhasil dibuat', 201);
-            } catch (Exception $e) {
-                $db->rollBack();
-                errorResponse('Gagal membuat jurnal: ' . $e->getMessage());
-            }
-        } elseif ($method === 'POST' && $action === 'reverse') {
-            // Reversal of journal
-            $targetId = $params['id'] ?? null;
-            if (!$targetId)
-                errorResponse('ID Jurnal diperlukan');
-
-            $original = $db->fetch("SELECT * FROM jurnal WHERE id = ?", [$targetId]);
-            if (!$original)
-                errorResponse('Jurnal tidak ditemukan');
-
-            // Check if already reversed
-            $exists = $db->fetch("SELECT id FROM jurnal WHERE ref_tipe = 'reversal' AND ref_id = ?", [$targetId]);
-            if ($exists)
-                errorResponse('Jurnal ini sudah pernah direversal');
-
-            $details = $db->fetchAll("SELECT * FROM jurnal_detail WHERE jurnal_id = ?", [$targetId]);
-
-            $db->beginTransaction();
-            try {
-                $noBukti = generateNo('REV', 'jurnal', 'no_bukti');
-                $tgl = date('Y-m-d');
-                $keterangan = "[REVERSAL] " . $original['no_bukti'] . " - " . $original['keterangan'];
-
-                $revId = $db->insert(
-                    "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by)
-                     VALUES (?,?,?, 'reversal', ?, ?, ?, ?)",
-                    [$noBukti, $tgl, $keterangan, $targetId, $original['total_debit'], $original['total_kredit'], $_SESSION['user_id']]
-                );
-
-                foreach ($details as $detail) {
-                    // Swap Debit & Kredit
-                    $db->execute(
-                        "INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?,?,?,?,?)",
-                        [$revId, $detail['akun_id'], $detail['kredit'], $detail['debit'], $detail['keterangan']]
+                        [$targetId, $detail['akun_id'], $detail['debit'] ?? 0, $detail['kredit'] ?? 0, $detail['keterangan'] ?? '']
                     );
                 }
 
                 $db->commit();
                 clearCache(['finance', 'audit']);
-                successResponse(['id' => $revId, 'no_bukti' => $noBukti], 'Jurnal reversal berhasil dibuat');
+                successResponse(['id' => $targetId], 'Jurnal berhasil diperbarui');
             } catch (Exception $e) {
                 $db->rollBack();
-                errorResponse('Gagal melakukan reversal: ' . $e->getMessage());
+                errorResponse('Gagal memperbarui jurnal: ' . $e->getMessage());
             }
         }
         break;
@@ -779,14 +878,14 @@ switch ($id) {
 
                     $paddedBulan = str_pad($bulan, 2, '0', STR_PAD_LEFT);
                     // 2. Input Transaksi Simpanan
-                    $noTrx = generateNo('SMP', 'simpanan', 'no_transaksi');
+                    $noTrx = generateNo('TB', 'simpanan', 'no_transaksi');
                     $simpananId = $db->insert("INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)", [$noTrx, $row['anggota_id'], $js['id'], $rekeningId, $kt['id'], $tgl, $jumlah, $saldoSblm, $saldoSsdh, "Posting Jasa Partisipatif ($pct%) Periode $paddedBulan-$tahun", $_SESSION['user_id']]);
                     
                     // 3. Update Saldo Rekening
                     $db->execute("UPDATE rekening_simpanan SET saldo = ? WHERE id = ?", [$saldoSsdh, $rekeningId]);
 
                     // 4. Jurnal Otomatis (D: Pendapatan Bunga, K: Simpanan Partisipatif)
-                    $noBukti = generateNo('JRN', 'jurnal', 'no_bukti');
+                    $noBukti = generateNo('TB', 'jurnal', 'no_bukti');
                     $jId = $db->insert("INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by) VALUES (?,?,?, 'simpanan', ?, ?, ?, ?)", [$noBukti, $tgl, "Posting Jasa Partisipatif - ".$row['anggota_nama']." ($paddedBulan-$tahun)", $simpananId, $jumlah, $jumlah, $_SESSION['user_id']]);
                     
                     $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4000' LIMIT 1), ?, 0)", [$jId, $jumlah]);
@@ -1130,6 +1229,31 @@ switch ($id) {
         }
         break;
 
+    case 'audit-history':
+        authCheck();
+        $table = $params['table'] ?? '';
+        $rowId = $params['id'] ?? 0;
+        if (empty($table) || empty($rowId)) {
+            errorResponse('Parameter table dan id diperlukan');
+        }
+
+        $logs = $db->fetchAll(
+            "SELECT al.*, u.nama_lengkap as user_nama
+             FROM audit_logs al
+             LEFT JOIN users u ON al.user_id = u.id
+             WHERE al.table_name = ? AND al.record_id = ?
+             ORDER BY al.id DESC",
+            [$table, $rowId]
+        );
+
+        foreach ($logs as &$log) {
+            $log['old_data'] = $log['old_data'] ? json_decode($log['old_data'], true) : null;
+            $log['new_data'] = $log['new_data'] ? json_decode($log['new_data'], true) : null;
+        }
+
+        successResponse($logs);
+        break;
+ 
     default:
         errorResponse('Route keuangan tidak ditemukan', 404);
 }

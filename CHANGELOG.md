@@ -6,6 +6,23 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v2.1.2] - 2026-07-07
+
+### ✨ Ditambahkan
+- **Pintasan Sumber Transaksi (Traceability Link):** Tombol "Buka Transaksi" pada detail jurnal otomatis (Simpanan, Angsuran, Pinjaman) untuk langsung beralih dan memfilter transaksi asli di halaman masing-masing.
+- **Indikator & Histori Koreksi (Audit Trail):** Label badge **"DIEDIT"** berwarna kuning jika transaksi telah dikoreksi. Mengklik badge akan memunculkan timeline modal riwayat perubahan, lengkap dengan perbandingan field lama vs baru (*side-by-side JSON diff* dan format Rupiah otomatis).
+
+## [v2.1.1] - 2026-07-07
+
+### ✨ Ditambahkan
+- **Fitur Koreksi Jurnal Manual:** Pengguna dapat mengoreksi data tanggal, keterangan, dan akun debit/kredit pada entri Jurnal Umum manual.
+- **Koreksi Transaksi Angsuran:** Dukungan koreksi/edit nominal pokok, bunga, denda, tanggal, dan kas masuk pada transaksi Angsuran.
+
+### 🎨 Desain & UI
+- **Penyederhanaan Tabel Angsuran:** Kolom Pokok, Bunga, dan Total digabungkan menjadi kolom "Rincian Pembayaran" yang dinamis dan hemat ruang.
+- **Penyederhanaan Jurnal Umum:** Menggabungkan kolom Faktur (No. Bukti) dan Tanggal Transaksi menjadi satu kolom info vertikal yang ringkas.
+- **Status Metode Pembayaran:** Menambahkan informasi metode bayar (Tunai/Transfer) langsung di bawah badge status pada tabel Angsuran.
+
 ## [v2.1.0] - 2026-07-07
 
 ### ✨ Ditambahkan

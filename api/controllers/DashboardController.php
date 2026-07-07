@@ -74,12 +74,12 @@ switch ($method) {
              LIMIT 10"
         );
 
-        // Total Kas (Account 1000)
+        // Total Kas (Account 100, 101, 102, 103, 1000)
         $kasBalance = $db->fetch(
             "SELECT COALESCE(SUM(debit - kredit), 0) as total 
              FROM jurnal_detail jd 
              JOIN akun a ON jd.akun_id = a.id 
-             WHERE a.kode = '1000'"
+             WHERE a.kode IN ('100', '101', '102', '103', '1000')"
         );
         $totalKas = $kasBalance['total'] ?? 0;
         

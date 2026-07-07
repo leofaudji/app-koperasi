@@ -18,8 +18,9 @@ const JurnalPage = {
         const dari = App.dateToISO(dariUI);
         const sampai = App.dateToISO(sampaiUI);
         const search = document.getElementById('jrn-search')?.value || '';
+        const tipe = document.getElementById('jrn-tipe')?.value || '';
 
-        const res = await App.api(`keuangan/jurnal?dari=${dari}&sampai=${sampai}&search=${encodeURIComponent(search)}&page=${page}`);
+        const res = await App.api(`keuangan/jurnal?dari=${dari}&sampai=${sampai}&search=${encodeURIComponent(search)}&tipe=${tipe}&page=${page}`);
         if (!res?.success) return;
 
         this.data = res.data;
@@ -31,6 +32,13 @@ const JurnalPage = {
                         <i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                         <input type="text" id="jrn-search" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500" placeholder="Cari no. bukti atau keterangan..." value="${search}">
                     </div>
+                    <select id="jrn-tipe" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                        <option value="">Semua Tipe</option>
+                        <option value="simpanan" ${tipe === 'simpanan' ? 'selected' : ''}>Simpanan</option>
+                        <option value="pinjaman" ${tipe === 'pinjaman' ? 'selected' : ''}>Pinjaman</option>
+                        <option value="angsuran" ${tipe === 'angsuran' ? 'selected' : ''}>Angsuran</option>
+                        <option value="manual" ${tipe === 'manual' ? 'selected' : ''}>Jurnal Keuangan</option>
+                    </select>
                     <input type="text" id="jrn-dari" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Dari">
                     <input type="text" id="jrn-sampai" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Sampai">
                     <button onclick="JurnalPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors">
@@ -58,13 +66,17 @@ const JurnalPage = {
                         <div class="bg-gray-50/50 px-5 py-3.5 flex justify-between items-center cursor-pointer select-none" onclick="JurnalPage.toggleDetails(${j.id})">
                             <div class="flex items-center gap-3 flex-1 min-w-0">
                                 <i class="ri-arrow-right-s-line text-lg text-gray-400 transition-all duration-200" id="jrn-arrow-${j.id}"></i>
-                                <span class="font-mono text-xs font-bold text-primary-600 bg-white border border-primary-100 px-2.5 py-1 rounded-lg shrink-0">${j.no_bukti}</span>
-                                <span class="text-sm font-medium text-gray-500 flex items-center gap-1.5 shrink-0" title="Tanggal Transaksi"><i class="ri-calendar-line text-gray-400"></i> ${App.formatDate(j.tgl_transaksi)}</span>
+                                <div class="flex flex-col shrink-0 min-w-[120px]">
+                                    <span class="font-mono text-xs font-bold text-primary-600">${j.no_bukti}</span>
+                                    <span class="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1"><i class="ri-calendar-line"></i> ${App.formatDate(j.tgl_transaksi)}</span>
+                                </div>
                                 <div class="text-sm text-gray-700 font-medium truncate flex-1 ml-2" title="${j.keterangan || ''}">${j.keterangan || '-'}</div>
                             </div>
                             <div class="flex items-center gap-3 shrink-0" onclick="event.stopPropagation()">
                                 <span class="font-mono text-xs font-bold text-gray-800 bg-gray-100/80 px-2.5 py-1 rounded-lg" title="Total Nilai">${App.formatRupiah(j.total_debit)}</span>
-                                <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider ${j.ref_tipe === 'manual' ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50'} px-2.5 py-1 rounded-full">${j.ref_tipe || 'manual'}</span>
+                                <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider ${(!j.ref_tipe || j.ref_tipe === 'manual') ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50'} px-2.5 py-1 rounded-full">${j.ref_tipe || 'manual'}</span>
+                                ${j.is_edited > 0 ? `<button onclick="App.showAuditHistory('jurnal', ${j.id})" class="text-[10px] bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full font-bold uppercase transition-all flex items-center gap-1" title="Lihat riwayat perubahan"><i class="ri-history-line"></i> DIEDIT</button>` : ''}
+                                ${(!j.ref_tipe || j.ref_tipe === 'manual') ? `<button onclick="JurnalPage.showForm({ editId: ${j.id} })" class="p-1.5 text-gray-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all" title="Koreksi Jurnal"><i class="ri-edit-line"></i></button>` : ''}
                                 ${j.ref_tipe !== 'reversal' ? `<button onclick="JurnalPage.confirmReverse(${j.id}, '${j.no_bukti}')" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Reverse Jurnal"><i class="ri-arrow-go-back-line"></i></button>` : ''}
                             </div>
                         </div>
@@ -73,6 +85,10 @@ const JurnalPage = {
                             <div class="px-5 py-2.5 text-[11px] text-gray-400 flex items-center gap-4 bg-gray-50/20 border-b border-gray-50">
                                 <span title="Waktu Input System"><i class="ri-time-line text-gray-400 mr-1"></i>Diinput: ${j.created_at ? moment(j.created_at).format('DD/MM/YYYY HH:mm') : '-'}</span>
                                 <span title="Petugas Input"><i class="ri-user-line text-gray-400 mr-1"></i>Oleh: ${j.created_by_nama || 'System'}</span>
+                                ${j.ref_tipe && j.ref_id && j.ref_no_transaksi ? `
+                                <a href="#/${j.ref_tipe === 'pinjaman' ? 'pinjaman' : j.ref_tipe}?search=${encodeURIComponent(j.ref_no_transaksi)}" class="text-primary-600 hover:text-primary-700 font-bold inline-flex items-center gap-1 bg-primary-50 px-2.5 py-1 rounded-lg hover:bg-primary-100 transition-all ml-auto">
+                                    <i class="ri-external-link-line"></i> Buka Transaksi (${j.ref_no_transaksi})
+                                </a>` : ''}
                             </div>
                             <div class="overflow-x-auto">
                                 <table class="w-full text-sm">
@@ -128,10 +144,24 @@ const JurnalPage = {
 
     paginate(p) { this.load(p); },
 
-    async showForm() {
+    async showForm(options = {}) {
         if (this.akuns.length === 0) {
             const res = await App.api('keuangan/akun');
             if (res?.success) this.akuns = res.data;
+        }
+
+        const isEdit = !!options.editId;
+        this.currentEditId = options.editId || null;
+        let trx = null;
+
+        if (isEdit) {
+            const resEdit = await App.api('keuangan/jurnal/' + options.editId);
+            if (resEdit?.success) {
+                trx = resEdit.data;
+            } else {
+                App.toast('Gagal memuat detail jurnal', 'error');
+                return;
+            }
         }
 
         const modal = document.createElement('div');
@@ -140,8 +170,8 @@ const JurnalPage = {
             <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col scale-in">
                 <div class="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <div>
-                        <h3 class="text-xl font-bold text-gray-800">Tambah Jurnal Manual</h3>
-                        <p class="text-sm text-gray-500">Buat entri jurnal umum baru</p>
+                        <h3 class="text-xl font-bold text-gray-800">${isEdit ? 'Koreksi Jurnal Manual' : 'Tambah Jurnal Manual'}</h3>
+                        <p class="text-sm text-gray-500">${isEdit ? `Koreksi data jurnal ${trx.no_bukti}` : 'Buat entri jurnal umum baru'}</p>
                     </div>
                     <button onclick="this.closest('.fixed').remove()" class="p-2 hover:bg-white rounded-xl transition-colors"><i class="ri-close-line text-2xl text-gray-400"></i></button>
                 </div>
@@ -154,7 +184,7 @@ const JurnalPage = {
                         </div>
                         <div>
                             <label class="block text-sm font-bold text-gray-600 mb-2">Keterangan</label>
-                            <input type="text" id="jrn-ket" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Misal: Biaya Listrik & Air Jan 2026" required>
+                            <input type="text" id="jrn-ket" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Misal: Biaya Listrik & Air Jan 2026" required value="${isEdit ? trx.keterangan || '' : ''}">
                         </div>
                     </div>
 
@@ -193,17 +223,23 @@ const JurnalPage = {
 
                 <div class="px-8 py-5 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
                     <button onclick="this.closest('.fixed').remove()" class="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors">Batal</button>
-                    <button type="button" onclick="JurnalPage.save()" id="btn-save-jurnal" class="bg-primary-600 hover:bg-primary-700 text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary-200 transition-all">Simpan Jurnal</button>
+                    <button type="button" onclick="JurnalPage.save()" id="btn-save-jurnal" class="bg-primary-600 hover:bg-primary-700 text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary-200 transition-all">${isEdit ? 'Simpan Koreksi' : 'Simpan Jurnal'}</button>
                 </div>
             </div>`;
 
         document.body.appendChild(modal);
-        App.initDatepicker('#jrn-tgl', { defaultDate: App.todayISO() });
-        this.addRow();
-        this.addRow();
+        App.initDatepicker('#jrn-tgl', { defaultDate: isEdit ? App.formatDate(trx.tgl_transaksi) : App.todayISO() });
+        
+        if (isEdit && trx.details && trx.details.length) {
+            trx.details.forEach(d => this.addRow(d));
+            this.calcBalance();
+        } else {
+            this.addRow();
+            this.addRow();
+        }
     },
 
-    addRow() {
+    addRow(detail = null) {
         const tbody = document.getElementById('entry-rows');
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-50/50 transition-colors entry-row';
@@ -252,6 +288,13 @@ const JurnalPage = {
                 resultsDiv.classList.remove('hidden');
             }
         };
+
+        if (detail) {
+            hiddenInput.value = detail.akun_id;
+            searchInput.value = `${detail.akun_kode} - ${detail.akun_nama}`;
+            tr.querySelector('.row-debit').value = detail.debit;
+            tr.querySelector('.row-kredit').value = detail.kredit;
+        }
 
         searchInput.addEventListener('focus', () => {
             filterRowAccounts(searchInput.value);
@@ -333,8 +376,12 @@ const JurnalPage = {
             return;
         }
 
-        const res = await App.api('keuangan/jurnal', {
-            method: 'POST',
+        const isEdit = !!this.currentEditId;
+        const url = isEdit ? `keuangan/jurnal/${this.currentEditId}` : 'keuangan/jurnal';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const res = await App.api(url, {
+            method,
             body: { tgl_transaksi: tgl, keterangan: ket, details }
         });
 
@@ -342,6 +389,8 @@ const JurnalPage = {
             App.toast(res.message, 'success');
             document.querySelector('.fixed').remove();
             this.load();
+        } else {
+            App.toast(res?.message || 'Gagal menyimpan jurnal', 'error');
         }
     },
 

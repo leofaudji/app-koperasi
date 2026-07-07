@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '2.1.0', // Metode Pembayaran & Tanggal Kustom
+    version: '2.1.2', // Traceability Link & Audit Trail History
     API_BASE: (() => {
         // Best way: find the root based on where this script is loaded from
         const script = document.currentScript || document.querySelector('script[src*="assets/js/app.js"]');
@@ -1157,6 +1157,64 @@ const App = {
         link.href = URL.createObjectURL(blob);
         link.setAttribute('download', `${filename}_${new Date().getTime()}.csv`);
         link.click();
+    },
+
+    async showAuditHistory(table, id) {
+        const res = await this.api(`keuangan/audit-history?table=${table}&id=${id}`);
+        if (!res?.success || !res.data.length) {
+            this.toast('Gagal memuat atau tidak ada riwayat perubahan', 'info');
+            return;
+        }
+
+        const logs = res.data;
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn';
+        modal.innerHTML = `
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col scale-in">
+                <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-800"><i class="ri-history-line text-amber-500 mr-2"></i>Riwayat Koreksi Data</h3>
+                        <p class="text-xs text-gray-500 font-mono">Log perubahan untuk data ID ${id} di tabel ${table.toUpperCase()}</p>
+                    </div>
+                    <button onclick="this.closest('.fixed').remove()" class="p-2 hover:bg-gray-100 rounded-xl transition-colors"><i class="ri-close-line text-xl text-gray-400"></i></button>
+                </div>
+                <div class="p-6 overflow-y-auto flex-1 space-y-6">
+                    <div class="relative border-l-2 border-amber-100 ml-4 pl-6 space-y-6">
+                        ${logs.map((log, index) => {
+                            let diffHtml = '';
+                            if (log.old_data && log.new_data) {
+                                diffHtml = '<div class="mt-2 text-xs bg-gray-50 rounded-xl p-3 border border-gray-100 space-y-1 font-mono">';
+                                Object.keys(log.new_data).forEach(key => {
+                                    const oldVal = log.old_data[key];
+                                    const newVal = log.new_data[key];
+                                    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                                        const isMoney = key.includes('jumlah') || key.includes('total') || key.includes('pokok') || key.includes('bunga') || key.includes('denda');
+                                        const fmtOld = (oldVal !== null && oldVal !== '' && !isNaN(oldVal) && isMoney) ? App.formatRupiah(oldVal) : (oldVal ?? '-');
+                                        const fmtNew = (newVal !== null && newVal !== '' && !isNaN(newVal) && isMoney) ? App.formatRupiah(newVal) : (newVal ?? '-');
+                                        diffHtml += `<div class="flex flex-wrap items-center gap-1.5 text-gray-600"><span class="font-bold text-gray-800">${key}:</span> <span class="line-through text-red-500 bg-red-50 px-1 rounded">${fmtOld}</span> <i class="ri-arrow-right-line text-gray-400"></i> <span class="text-emerald-600 bg-emerald-50 px-1 rounded">${fmtNew}</span></div>`;
+                                    }
+                                });
+                                diffHtml += '</div>';
+                            }
+
+                            return `
+                            <div class="relative">
+                                <div class="absolute -left-[31px] top-1.5 bg-amber-500 text-white w-4.5 h-4.5 rounded-full border-2 border-white flex items-center justify-center"><i class="ri-edit-2-fill text-[9px]"></i></div>
+                                <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                                    <span class="font-bold text-gray-700"><i class="ri-user-line mr-1"></i>${log.user_nama || 'System'}</span>
+                                    <span><i class="ri-time-line mr-1"></i>${moment(log.created_at).format('DD/MM/YYYY HH:mm:ss')}</span>
+                                </div>
+                                <div class="text-sm font-semibold text-gray-800 capitalize">${log.action} Data</div>
+                                ${diffHtml}
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                    <button onclick="this.closest('.fixed').remove()" class="bg-gray-850 hover:bg-gray-900 text-white px-6 py-2 rounded-xl text-sm font-medium transition-all">Tutup</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
     }
 };
 

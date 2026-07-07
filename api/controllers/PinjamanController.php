@@ -799,7 +799,7 @@ switch ($method) {
                     for ($i = 1; $i <= $pinjaman['tenor']; $i++) {
                         $jatuhTempo = date('Y-m-d', strtotime("+$i month"));
                         $total = $pokokPerBulan + $bungaPerBulan;
-                        $noTrx = generateNo('AGS', 'angsuran', 'no_transaksi');
+                        $noTrx = generateNo('AG', 'angsuran', 'no_transaksi');
 
                         $db->execute(
                             "INSERT INTO angsuran (no_transaksi, pinjaman_id, angsuran_ke, tgl_jatuh_tempo, pokok, bunga, total, status)
@@ -859,7 +859,7 @@ switch ($method) {
                             $kodeTrxSW = $db->fetch("SELECT id FROM kode_transaksi_simpanan WHERE dk = 'D' LIMIT 1");
                             $kodeTrxSWId = $kodeTrxSW ? $kodeTrxSW['id'] : null;
 
-                            $noTrxSimpanan = generateNo('SMP', 'simpanan', 'no_transaksi');
+                            $noTrxSimpanan = generateNo('TB', 'simpanan', 'no_transaksi');
                             $db->insert(
                                 "INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by)
                                  VALUES (?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?)",
@@ -884,7 +884,7 @@ switch ($method) {
                     $kasKeluar = $pinjaman['jumlah'] - $totalLunasOld - $totalBiaya - $swDeduction;
 
                     // ── Jurnal Konsolidasi (Pencairan + Potongan + Topup) ──
-                    $noBukti = generateNo('JRN', 'jurnal', 'no_bukti');
+                    $noBukti = generateNo('PJ', 'jurnal', 'no_bukti');
                     $ketJurnal = 'Pencairan Pinjaman - ' . $anggota['nama'];
                     if (isset($pinjaman['topup_no_pinjaman'])) {
                         $ketJurnal .= " (Top-up Pelunasan " . $pinjaman['topup_no_pinjaman'] . ")";

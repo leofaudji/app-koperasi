@@ -51,10 +51,12 @@ $responseData = getCachedData($cacheKey, function() use ($db, $tahun, $tglAwal, 
         if ($a['tipe'] === 'modal') {
             $totalModal += $saldo;
         }
-        if ($a['kode'] === '1000')
-            $kas = $saldo;
-        if ($a['kode'] === '1200')
-            $piutang = $saldo;
+        if (in_array($a['kode'], ['100', '101', '102', '103', '1000'])) {
+            $kas += $saldo;
+        }
+        if (in_array($a['kode'], ['104', '105', '106', '107', '108', '1200'])) {
+            $piutang += $saldo;
+        }
     }
 
     // ══════════════════════════════════════════════
