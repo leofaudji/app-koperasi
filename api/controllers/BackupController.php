@@ -122,6 +122,7 @@ switch ($method) {
             $statements = [];
             $currentStmt = '';
             $inString = false;
+            $count = 0;
             $escaped = false;
             $len = strlen($cleanSql);
             

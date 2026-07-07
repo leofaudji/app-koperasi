@@ -241,6 +241,15 @@ switch ($method) {
             checkPermission('laporan.pinjaman_saldo');
             $from = $params['from'] ?? date('Y-m-01');
             $to = $params['to'] ?? date('Y-m-t');
+            $metode = $params['metode_pembayaran'] ?? '';
+
+            $where = "WHERE an.status IN ('lunas', 'terlambat') AND an.tgl_bayar BETWEEN ? AND ?";
+            $binds = [$from, $to];
+
+            if ($metode) {
+                $where .= " AND an.metode_pembayaran = ?";
+                $binds[] = $metode;
+            }
 
             $data = $db->fetchAll(
                 "SELECT an.*, p.no_pinjaman, a.nama as anggota_nama, a.no_anggota, jp.nama as jenis_pinjaman
@@ -248,10 +257,9 @@ switch ($method) {
                  JOIN pinjaman p ON an.pinjaman_id = p.id
                  JOIN anggota a ON p.anggota_id = a.id
                  JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
-                 WHERE an.status IN ('lunas', 'terlambat') 
-                 AND an.tgl_bayar BETWEEN ? AND ?
+                 $where
                  ORDER BY an.tgl_bayar DESC, an.id DESC",
-                [$from, $to]
+                $binds
             );
 
             // Fetch pelunasan journals in date range to identify payoff dates for loans
@@ -818,8 +826,62 @@ switch ($method) {
                         $totalBiaya += $jmlB;
                     }
 
+                    // ── Potong Simpanan Wajib ──
+                    $potongSw = !empty($params['potong_sw']);
+                    $swNominal = (float) ($params['sw_nominal'] ?? 0);
+                    $akunSwId = null;
+
+                    if ($potongSw && $swNominal > 0) {
+                        $jenisSW = $db->fetch("SELECT id, akun_id FROM jenis_simpanan WHERE kode = 'SW' OR is_wajib = 1 LIMIT 1");
+                        if (!$jenisSW) {
+                            $jenisSW = $db->fetch("SELECT id, akun_id FROM jenis_simpanan WHERE nama LIKE '%wajib%' LIMIT 1");
+                        }
+                        if ($jenisSW) {
+                            $jenisSwId = $jenisSW['id'];
+                            $akunSwId = $jenisSW['akun_id'];
+                            
+                            $rekeningSW = $db->fetch("SELECT id, saldo FROM rekening_simpanan WHERE anggota_id = ? AND jenis_simpanan_id = ?", [$pinjaman['anggota_id'], $jenisSwId]);
+                            if (!$rekeningSW) {
+                                $noRekSW = "SW-" . date('Y') . str_pad($pinjaman['anggota_id'], 5, '0', STR_PAD_LEFT);
+                                $rekeningSWId = $db->insert(
+                                    "INSERT INTO rekening_simpanan (no_rekening, anggota_id, jenis_simpanan_id, saldo) VALUES (?, ?, ?, ?)",
+                                    [$noRekSW, $pinjaman['anggota_id'], $jenisSwId, $swNominal]
+                                );
+                                $saldoSwSebelum = 0;
+                                $saldoSwSesudah = $swNominal;
+                            } else {
+                                $rekeningSWId = $rekeningSW['id'];
+                                $saldoSwSebelum = (float) $rekeningSW['saldo'];
+                                $saldoSwSesudah = $saldoSwSebelum + $swNominal;
+                                $db->execute("UPDATE rekening_simpanan SET saldo = ? WHERE id = ?", [$saldoSwSesudah, $rekeningSWId]);
+                            }
+
+                            $kodeTrxSW = $db->fetch("SELECT id FROM kode_transaksi_simpanan WHERE dk = 'D' LIMIT 1");
+                            $kodeTrxSWId = $kodeTrxSW ? $kodeTrxSW['id'] : null;
+
+                            $noTrxSimpanan = generateNo('SMP', 'simpanan', 'no_transaksi');
+                            $db->insert(
+                                "INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by)
+                                 VALUES (?, ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?)",
+                                [
+                                    $noTrxSimpanan,
+                                    $pinjaman['anggota_id'],
+                                    $jenisSwId,
+                                    $rekeningSWId,
+                                    $kodeTrxSWId,
+                                    $swNominal,
+                                    $saldoSwSebelum,
+                                    $saldoSwSesudah,
+                                    "Potongan Simpanan Wajib Pencairan Pinjaman " . $pinjaman['no_pinjaman'],
+                                    $_SESSION['user_id']
+                                ]
+                            );
+                        }
+                    }
+
                     $totalLunasOld = $pinjaman['topup_total_lunas'] ?? 0;
-                    $kasKeluar = $pinjaman['jumlah'] - $totalLunasOld - $totalBiaya;
+                    $swDeduction = ($potongSw && $swNominal > 0) ? $swNominal : 0;
+                    $kasKeluar = $pinjaman['jumlah'] - $totalLunasOld - $totalBiaya - $swDeduction;
 
                     // ── Jurnal Konsolidasi (Pencairan + Potongan + Topup) ──
                     $noBukti = generateNo('JRN', 'jurnal', 'no_bukti');
@@ -829,6 +891,9 @@ switch ($method) {
                     }
                     if ($totalBiaya > 0) {
                         $ketJurnal .= " - Potongan Biaya Rp " . number_format($totalBiaya, 0, ',', '.');
+                    }
+                    if ($swDeduction > 0) {
+                        $ketJurnal .= " - Potongan Simpanan Wajib Rp " . number_format($swDeduction, 0, ',', '.');
                     }
 
                     $jurnalId = $db->insert(
@@ -850,6 +915,11 @@ switch ($method) {
                     // 3. K: Potongan Biaya -> Pendapatan Administrasi (4300)
                     if ($totalBiaya > 0) {
                         $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4300' LIMIT 1),(SELECT id FROM akun WHERE tipe='pendapatan' LIMIT 1))), 0, ?)", [$jurnalId, $totalBiaya]);
+                    }
+
+                    // 3b. K: Potongan Simpanan Wajib -> Simpanan Wajib Anggota
+                    if ($swDeduction > 0 && $akunSwId) {
+                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunSwId, $swDeduction]);
                     }
 
                     // 4. Jika Top-up, Kreditkan komponen pelunasan pinjaman lama

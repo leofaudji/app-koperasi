@@ -15,15 +15,25 @@ const SimpananPage = {
     async loadList(container, page = 1) {
         this.page = page;
         const search = document.getElementById('simp-search')?.value || '';
+        const metode = document.getElementById('simp-filter-metode')?.value || '';
         const anggotaId = App.queryParams?.anggota_id || '';
-        const res = await App.api(`simpanan?page=${page}&search=${encodeURIComponent(search)}&anggota_id=${anggotaId}`);
+        const res = await App.api(`simpanan?page=${page}&search=${encodeURIComponent(search)}&metode_pembayaran=${metode}&anggota_id=${anggotaId}`);
         if (!res?.success) return;
 
         container.innerHTML = `
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                <div class="relative flex-1 max-w-md"><i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input type="text" id="simp-search" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500" placeholder="Cari transaksi..." value="${search}" onkeyup="if(event.key==='Enter')SimpananPage.loadList(SimpananPage.container)"></div>
+                <div class="flex flex-1 items-center gap-3 w-full max-w-2xl">
+                    <div class="relative flex-1 max-w-md"><i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="simp-search" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500" placeholder="Cari transaksi..." value="${search}" onkeyup="if(event.key==='Enter')SimpananPage.loadList(SimpananPage.container)"></div>
+                    <div>
+                        <select id="simp-filter-metode" onchange="SimpananPage.loadList(SimpananPage.container)" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 bg-white">
+                            <option value="">Semua Metode</option>
+                            <option value="tunai" ${metode === 'tunai' ? 'selected' : ''}>Tunai</option>
+                            <option value="transfer" ${metode === 'transfer' ? 'selected' : ''}>Transfer</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="flex items-center gap-2">
                     <button onclick="SimpananPage.export('pdf')" class="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF"><i class="ri-file-pdf-line text-lg"></i></button>
                     <button onclick="SimpananPage.export('csv')" class="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title="Export CSV"><i class="ri-file-excel-line text-lg"></i></button>
@@ -51,13 +61,18 @@ const SimpananPage = {
             ${App.renderPagination(res.pagination, 'SimpananPage.paginate')}
         </div>`;
     },
-
-    async form(options = {}) {
+    async form(options = {}) {
         const ktRes = await App.api('kode-transaksi');
         const kodeList = ktRes?.data || [];
         const defaultJenisCode = options.defaultJenisCode || this.defaultJenisCode || '';
         const jenisLabel = defaultJenisCode === 'SW' ? 'Simpanan Wajib' : defaultJenisCode === 'SP' ? 'Simpanan Pokok' : defaultJenisCode === 'SS' ? 'Simpanan Sukarela' : '';
         const jenisFilter = defaultJenisCode ? `&jenis_simpanan=${defaultJenisCode}` : '';
+
+        let accounts = [];
+        const resAkun = await App.api('keuangan/akun');
+        if (resAkun?.success) {
+            accounts = resAkun.data;
+        }
 
         App.openModal(`<div class="p-6">
             <h3 class="text-lg font-bold text-gray-800 mb-6"><i class="ri-exchange-funds-line text-emerald-500 mr-2"></i>Transaksi Simpanan</h3>
@@ -103,6 +118,21 @@ const SimpananPage = {
                         <input type="text" id="sf-tgl" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500">
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Metode Pembayaran *</label>
+                        <select id="sf-metode" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500">
+                            <option value="tunai">Tunai (Kas)</option>
+                            <option value="transfer">Transfer Bank</option>
+                        </select>
+                    </div>
+                    <div id="sf-akun-kas-container" class="hidden">
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Pilih Rekening Bank/COA *</label>
+                        <div class="relative" id="sf-akun-kas-wrapper">
+                            <input type="text" id="sf-akun-kas-search" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Ketik untuk mencari akun..." autocomplete="off">
+                            <input type="hidden" id="sf-akun-kas">
+                            <div id="sf-akun-kas-results" class="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl hidden"></div>
+                        </div>
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Jumlah (Rp) *</label>
                         <input type="number" id="sf-jumlah" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 font-bold" min="1" step="any" required>
                     </div>
@@ -125,6 +155,70 @@ const SimpananPage = {
         let debounce;
         const searchInput = document.getElementById('sf-search');
         const resultsDiv = document.getElementById('sf-results');
+        const metodeSelect = document.getElementById('sf-metode');
+        const akunKasContainer = document.getElementById('sf-akun-kas-container');
+        const searchCoaInput = document.getElementById('sf-akun-kas-search');
+        const hiddenCoaInput = document.getElementById('sf-akun-kas');
+        const dropCoaContainer = document.getElementById('sf-akun-kas-results');
+
+        // Populate accounts (assets type)
+        const assetAccounts = accounts.filter(a => a.tipe === 'aset');
+
+        const filterCoa = (q = '') => {
+            const query = q.toLowerCase().trim();
+            const filtered = assetAccounts.filter(a => 
+                a.kode.toLowerCase().includes(query) || 
+                a.nama.toLowerCase().includes(query)
+            );
+
+            if (filtered.length) {
+                dropCoaContainer.innerHTML = filtered.map(a => `
+                    <div class="px-4 py-2.5 hover:bg-emerald-50 cursor-pointer text-sm border-b border-gray-50 last:border-0" data-id="${a.id}" data-text="${a.kode} - ${a.nama}">
+                        <span class="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded mr-2">${a.kode}</span>
+                        <span class="font-medium text-gray-800">${a.nama}</span>
+                    </div>
+                `).join('');
+                dropCoaContainer.classList.remove('hidden');
+            } else {
+                dropCoaContainer.innerHTML = '<div class="px-4 py-3 text-gray-400 text-xs italic">Akun tidak ditemukan</div>';
+                dropCoaContainer.classList.remove('hidden');
+            }
+        };
+
+        searchCoaInput.addEventListener('focus', () => {
+            filterCoa(searchCoaInput.value);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#sf-akun-kas-wrapper')) {
+                dropCoaContainer.classList.add('hidden');
+            }
+        });
+
+        searchCoaInput.addEventListener('input', (e) => {
+            filterCoa(e.target.value);
+        });
+
+        dropCoaContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-id]');
+            if (item) {
+                const id = item.getAttribute('data-id');
+                const text = item.getAttribute('data-text');
+                hiddenCoaInput.value = id;
+                searchCoaInput.value = text;
+                dropCoaContainer.classList.add('hidden');
+            }
+        });
+
+        metodeSelect.addEventListener('change', () => {
+            if (metodeSelect.value === 'transfer') {
+                akunKasContainer.classList.remove('hidden');
+                searchCoaInput.setAttribute('required', 'required');
+            } else {
+                akunKasContainer.classList.add('hidden');
+                searchCoaInput.removeAttribute('required');
+            }
+        });
 
         searchInput.addEventListener('input', e => {
             clearTimeout(debounce);
@@ -171,6 +265,8 @@ const SimpananPage = {
                 jenis_simpanan_id: document.getElementById('sf-jenis-id').value,
                 kode_transaksi_id: document.getElementById('sf-kode').value,
                 tgl_transaksi: App.dateToISO(document.getElementById('sf-tgl').value),
+                metode_pembayaran: metodeSelect.value,
+                akun_kas_id: metodeSelect.value === 'transfer' ? akunKasSelect.value : null,
                 jumlah: document.getElementById('sf-jumlah').value,
                 keterangan: document.getElementById('sf-ket').value
             };
@@ -183,7 +279,7 @@ const SimpananPage = {
             } else {
                 App.toast(res?.message || 'Gagal menyimpan transaksi', 'error');
             }
-        };
+        };;
     },
 
     selectAccount(r) {

@@ -11,7 +11,8 @@ const AngsuranPage = {
         this.page = page;
         const search = document.getElementById('ags-search')?.value || '';
         const status = document.getElementById('ags-status')?.value || '';
-        const res = await App.api(`angsuran?page=${page}&search=${encodeURIComponent(search)}&status=${status}`);
+        const metode = document.getElementById('ags-filter-metode')?.value || '';
+        const res = await App.api(`angsuran?page=${page}&search=${encodeURIComponent(search)}&status=${status}&metode_pembayaran=${metode}`);
         if (!res?.success) return;
 
         container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
@@ -20,7 +21,12 @@ const AngsuranPage = {
                     <div class="relative flex-1 max-w-md"><i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                     <input type="text" id="ags-search" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm" placeholder="Cari..." value="${search}" onkeyup="if(event.key==='Enter')AngsuranPage.loadList(AngsuranPage.container)"></div>
                     <select id="ags-status" class="border border-gray-200 rounded-xl px-3 py-2.5 text-sm" onchange="AngsuranPage.loadList(AngsuranPage.container)">
-                        <option value="">Semua</option><option value="belum" ${status === 'belum' ? 'selected' : ''}>Belum Bayar</option><option value="lunas">Lunas</option><option value="terlambat">Terlambat</option></select>
+                        <option value="">Semua Status</option><option value="belum" ${status === 'belum' ? 'selected' : ''}>Belum Bayar</option><option value="lunas" ${status === 'lunas' ? 'selected' : ''}>Lunas</option><option value="terlambat" ${status === 'terlambat' ? 'selected' : ''}>Terlambat</option></select>
+                    <select id="ags-filter-metode" class="border border-gray-200 rounded-xl px-3 py-2.5 text-sm" onchange="AngsuranPage.loadList(AngsuranPage.container)">
+                        <option value="">Semua Metode</option>
+                        <option value="tunai" ${metode === 'tunai' ? 'selected' : ''}>Tunai</option>
+                        <option value="transfer" ${metode === 'transfer' ? 'selected' : ''}>Transfer</option>
+                    </select>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="AngsuranPage.export('pdf')" class="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF">
@@ -65,6 +71,12 @@ const AngsuranPage = {
     },
 
     async form(pinjamanId = null) {
+        let accounts = [];
+        const resAkun = await App.api('keuangan/akun');
+        if (resAkun?.success) {
+            accounts = resAkun.data;
+        }
+
         App.openModal(`<div class="p-6">
             <h3 class="text-lg font-bold text-gray-800 mb-6"><i class="ri-money-dollar-circle-line text-emerald-500 mr-2"></i>Pembayaran Angsuran</h3>
             <form id="ags-form" class="space-y-4">
@@ -102,6 +114,29 @@ const AngsuranPage = {
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Tanggal Transaksi *</label>
+                        <input type="text" id="af-tgl" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Metode Pembayaran *</label>
+                        <select id="af-metode" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500">
+                            <option value="tunai">Tunai (Kas)</option>
+                            <option value="transfer">Transfer Bank</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="af-akun-kas-container" class="hidden">
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Pilih Rekening Bank/COA *</label>
+                    <div class="relative" id="af-akun-kas-wrapper">
+                        <input type="text" id="af-akun-kas-search" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Ketik untuk mencari akun..." autocomplete="off">
+                        <input type="hidden" id="af-akun-kas">
+                        <div id="af-akun-kas-results" class="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl hidden"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Pokok (Rp) *</label>
                         <input type="number" id="af-pokok" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 font-medium" placeholder="0">
                     </div>
@@ -131,12 +166,78 @@ const AngsuranPage = {
             </form>
         </div>`);
 
+        App.datepicker('#af-tgl', { defaultDate: 'today' });
+
         const searchInput = document.getElementById('af-search');
         const resultsDiv = document.getElementById('af-results');
         const pokokInput = document.getElementById('af-pokok');
         const bungaInput = document.getElementById('af-bunga');
         const dendaInput = document.getElementById('af-denda');
         const totalView = document.getElementById('af-total-view');
+        const metodeSelect = document.getElementById('af-metode');
+        const akunKasContainer = document.getElementById('af-akun-kas-container');
+        const searchCoaInput = document.getElementById('af-akun-kas-search');
+        const hiddenCoaInput = document.getElementById('af-akun-kas');
+        const dropCoaContainer = document.getElementById('af-akun-kas-results');
+
+        // Filter and populate accounts
+        const assetAccounts = accounts.filter(a => a.tipe === 'aset');
+
+        const filterCoa = (q = '') => {
+            const query = q.toLowerCase().trim();
+            const filtered = assetAccounts.filter(a => 
+                a.kode.toLowerCase().includes(query) || 
+                a.nama.toLowerCase().includes(query)
+            );
+
+            if (filtered.length) {
+                dropCoaContainer.innerHTML = filtered.map(a => `
+                    <div class="px-4 py-2.5 hover:bg-emerald-50 cursor-pointer text-sm border-b border-gray-50 last:border-0" data-id="${a.id}" data-text="${a.kode} - ${a.nama}">
+                        <span class="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded mr-2">${a.kode}</span>
+                        <span class="font-medium text-gray-800">${a.nama}</span>
+                    </div>
+                `).join('');
+                dropCoaContainer.classList.remove('hidden');
+            } else {
+                dropCoaContainer.innerHTML = '<div class="px-4 py-3 text-gray-400 text-xs italic">Akun tidak ditemukan</div>';
+                dropCoaContainer.classList.remove('hidden');
+            }
+        };
+
+        searchCoaInput.addEventListener('focus', () => {
+            filterCoa(searchCoaInput.value);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#af-akun-kas-wrapper')) {
+                dropCoaContainer.classList.add('hidden');
+            }
+        });
+
+        searchCoaInput.addEventListener('input', (e) => {
+            filterCoa(e.target.value);
+        });
+
+        dropCoaContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-id]');
+            if (item) {
+                const id = item.getAttribute('data-id');
+                const text = item.getAttribute('data-text');
+                hiddenCoaInput.value = id;
+                searchCoaInput.value = text;
+                dropCoaContainer.classList.add('hidden');
+            }
+        });
+
+        metodeSelect.addEventListener('change', () => {
+            if (metodeSelect.value === 'transfer') {
+                akunKasContainer.classList.remove('hidden');
+                searchCoaInput.setAttribute('required', 'required');
+            } else {
+                akunKasContainer.classList.add('hidden');
+                searchCoaInput.removeAttribute('required');
+            }
+        });
 
         let debounce;
 
@@ -190,6 +291,9 @@ const AngsuranPage = {
                 pokok: parseFloat(pokokInput.value) || 0,
                 bunga: parseFloat(bungaInput.value) || 0,
                 denda: parseFloat(dendaInput.value) || 0,
+                tgl_transaksi: App.dateToISO(document.getElementById('af-tgl').value),
+                metode_pembayaran: metodeSelect.value,
+                akun_kas_id: metodeSelect.value === 'transfer' ? akunKasSelect.value : null,
                 keterangan: document.getElementById('af-ket').value
             };
 

@@ -42,6 +42,14 @@ const LaporanMutasiSimpananPage = {
                             </div>
                         </div>
                     </div>
+                    <div class="w-full sm:w-48">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Metode Pembayaran</label>
+                        <select id="lms-metode" onchange="LaporanMutasiSimpananPage.metode = this.value; LaporanMutasiSimpananPage.load()" class="bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5 shadow-sm">
+                            <option value="">Semua Metode</option>
+                            <option value="tunai">Tunai</option>
+                            <option value="transfer">Transfer</option>
+                        </select>
+                    </div>
                     <div class="w-full sm:w-auto">
                          <button onclick="LaporanMutasiSimpananPage.load()" class="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary-500/20 transition-all active:scale-95">
                             Tampilkan Data
@@ -55,6 +63,7 @@ const LaporanMutasiSimpananPage = {
             </div>
         </div>`;
 
+        this.metode = '';
         this.initFilters();
         this.load();
     },
@@ -78,7 +87,7 @@ const LaporanMutasiSimpananPage = {
         const container = document.getElementById('lms-table-container');
         container.innerHTML = '<div class="flex justify-center py-10"><i class="ri-loader-4-line animate-spin text-2xl text-primary-500"></i></div>';
 
-        const res = await App.api(`simpanan/laporan-mutasi-simpanan?from=${this.from}&to=${this.to}`);
+        const res = await App.api(`simpanan/laporan-mutasi-simpanan?from=${this.from}&to=${this.to}&metode_pembayaran=${this.metode || ''}`);
         if (!res?.success) {
             container.innerHTML = `<div class="text-center py-10 text-red-500">Gagal memuat data: ${res?.message || 'Unknown error'}</div>`;
             return;

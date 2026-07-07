@@ -1154,6 +1154,18 @@ const PinjamanPage = {
                 </div>
             </div>
 
+            <!-- Potongan Simpanan Wajib -->
+            <div class="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <label class="flex items-center gap-2.5 cursor-pointer font-bold text-sm text-gray-700">
+                    <input type="checkbox" id="potong-sw" class="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4" onchange="PinjamanPage.toggleSwInput()">
+                    <span>Potong Simpanan Wajib</span>
+                </label>
+                <div id="sw-nominal-container" class="hidden mt-3">
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">Nominal Simpanan Wajib (Rp) *</label>
+                    <input type="number" id="sw-nominal" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-right font-medium focus:ring-2 focus:ring-primary-500" placeholder="0" min="0" oninput="PinjamanPage.calcTotalBiaya()">
+                </div>
+            </div>
+
             <div class="flex justify-end gap-3 pt-4 border-t">
                 <button type="button" onclick="App.closeModal()" class="px-4 py-2.5 border border-gray-300 rounded-xl text-sm hover:bg-gray-50 text-gray-600">Batal</button>
                 <button type="button" onclick="PinjamanPage.doApprove(${id})" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold"><i class="ri-check-line mr-1"></i>Setujui & Cairkan</button>
@@ -1165,9 +1177,24 @@ const PinjamanPage = {
         PinjamanPage._biayaCount = biayaList.length;
     },
 
+    toggleSwInput() {
+        const checkbox = document.getElementById('potong-sw');
+        const nominalContainer = document.getElementById('sw-nominal-container');
+        if (checkbox.checked) {
+            nominalContainer.classList.remove('hidden');
+        } else {
+            nominalContainer.classList.add('hidden');
+            document.getElementById('sw-nominal').value = '';
+            this.calcTotalBiaya();
+        }
+    },
+
     calcTotalBiaya() {
         let total = 0;
         document.querySelectorAll('[id^="bjml-"]').forEach(el => { total += parseFloat(el.value) || 0; });
+        const potongSw = document.getElementById('potong-sw')?.checked;
+        const swNominal = parseFloat(document.getElementById('sw-nominal')?.value) || 0;
+        if (potongSw) total += swNominal;
         const lbl = document.getElementById('total-biaya-lbl');
         if (lbl) lbl.textContent = App.formatRupiah(total);
     },
@@ -1208,10 +1235,21 @@ const PinjamanPage = {
             if (nama && jml > 0) biaya.push({ nama, jumlah: jml, jenis_biaya_id: jenisId });
         });
 
-        const ok = await App.confirm('Setujui Pinjaman', `Yakin ingin menyetujui pinjaman ini${biaya.length ? ` dengan ${biaya.length} komponen biaya` : ''}?`, 'question');
+        const potongSw = document.getElementById('potong-sw')?.checked || false;
+        const swNominal = parseFloat(document.getElementById('sw-nominal')?.value) || 0;
+
+        const ok = await App.confirm('Setujui Pinjaman', `Yakin ingin menyetujui pinjaman ini${biaya.length || potongSw ? ' dengan rincian potongan tersebut' : ''}?`, 'question');
         if (!ok) return;
 
-        const r = await App.api(`pinjaman/${id}/approve`, { method: 'PUT', body: { status: 'disetujui', biaya } });
+        const r = await App.api(`pinjaman/${id}/approve`, { 
+            method: 'PUT', 
+            body: { 
+                status: 'disetujui', 
+                biaya, 
+                potong_sw: potongSw, 
+                sw_nominal: swNominal 
+            } 
+        });
         if (r?.success) {
             App.closeModal();
             App.toast(r.message, 'success');

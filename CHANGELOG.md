@@ -6,6 +6,19 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v2.1.0] - 2026-07-07
+
+### ✨ Ditambahkan
+- **Metode Pembayaran Multi-Akun:** Dukungan metode pembayaran `Transfer Bank` dengan pilihan akun kas/bank tujuan pada modul Simpanan, Angsuran, Pinjaman, dan Jurnal.
+- **Kustomisasi Tanggal Transaksi:** Pengisian tanggal transaksi kustom pada modul Angsuran dan Jurnal untuk pencatatan historis yang akurat.
+- **Filter Metode Pembayaran:** Penyaringan data transaksi berdasarkan metode pembayaran (`Tunai`/`Transfer`) pada tabel Simpanan, Laporan Mutasi Simpanan, Angsuran, dan Laporan Mutasi Angsuran.
+
+### 🔧 Perbaikan
+- **Pengecualian Data Migrasi di Audit Koperasi:** Transaksi berlabel "Import", "Migrasi", dan "Saldo Awal" kini dikecualikan dari deteksi data yatim (orphan) dan backdated untuk mencegah kesalahan penilaian kesehatan koperasi.
+- **Optimasi Penalti Backdated:** Sistem penilaian kesehatan hanya mengenakan penalti untuk transaksi backdated yang melebihi 30 hari (bukan lagi 3 hari), sehingga input transaksi bulanan biasa tidak mengurangi skor.
+- **Perbaikan Query SQL Audit:** Pengelompokan (GROUP BY) pada query rekonsiliasi GL pinjaman untuk memastikan kompatibilitas database yang lebih baik.
+- **Pembersihan Cache Otomatis:** Sinkronisasi pembersihan cache modul keuangan, audit, dan simpanan pada setiap transaksi simpanan dan pinjaman.
+
 ## [v2.0.5] - 2026-06-24
 
 ### ✨ Ditambahkan

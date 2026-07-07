@@ -130,6 +130,12 @@ switch ($method) {
                 $binds[] = $pinjamanId;
             }
 
+            $metode = $params['metode_pembayaran'] ?? '';
+            if ($metode) {
+                $where .= " AND ag.metode_pembayaran = ?";
+                $binds[] = $metode;
+            }
+
             paginatedResponse(
                 "SELECT ag.*, p.no_pinjaman, a.nama as anggota_nama, a.no_anggota
                  FROM angsuran ag
@@ -204,6 +210,11 @@ switch ($method) {
         $manualPokok = $params['pokok'] ?? null;
         $manualBunga = $params['bunga'] ?? null;
         $manualDenda = $params['denda'] ?? null;
+        $tglTransaksi = $params['tgl_transaksi'] ?? null;
+        $metodePembayaran = $params['metode_pembayaran'] ?? 'tunai';
+        $akunKasId = $params['akun_kas_id'] ?? null;
+
+        $tglBayar = $tglTransaksi ? $tglTransaksi : date('Y-m-d');
 
         if (empty($angsuranId) && empty($pinjamanId)) {
             errorResponse('ID angsuran atau ID pinjaman diperlukan');
@@ -226,8 +237,8 @@ switch ($method) {
             $bunga = $manualBunga !== null ? $manualBunga : $angsuran['bunga'];
             $denda = $manualDenda !== null ? $manualDenda : 0;
 
-            if ($manualDenda === null && strtotime($angsuran['tgl_jatuh_tempo']) < strtotime('today')) {
-                $hariTerlambat = floor((strtotime('today') - strtotime($angsuran['tgl_jatuh_tempo'])) / 86400);
+            if ($manualDenda === null && strtotime($angsuran['tgl_jatuh_tempo']) < strtotime($tglBayar)) {
+                $hariTerlambat = floor((strtotime($tglBayar) - strtotime($angsuran['tgl_jatuh_tempo'])) / 86400);
                 $denda = $hariTerlambat * 5000;
             }
         } else {
@@ -263,15 +274,39 @@ switch ($method) {
             if ($angsuranId) {
                 $statusAng = $denda > 0 ? 'terlambat' : 'lunas';
                 $db->execute(
-                    "UPDATE angsuran SET tgl_bayar=CURDATE(), denda=?, pokok=?, bunga=?, total=?, status=?, created_by=? WHERE id=?",
-                    [$denda, $pokok, $bunga, $totalBayar, $statusAng, $_SESSION['user_id'], $angsuranId]
+                    "UPDATE angsuran SET tgl_bayar=?, denda=?, pokok=?, bunga=?, total=?, status=?, created_by=?, metode_pembayaran=?, akun_kas_id=? WHERE id=?",
+                    [
+                        $tglBayar,
+                        $denda,
+                        $pokok,
+                        $bunga,
+                        $totalBayar,
+                        $statusAng,
+                        $_SESSION['user_id'],
+                        $metodePembayaran,
+                        $metodePembayaran === 'transfer' ? $akunKasId : null,
+                        $angsuranId
+                    ]
                 );
             } else {
                 $noTrx = generateNo('AGS', 'angsuran', 'no_transaksi');
                 $angsuranId = $db->insert(
-                    "INSERT INTO angsuran (no_transaksi, pinjaman_id, angsuran_ke, tgl_jatuh_tempo, tgl_bayar, pokok, bunga, denda, total, status, created_by)
-                     VALUES (?,?,0,CURDATE(),CURDATE(),?,?,?,?,?,?)",
-                    [$noTrx, $pinjamanId, $pokok, $bunga, $denda, $totalBayar, 'lunas', $_SESSION['user_id']]
+                    "INSERT INTO angsuran (no_transaksi, pinjaman_id, angsuran_ke, tgl_jatuh_tempo, tgl_bayar, pokok, bunga, denda, total, status, created_by, metode_pembayaran, akun_kas_id)
+                     VALUES (?,?,0,?,?,?,?,?,?,?,?,?,?)",
+                    [
+                        $noTrx,
+                        $pinjamanId,
+                        $tglBayar,
+                        $tglBayar,
+                        $pokok,
+                        $bunga,
+                        $denda,
+                        $totalBayar,
+                        'lunas',
+                        $_SESSION['user_id'],
+                        $metodePembayaran,
+                        $metodePembayaran === 'transfer' ? $akunKasId : null
+                    ]
                 );
             }
 
@@ -290,12 +325,25 @@ switch ($method) {
 
             $jurnalId = $db->insert(
                 "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by)
-                 VALUES (?,CURDATE(),?,?,?,?,?,?)",
-                [$noBukti, $ket, 'angsuran', $angsuranId, $totalBayar, $totalBayar, $_SESSION['user_id']]
+                 VALUES (?,?,?,?,?,?,?,?)",
+                [$noBukti, $tglBayar, $ket, 'angsuran', $angsuranId, $totalBayar, $totalBayar, $_SESSION['user_id']]
             );
 
-            if ($totalBayar > 0)
-                $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='1000' LIMIT 1), (SELECT id FROM akun WHERE kode='100' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Kas%' LIMIT 1))), ?, 0)", [$jurnalId, $totalBayar]);
+            if ($totalBayar > 0) {
+                $debitAkunId = null;
+                if ($metodePembayaran === 'transfer' && !empty($akunKasId)) {
+                    $checkedAkun = $db->fetch("SELECT id FROM akun WHERE id = ? AND is_active = 1", [$akunKasId]);
+                    if ($checkedAkun) {
+                        $debitAkunId = $checkedAkun['id'];
+                    }
+                }
+                
+                if ($debitAkunId) {
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnalId, $debitAkunId, $totalBayar]);
+                } else {
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='1000' LIMIT 1), (SELECT id FROM akun WHERE kode='100' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Kas%' LIMIT 1))), ?, 0)", [$jurnalId, $totalBayar]);
+                }
+            }
             if ($pokok > 0) {
                 $piutangRow = $db->fetch("SELECT id FROM akun WHERE kode='1200' OR kode='190' OR nama LIKE '%Piutang%' LIMIT 1");
                 $akunPiutangId = $angsuran['akun_id'] ?: ($piutangRow ? $piutangRow['id'] : null);

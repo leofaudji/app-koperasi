@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '2.0.4', // Premium PDF & Layout Upgrade
+    version: '2.1.0', // Metode Pembayaran & Tanggal Kustom
     API_BASE: (() => {
         // Best way: find the root based on where this script is loaded from
         const script = document.currentScript || document.querySelector('script[src*="assets/js/app.js"]');

@@ -9,6 +9,15 @@ switch ($method) {
             checkPermission('simpanan.view');
             $from = $params['from'] ?? date('Y-m-01');
             $to = $params['to'] ?? date('Y-m-t');
+            $metode = $params['metode_pembayaran'] ?? '';
+
+            $where = "WHERE s.tgl_transaksi BETWEEN ? AND ?";
+            $binds = [$from, $to];
+
+            if ($metode) {
+                $where .= " AND s.metode_pembayaran = ?";
+                $binds[] = $metode;
+            }
 
             $data = $db->fetchAll(
                 "SELECT s.no_transaksi, s.tgl_transaksi, js.nama as jenis_simpanan,
@@ -21,9 +30,9 @@ switch ($method) {
                  JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
                  JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
                  LEFT JOIN rekening_simpanan rs ON s.rekening_id = rs.id
-                 WHERE s.tgl_transaksi BETWEEN ? AND ?
+                 $where
                  ORDER BY s.tgl_transaksi DESC, s.id DESC",
-                [$from, $to]
+                $binds
             );
             successResponse($data);
         }
@@ -352,6 +361,12 @@ switch ($method) {
                 $binds[] = $anggotaId;
             }
 
+            $metode = $params['metode_pembayaran'] ?? '';
+            if ($metode) {
+                $where .= " AND s.metode_pembayaran = ?";
+                $binds[] = $metode;
+            }
+
             paginatedResponse(
                 "SELECT s.*, a.nama as anggota_nama, a.no_anggota,
                         js.nama as jenis_simpanan, kt.nama as nama_transaksi,
@@ -466,27 +481,29 @@ switch ($method) {
         }
 
         checkPermission('simpanan.create');
-
+ 
         $anggotaId = $params['anggota_id'] ?? '';
         $jenisId = $params['jenis_simpanan_id'] ?? '';
         $kodeTransaksiId = $params['kode_transaksi_id'] ?? '';
         $jumlah = floatval($params['jumlah'] ?? 0);
         $tgl = $params['tgl_transaksi'] ?? date('Y-m-d');
-
+        $metodePembayaran = $params['metode_pembayaran'] ?? 'tunai';
+        $akunKasId = $params['akun_kas_id'] ?? null;
+ 
         if (empty($anggotaId) || empty($jenisId) || empty($kodeTransaksiId) || $jumlah <= 0) {
             errorResponse('Anggota, jenis simpanan, kode transaksi, dan jumlah wajib diisi');
         }
-
+ 
         // Validate anggota
         $anggota = $db->fetch("SELECT id, nama, no_anggota FROM anggota WHERE id = ? AND status = 'aktif'", [$anggotaId]);
         if (!$anggota)
             errorResponse('Anggota tidak ditemukan atau tidak aktif');
-
+ 
         // Validate kode transaksi
         $kodeTransaksi = $db->fetch("SELECT * FROM kode_transaksi_simpanan WHERE id = ? AND is_active = 1", [$kodeTransaksiId]);
         if (!$kodeTransaksi)
             errorResponse('Kode transaksi tidak valid');
-
+ 
         // Validate rekening if provided
         $rekeningId = $params['rekening_id'] ?? null;
         if ($rekeningId) {
@@ -505,7 +522,7 @@ switch ($method) {
             );
             $saldoSekarang = floatval($currentSaldo['saldo'] ?? 0);
         }
-
+ 
         // Calculate new saldo
         if ($kodeTransaksi['dk'] === 'D') {
             $saldoSesudah = $saldoSekarang + $jumlah;
@@ -515,14 +532,14 @@ switch ($method) {
             }
             $saldoSesudah = $saldoSekarang - $jumlah;
         }
-
+ 
         $db->beginTransaction();
         try {
             $noTransaksi = generateNo('SMP', 'simpanan', 'no_transaksi');
-
+ 
             $simpananId = $db->insert(
-                "INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by, metode_pembayaran, akun_kas_id)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 [
                     $noTransaksi,
                     $anggotaId,
@@ -534,47 +551,63 @@ switch ($method) {
                     $saldoSekarang,
                     $saldoSesudah,
                     $params['keterangan'] ?? '',
-                    $_SESSION['user_id']
+                    $_SESSION['user_id'],
+                    $metodePembayaran,
+                    $metodePembayaran === 'transfer' ? $akunKasId : null
                 ]
             );
-
+ 
             // Update balance in rekening_simpanan if used
             if ($rekeningId) {
                 $db->execute("UPDATE rekening_simpanan SET saldo = ? WHERE id = ?", [$saldoSesudah, $rekeningId]);
             }
-
+ 
             // Create jurnal entry
             $jenisSimpanan = $db->fetch("SELECT nama, akun_id FROM jenis_simpanan WHERE id = ?", [$jenisId]);
             $noBukti = generateNo('JRN', 'jurnal', 'no_bukti');
             $keterangan = $kodeTransaksi['nama'] . ' ' . $jenisSimpanan['nama'] . ' - ' . $anggota['nama'];
-
+            if (!empty($params['keterangan'])) {
+                $keterangan .= ' (' . $params['keterangan'] . ')';
+            }
+ 
             $jurnalId = $db->insert(
                 "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by)
                  VALUES (?,?,?,?,?,?,?,?)",
                 [$noBukti, $tgl, $keterangan, 'simpanan', $simpananId, $jumlah, $jumlah, $_SESSION['user_id']]
             );
-
+ 
             // Journal details — use COA from master data
             $akunSimpanan = $jenisSimpanan['akun_id']; // akun kewajiban dari jenis simpanan
-
+ 
             if ($kodeTransaksi['dk'] === 'D') {
-                // Debit side: from kode_transaksi.akun_debit_id (e.g. Kas 1000)
-                // Kredit side: jenis_simpanan.akun_id (e.g. Simpanan Anggota 2000)
+                // Debit side: from kode_transaksi.akun_debit_id (e.g. Kas 1000) or transfer COA
                 $akunDebit = $kodeTransaksi['akun_debit_id'] ?: $akunSimpanan;
+                if ($metodePembayaran === 'transfer' && !empty($akunKasId)) {
+                    $checkedAkun = $db->fetch("SELECT id FROM akun WHERE id = ? AND is_active = 1", [$akunKasId]);
+                    if ($checkedAkun) {
+                        $akunDebit = $checkedAkun['id'];
+                    }
+                }
                 $akunKredit = $akunSimpanan;
                 $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnalId, $akunDebit, $jumlah]);
                 $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunKredit, $jumlah]);
             } else {
                 // Debit side: jenis_simpanan.akun_id (e.g. Simpanan Anggota 2000)
-                // Kredit side: from kode_transaksi.akun_kredit_id (e.g. Kas 1000)
+                // Kredit side: from kode_transaksi.akun_kredit_id (e.g. Kas 1000) or transfer COA
                 $akunDebit = $akunSimpanan;
                 $akunKredit = $kodeTransaksi['akun_kredit_id'] ?: $akunSimpanan;
+                if ($metodePembayaran === 'transfer' && !empty($akunKasId)) {
+                    $checkedAkun = $db->fetch("SELECT id FROM akun WHERE id = ? AND is_active = 1", [$akunKasId]);
+                    if ($checkedAkun) {
+                        $akunKredit = $checkedAkun['id'];
+                    }
+                }
                 $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnalId, $akunDebit, $jumlah]);
                 $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunKredit, $jumlah]);
             }
-
+ 
             $db->commit();
-
+ 
             // Clear caches via central helper
             clearCache(['member' => $anggotaId, 'saving', 'finance', 'audit']);
 

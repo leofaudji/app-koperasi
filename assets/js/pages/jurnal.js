@@ -52,55 +52,64 @@ const JurnalPage = {
                 </div>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-3">
                 ${res.data.map(j => `
-                    <div class="border border-gray-100 rounded-2xl overflow-hidden hover:border-primary-100 transition-all hover:shadow-md">
-                        <div class="bg-gray-50/50 px-5 py-3.5 flex justify-between items-center border-b border-gray-50">
-                            <div class="flex items-center gap-3">
-                                <span class="font-mono text-xs font-bold text-primary-600 bg-white border border-primary-100 px-2.5 py-1 rounded-lg">${j.no_bukti}</span>
-                                <span class="text-sm font-medium text-gray-500 flex items-center gap-1.5"><i class="ri-calendar-line text-gray-400"></i> ${App.formatDate(j.tgl_transaksi)}</span>
+                    <div class="border border-gray-100 rounded-2xl overflow-hidden hover:border-primary-100 transition-all hover:shadow-md bg-white">
+                        <div class="bg-gray-50/50 px-5 py-3.5 flex justify-between items-center cursor-pointer select-none" onclick="JurnalPage.toggleDetails(${j.id})">
+                            <div class="flex items-center gap-3 flex-1 min-w-0">
+                                <i class="ri-arrow-right-s-line text-lg text-gray-400 transition-all duration-200" id="jrn-arrow-${j.id}"></i>
+                                <span class="font-mono text-xs font-bold text-primary-600 bg-white border border-primary-100 px-2.5 py-1 rounded-lg shrink-0">${j.no_bukti}</span>
+                                <span class="text-sm font-medium text-gray-500 flex items-center gap-1.5 shrink-0" title="Tanggal Transaksi"><i class="ri-calendar-line text-gray-400"></i> ${App.formatDate(j.tgl_transaksi)}</span>
+                                <div class="text-sm text-gray-700 font-medium truncate flex-1 ml-2" title="${j.keterangan || ''}">${j.keterangan || '-'}</div>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-3 shrink-0" onclick="event.stopPropagation()">
+                                <span class="font-mono text-xs font-bold text-gray-800 bg-gray-100/80 px-2.5 py-1 rounded-lg" title="Total Nilai">${App.formatRupiah(j.total_debit)}</span>
                                 <span class="text-[10px] sm:text-xs font-bold uppercase tracking-wider ${j.ref_tipe === 'manual' ? 'text-amber-600 bg-amber-50' : 'text-blue-600 bg-blue-50'} px-2.5 py-1 rounded-full">${j.ref_tipe || 'manual'}</span>
                                 ${j.ref_tipe !== 'reversal' ? `<button onclick="JurnalPage.confirmReverse(${j.id}, '${j.no_bukti}')" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Reverse Jurnal"><i class="ri-arrow-go-back-line"></i></button>` : ''}
                             </div>
                         </div>
-                        <div class="px-5 py-3 text-sm text-gray-700 italic border-b border-gray-50/50">${j.keterangan || '-'}</div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
-                                <thead>
-                                    <tr class="bg-white">
-                                        <th class="px-5 py-2.5 text-left font-bold text-gray-400 text-[10px] uppercase tracking-widest">Akun</th>
-                                        <th class="px-5 py-2.5 text-right font-bold text-gray-400 text-[10px] uppercase tracking-widest">Debit</th>
-                                        <th class="px-5 py-2.5 text-right font-bold text-gray-400 text-[10px] uppercase tracking-widest">Kredit</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${(j.details || []).map(d => `
-                                        <tr class="border-t border-gray-50 transition-colors hover:bg-gray-50/30">
-                                            <td class="px-5 py-3">
-                                                <div class="flex flex-col ${d.kredit > 0 ? 'ml-8' : ''}">
-                                                    <span class="font-semibold text-gray-800">${d.akun_nama}</span>
-                                                    <span class="text-[10px] font-mono text-gray-400">${d.akun_kode}</span>
-                                                </div>
-                                            </td>
-                                            <td class="px-5 py-3 text-right font-mono ${d.debit > 0 ? 'text-gray-900 font-bold' : 'text-gray-300'}">
-                                                ${d.debit > 0 ? App.formatRupiah(d.debit) : '-'}
-                                            </td>
-                                            <td class="px-5 py-3 text-right font-mono ${d.kredit > 0 ? 'text-gray-900 font-bold' : 'text-gray-300'}">
-                                                ${d.kredit > 0 ? App.formatRupiah(d.kredit) : '-'}
-                                            </td>
+                        
+                        <div id="jrn-details-${j.id}" class="hidden border-t border-gray-100 bg-white">
+                            <div class="px-5 py-2.5 text-[11px] text-gray-400 flex items-center gap-4 bg-gray-50/20 border-b border-gray-50">
+                                <span title="Waktu Input System"><i class="ri-time-line text-gray-400 mr-1"></i>Diinput: ${j.created_at ? moment(j.created_at).format('DD/MM/YYYY HH:mm') : '-'}</span>
+                                <span title="Petugas Input"><i class="ri-user-line text-gray-400 mr-1"></i>Oleh: ${j.created_by_nama || 'System'}</span>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="bg-white">
+                                            <th class="px-5 py-2.5 text-left font-bold text-gray-400 text-[10px] uppercase tracking-widest">Akun</th>
+                                            <th class="px-5 py-2.5 text-right font-bold text-gray-400 text-[10px] uppercase tracking-widest">Debit</th>
+                                            <th class="px-5 py-2.5 text-right font-bold text-gray-400 text-[10px] uppercase tracking-widest">Kredit</th>
                                         </tr>
-                                    `).join('')}
-                                </tbody>
-                                <tfoot class="bg-gray-50/30 font-bold">
-                                    <tr>
-                                        <td class="px-5 py-3 text-right text-[10px] uppercase text-gray-400 tracking-widest">Balance</td>
-                                        <td class="px-5 py-3 text-right text-primary-700">${App.formatRupiah(j.total_debit)}</td>
-                                        <td class="px-5 py-3 text-right text-primary-700">${App.formatRupiah(j.total_kredit)}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        ${(j.details || []).map(d => `
+                                            <tr class="border-t border-gray-50 transition-colors hover:bg-gray-50/30">
+                                                <td class="px-5 py-3">
+                                                    <div class="flex flex-col ${d.kredit > 0 ? 'ml-8' : ''}">
+                                                        <span class="font-semibold text-gray-800">${d.akun_nama}</span>
+                                                        <span class="text-[10px] font-mono text-gray-400">${d.akun_kode}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="px-5 py-3 text-right font-mono ${d.debit > 0 ? 'text-gray-900 font-bold' : 'text-gray-300'}">
+                                                    ${d.debit > 0 ? App.formatRupiah(d.debit) : '-'}
+                                                </td>
+                                                <td class="px-5 py-3 text-right font-mono ${d.kredit > 0 ? 'text-gray-900 font-bold' : 'text-gray-300'}">
+                                                    ${d.kredit > 0 ? App.formatRupiah(d.kredit) : '-'}
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                    <tfoot class="bg-gray-50/30 font-bold">
+                                        <tr>
+                                            <td class="px-5 py-3 text-right text-[10px] uppercase text-gray-400 tracking-widest">Balance</td>
+                                            <td class="px-5 py-3 text-right text-primary-700">${App.formatRupiah(j.total_debit)}</td>
+                                            <td class="px-5 py-3 text-right text-primary-700">${App.formatRupiah(j.total_kredit)}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 `).join('')}
@@ -149,7 +158,7 @@ const JurnalPage = {
                         </div>
                     </div>
 
-                    <div class="border border-gray-100 rounded-2xl overflow-hidden">
+                    <div class="border border-gray-100 rounded-2xl">
                         <table class="w-full text-sm" id="table-entry">
                             <thead>
                                 <tr class="bg-gray-50">
@@ -199,11 +208,12 @@ const JurnalPage = {
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-50/50 transition-colors entry-row';
         tr.innerHTML = `
-            <td class="px-3 py-3">
-                <select class="row-akun w-full border-none bg-transparent focus:ring-0 text-sm font-medium">
-                    <option value="">Pilih Akun...</option>
-                    ${this.akuns.map(a => `<option value="${a.id}">${a.kode} - ${a.nama}</option>`).join('')}
-                </select>
+            <td class="px-3 py-3 relative">
+                <div class="relative w-full jurnal-akun-wrapper">
+                    <input type="text" class="jurnal-akun-search w-full border-none bg-transparent focus:ring-0 text-sm font-medium" placeholder="Pilih Akun..." autocomplete="off">
+                    <input type="hidden" class="row-akun">
+                    <div class="jurnal-akun-results absolute left-0 right-0 z-50 mt-1 max-h-40 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl hidden"></div>
+                </div>
             </td>
             <td class="px-3 py-3">
                 <input type="number" class="row-debit w-full border-none bg-transparent focus:ring-0 text-right text-sm font-mono font-bold" value="0" step="100" oninput="JurnalPage.calcBalance()">
@@ -215,6 +225,58 @@ const JurnalPage = {
                 <button type="button" onclick="JurnalPage.removeRow(this)" class="text-gray-300 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-all"><i class="ri-delete-bin-line"></i></button>
             </td>`;
         tbody.appendChild(tr);
+
+        // Search events
+        const searchInput = tr.querySelector('.jurnal-akun-search');
+        const hiddenInput = tr.querySelector('.row-akun');
+        const resultsDiv = tr.querySelector('.jurnal-akun-results');
+        const wrapper = tr.querySelector('.jurnal-akun-wrapper');
+
+        const filterRowAccounts = (q = '') => {
+            const query = q.toLowerCase().trim();
+            const filtered = this.akuns.filter(a => 
+                a.kode.toLowerCase().includes(query) || 
+                a.nama.toLowerCase().includes(query)
+            );
+
+            if (filtered.length) {
+                resultsDiv.innerHTML = filtered.map(a => `
+                    <div class="px-3 py-2 hover:bg-emerald-50 cursor-pointer text-xs border-b border-gray-50 last:border-0" data-id="${a.id}" data-text="${a.kode} - ${a.nama}">
+                        <span class="font-mono text-gray-500 bg-gray-100 px-1 py-0.5 rounded mr-1.5">${a.kode}</span>
+                        <span class="font-medium text-gray-800">${a.nama}</span>
+                    </div>
+                `).join('');
+                resultsDiv.classList.remove('hidden');
+            } else {
+                resultsDiv.innerHTML = '<div class="px-3 py-2 text-gray-400 text-xs italic">Akun tidak ditemukan</div>';
+                resultsDiv.classList.remove('hidden');
+            }
+        };
+
+        searchInput.addEventListener('focus', () => {
+            filterRowAccounts(searchInput.value);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.jurnal-akun-wrapper') || e.target.closest('.jurnal-akun-wrapper') !== wrapper) {
+                resultsDiv.classList.add('hidden');
+            }
+        });
+
+        searchInput.addEventListener('input', (e) => {
+            filterRowAccounts(e.target.value);
+        });
+
+        resultsDiv.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-id]');
+            if (item) {
+                const id = item.getAttribute('data-id');
+                const text = item.getAttribute('data-text');
+                hiddenInput.value = id;
+                searchInput.value = text;
+                resultsDiv.classList.add('hidden');
+            }
+        });
     },
 
     removeRow(btn) {
@@ -298,6 +360,20 @@ const JurnalPage = {
             this.load();
         } else {
             App.toast(res?.message || 'Gagal melakukan reversal', 'error');
+        }
+    },
+
+    toggleDetails(id) {
+        const el = document.getElementById(`jrn-details-${id}`);
+        const arrow = document.getElementById(`jrn-arrow-${id}`);
+        if (el && arrow) {
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                arrow.classList.add('rotate-90');
+            } else {
+                el.classList.add('hidden');
+                arrow.classList.remove('rotate-90');
+            }
         }
     },
 

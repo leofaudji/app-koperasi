@@ -63,43 +63,16 @@ switch ($id) {
                 GROUP BY ak.id"
             );
 
-            // Tambahkan akun default 1200 jika belum ada dalam list
-            $has1200 = false;
-            foreach ($akunPinjamanGroups as $ap) {
-                if ($ap['akun_kode'] == '1200') {
-                    $has1200 = true;
-                    break;
-                }
-            }
-
-            if (!$has1200) {
-                $akun1200 = $db->fetch("SELECT id as akun_id, kode as akun_kode, nama as akun_nama, saldo_normal, 'Pinjaman Lainnya' as jenis_nama FROM akun WHERE kode = '1200' LIMIT 1");
-                if ($akun1200) {
-                    $akunPinjamanGroups[] = $akun1200;
-                }
-            }
-
             foreach ($akunPinjamanGroups as $ap) {
                 // Saldo Modul
-                if ($ap['akun_kode'] == '1200') {
-                    // Untuk 1200, ambil semua sisa_pinjaman yang jenis_pinjamannya akun_id-nya NULL ATAU akun_id-nya 1200
-                    $moduleSaldo = $db->fetch(
-                        "SELECT COALESCE(SUM(p.sisa_pinjaman),0) as total 
-                        FROM pinjaman p 
-                        JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
-                        WHERE (jp.akun_id IS NULL OR jp.akun_id = ?) AND p.status = 'cair'",
-                        [$ap['akun_id']]
-                    )['total'] ?? 0;
-                } else {
-                    $moduleSaldo = $db->fetch(
-                        "SELECT COALESCE(SUM(p.sisa_pinjaman),0) as total 
-                        FROM pinjaman p 
-                        JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
-                        WHERE jp.akun_id = ? AND p.status = 'cair'",
-                        [$ap['akun_id']]
-                    )['total'] ?? 0;
-                }
-
+                $moduleSaldo = $db->fetch(
+                    "SELECT COALESCE(SUM(p.sisa_pinjaman),0) as total 
+                    FROM pinjaman p 
+                    JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+                    WHERE jp.akun_id = ? AND p.status = 'cair'",
+                    [$ap['akun_id']]
+                )['total'] ?? 0;
+ 
                 // Saldo GL
                 $glSaldo = $db->fetch(
                     "SELECT CASE WHEN ak.saldo_normal='D' 
@@ -133,13 +106,13 @@ switch ($id) {
         $orphans = getCachedData($cacheKey, function() use ($db) {
             $orphans = [];
 
-            // 1. Simpanan tanpa Jurnal
+             // 1. Simpanan tanpa Jurnal
             $simpananNoJurnal = $db->fetchAll(
                 "SELECT s.id, s.no_transaksi, s.tgl_transaksi, s.jumlah, a.nama as anggota_nama
                 FROM simpanan s
                 JOIN anggota a ON s.anggota_id = a.id
                 LEFT JOIN jurnal j ON j.ref_tipe = 'simpanan' AND j.ref_id = s.id
-                WHERE j.id IS NULL"
+                WHERE j.id IS NULL AND s.no_transaksi NOT LIKE 'REV%' AND NOT (s.keterangan LIKE '%Import%' OR s.keterangan LIKE '%Saldo Awal%')"
             );
             foreach ($simpananNoJurnal as $s) {
                 $orphans[] = [
@@ -158,7 +131,7 @@ switch ($id) {
                 FROM pinjaman p
                 JOIN anggota a ON p.anggota_id = a.id
                 LEFT JOIN jurnal j ON j.ref_tipe = 'pinjaman' AND j.ref_id = p.id
-                WHERE p.status IN ('cair', 'lunas') AND p.tgl_pencairan IS NOT NULL AND j.id IS NULL"
+                WHERE p.status IN ('cair', 'lunas') AND p.tgl_pencairan IS NOT NULL AND j.id IS NULL AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')"
             );
             foreach ($pinjamanNoJurnal as $p) {
                 $orphans[] = [
@@ -172,13 +145,17 @@ switch ($id) {
             }
 
             // 3. Angsuran Masuk tanpa Jurnal Angsuran
+            // Exclude angsuran with NULL tgl_bayar (historical/migrated installments handled via opening balance)
             $angsuranNoJurnal = $db->fetchAll(
                 "SELECT ag.id, ag.no_transaksi, ag.tgl_bayar, ag.total, a.nama as anggota_nama
                 FROM angsuran ag
                 JOIN pinjaman p ON ag.pinjaman_id = p.id
                 JOIN anggota a ON p.anggota_id = a.id
                 LEFT JOIN jurnal j ON j.ref_tipe = 'angsuran' AND j.ref_id = ag.id
-                WHERE ag.status != 'belum' AND ag.tgl_bayar IS NOT NULL AND j.id IS NULL"
+                WHERE ag.status != 'belum'
+                  AND ag.tgl_bayar IS NOT NULL
+                  AND j.id IS NULL
+                  AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')"
             );
             foreach ($angsuranNoJurnal as $ag) {
                 $orphans[] = [
@@ -224,42 +201,53 @@ switch ($id) {
         $anomalies = getCachedData($cacheKey, function() use ($db) {
             $anomalies = [];
 
-            // 1. Input Backdated (Entry date > Transaction date + 3 days)
+            // 1. Input Backdated: > 30 hari = anomali serius, 3-30 hari = peringatan ringan
             $backdatedSimpanan = $db->fetchAll(
-                "SELECT id, no_transaksi, tgl_transaksi, created_at, jumlah 
-                FROM simpanan 
-                WHERE DATEDIFF(created_at, tgl_transaksi) > 3"
+                "SELECT id, no_transaksi, tgl_transaksi, created_at, jumlah,
+                        DATEDIFF(created_at, tgl_transaksi) as hari_terlambat
+                 FROM simpanan 
+                 WHERE DATEDIFF(created_at, tgl_transaksi) > 3
+                   AND NOT (keterangan LIKE '%Import%' OR keterangan LIKE '%Saldo Awal%')"
             );
             foreach ($backdatedSimpanan as $s) {
+                $hari = $s['hari_terlambat'];
+                $level = $hari > 30 ? 'Serius' : 'Ringan';
                 $anomalies[] = [
-                    'tipe' => 'Backdated Simpanan',
-                    'no' => $s['no_transaksi'],
+                    'tipe'   => "Backdated Simpanan ({$level})",
+                    'no'     => $s['no_transaksi'],
                     'detail' => "Trx: " . $s['tgl_transaksi'] . " | Input: " . substr($s['created_at'], 0, 10),
-                    'alasan' => 'Transaksi baru diinput ' . (strtotime(substr($s['created_at'], 0, 10)) - strtotime($s['tgl_transaksi'])) / 86400 . ' hari setelah kejadian.'
+                    'alasan' => "Transaksi baru diinput {$hari} hari setelah kejadian."
                 ];
             }
 
             $backdatedAngsuran = $db->fetchAll(
-                "SELECT id, no_transaksi, tgl_bayar, created_at, total 
-                FROM angsuran 
-                WHERE status != 'belum' AND DATEDIFF(created_at, tgl_bayar) > 3"
+                "SELECT ag.id, ag.no_transaksi, ag.tgl_bayar, ag.created_at, ag.total,
+                        DATEDIFF(ag.created_at, ag.tgl_bayar) as hari_terlambat
+                  FROM angsuran ag
+                  JOIN pinjaman p ON ag.pinjaman_id = p.id
+                  WHERE ag.status != 'belum'
+                    AND ag.tgl_bayar IS NOT NULL
+                    AND DATEDIFF(ag.created_at, ag.tgl_bayar) > 3
+                    AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')"
             );
             foreach ($backdatedAngsuran as $a) {
+                $hari = $a['hari_terlambat'];
+                $level = $hari > 30 ? 'Serius' : 'Ringan';
                 $anomalies[] = [
-                    'tipe' => 'Backdated Angsuran',
-                    'no' => $a['no_transaksi'],
+                    'tipe'   => "Backdated Angsuran ({$level})",
+                    'no'     => $a['no_transaksi'],
                     'detail' => "Bayar: " . $a['tgl_bayar'] . " | Input: " . substr($a['created_at'], 0, 10),
-                    'alasan' => 'Pembayaran baru diinput ' . (strtotime(substr($a['created_at'], 0, 10)) - strtotime($a['tgl_bayar'])) / 86400 . ' hari setelah kejadian.'
+                    'alasan' => "Pembayaran baru diinput {$hari} hari setelah kejadian."
                 ];
             }
 
             // 2. Saldo Negatif
             $negativeRekening = $db->fetchAll(
                 "SELECT rs.no_rekening, rs.saldo, a.nama as anggota_nama, js.nama as jenis_simpanan
-                FROM rekening_simpanan rs
-                JOIN anggota a ON rs.anggota_id = a.id
-                JOIN jenis_simpanan js ON rs.jenis_simpanan_id = js.id
-                WHERE rs.saldo < -0.01"
+                 FROM rekening_simpanan rs
+                 JOIN anggota a ON rs.anggota_id = a.id
+                 JOIN jenis_simpanan js ON rs.jenis_simpanan_id = js.id
+                 WHERE rs.saldo < -0.01"
             );
             foreach ($negativeRekening as $nr) {
                 $anomalies[] = [
@@ -272,11 +260,11 @@ switch ($id) {
 
             // 3. Transaksi Masa Depan (Future Date)
             $futureTrx = $db->fetchAll(
-                "SELECT 'Simpanan' as source, no_transaksi as no, tgl_transaksi as tgl FROM simpanan WHERE tgl_transaksi > CURDATE()
-                UNION
-                SELECT 'Pinjaman' as source, no_pinjaman as no, tgl_pencairan as tgl FROM pinjaman WHERE tgl_pencairan > CURDATE()
-                UNION
-                SELECT 'Angsuran' as source, no_transaksi as no, tgl_bayar as tgl FROM angsuran WHERE tgl_bayar > CURDATE()"
+                "SELECT 'Simpanan' as source, no_transaksi as no, tgl_transaksi as tgl FROM simpanan WHERE tgl_transaksi > CURDATE() AND NOT (keterangan LIKE '%Import%' OR keterangan LIKE '%Saldo Awal%')
+                 UNION
+                 SELECT 'Pinjaman' as source, no_pinjaman as no, tgl_pencairan as tgl FROM pinjaman WHERE tgl_pencairan > CURDATE() AND NOT (keterangan LIKE '%Migrasi%' OR keterangan LIKE '%Saldo Awal%')
+                 UNION
+                 SELECT 'Angsuran' as source, no_transaksi as no, tgl_bayar as tgl FROM angsuran WHERE tgl_bayar > CURDATE()"
             );
             foreach ($futureTrx as $ft) {
                 $anomalies[] = [
@@ -540,10 +528,10 @@ switch ($id) {
                 }
             }
             if ($reconIssues == 0) {
-                $pinj = $db->fetchAll("SELECT DISTINCT akun_id FROM jenis_pinjaman WHERE is_active = 1 AND akun_id IS NOT NULL");
+                 $pinj = $db->fetchAll("SELECT DISTINCT akun_id FROM jenis_pinjaman WHERE is_active = 1 AND akun_id IS NOT NULL");
                 foreach ($pinj as $p) {
                     $mod = $db->fetch("SELECT COALESCE(SUM(p.sisa_pinjaman),0) as total FROM pinjaman p JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id WHERE jp.akun_id = ? AND p.status='cair'", [$p['akun_id']])['total'];
-                    $gl = $db->fetch("SELECT CASE WHEN ak.saldo_normal='D' THEN COALESCE(SUM(jd.debit),0) - COALESCE(SUM(jd.kredit),0) ELSE COALESCE(SUM(jd.kredit),0) - COALESCE(SUM(jd.debit),0) END as saldo FROM akun ak LEFT JOIN jurnal_detail jd ON ak.id = jd.akun_id WHERE ak.id = ?", [$p['akun_id']])['saldo'];
+                    $gl = $db->fetch("SELECT CASE WHEN ak.saldo_normal='D' THEN COALESCE(SUM(jd.debit),0) - COALESCE(SUM(jd.kredit),0) ELSE COALESCE(SUM(jd.kredit),0) - COALESCE(SUM(jd.debit),0) END as saldo FROM akun ak LEFT JOIN jurnal_detail jd ON ak.id = jd.akun_id WHERE ak.id = ? GROUP BY ak.id, ak.saldo_normal", [$p['akun_id']])['saldo'];
                     if (abs($mod - $gl) > 1) {
                         $reconIssues++;
                         break;
@@ -557,10 +545,11 @@ switch ($id) {
             }
 
             // 2. Check Orphans (-10 per record)
+            // Angsuran with NULL tgl_bayar are historical/migrated data - excluded from orphan check
             $orphanCount = 0;
-            $orphanCount += $db->count("SELECT COUNT(*) FROM simpanan s LEFT JOIN jurnal j ON j.ref_tipe = 'simpanan' AND j.ref_id = s.id WHERE j.id IS NULL");
-            $orphanCount += $db->count("SELECT COUNT(*) FROM pinjaman p LEFT JOIN jurnal j ON j.ref_tipe = 'pinjaman' AND j.ref_id = p.id WHERE p.status IN ('cair', 'lunas') AND j.id IS NULL");
-            $orphanCount += $db->count("SELECT COUNT(*) FROM angsuran ag LEFT JOIN jurnal j ON j.ref_tipe = 'angsuran' AND j.ref_id = ag.id WHERE ag.status != 'belum' AND j.id IS NULL");
+            $orphanCount += $db->count("SELECT COUNT(*) FROM simpanan s LEFT JOIN jurnal j ON j.ref_tipe = 'simpanan' AND j.ref_id = s.id WHERE j.id IS NULL AND s.no_transaksi NOT LIKE 'REV%' AND NOT (s.keterangan LIKE '%Import%' OR s.keterangan LIKE '%Saldo Awal%')");
+            $orphanCount += $db->count("SELECT COUNT(*) FROM pinjaman p LEFT JOIN jurnal j ON j.ref_tipe = 'pinjaman' AND j.ref_id = p.id WHERE p.status IN ('cair', 'lunas') AND j.id IS NULL AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')");
+            $orphanCount += $db->count("SELECT COUNT(*) FROM angsuran ag JOIN pinjaman p ON ag.pinjaman_id = p.id LEFT JOIN jurnal j ON j.ref_tipe = 'angsuran' AND j.ref_id = ag.id WHERE ag.status != 'belum' AND ag.tgl_bayar IS NOT NULL AND j.id IS NULL AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')");
             $orphanCount += $db->count("SELECT COUNT(*) FROM jurnal j WHERE j.ref_tipe IN ('simpanan', 'pinjaman', 'angsuran') AND ((j.ref_tipe = 'simpanan' AND NOT EXISTS (SELECT 1 FROM simpanan WHERE id = j.ref_id)) OR (j.ref_tipe = 'pinjaman' AND NOT EXISTS (SELECT 1 FROM pinjaman WHERE id = j.ref_id)) OR (j.ref_tipe = 'angsuran' AND NOT EXISTS (SELECT 1 FROM angsuran WHERE id = j.ref_id)))");
 
             if ($orphanCount > 0) {
@@ -569,15 +558,16 @@ switch ($id) {
                 $penalties[] = ['label' => 'Data Yatim (Orphan)', 'points' => -$penalty, 'count' => $orphanCount];
             }
 
-            // 3. Check Backdated Anomalies (-5 per record)
+            // 3. Check Backdated Anomalies: hanya yang > 30 hari yang mempengaruhi skor
+            // Backdated 3-30 hari (mis. simpanan wajib bulan lalu) ditampilkan di anomali tapi tidak mengurangi skor
             $backdatedCount = 0;
-            $backdatedCount += $db->count("SELECT COUNT(*) FROM simpanan WHERE DATEDIFF(created_at, tgl_transaksi) > 3");
-            $backdatedCount += $db->count("SELECT COUNT(*) FROM angsuran WHERE status != 'belum' AND DATEDIFF(created_at, tgl_bayar) > 3");
+            $backdatedCount += $db->count("SELECT COUNT(*) FROM simpanan WHERE DATEDIFF(created_at, tgl_transaksi) > 30 AND NOT (keterangan LIKE '%Import%' OR keterangan LIKE '%Saldo Awal%')");
+            $backdatedCount += $db->count("SELECT COUNT(*) FROM angsuran ag JOIN pinjaman p ON ag.pinjaman_id = p.id WHERE ag.status != 'belum' AND ag.tgl_bayar IS NOT NULL AND DATEDIFF(ag.created_at, ag.tgl_bayar) > 30 AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')");
 
             if ($backdatedCount > 0) {
                 $penalty = min(30, $backdatedCount * 5);
                 $score -= $penalty;
-                $penalties[] = ['label' => 'Transaksi Backdated', 'points' => -$penalty, 'count' => $backdatedCount];
+                $penalties[] = ['label' => 'Transaksi Backdated (>30 hari)', 'points' => -$penalty, 'count' => $backdatedCount];
             }
 
             $score = max(0, $score);
