@@ -980,11 +980,11 @@ switch ($id) {
                 // List all accounts with saldo
                 return $db->fetchAll(
                     "SELECT ak.*, 
-                        COALESCE(SUM(jd.debit),0) as total_debit,
-                        COALESCE(SUM(jd.kredit),0) as total_kredit,
+                        COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0) as total_debit,
+                        COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0) as total_kredit,
                         CASE WHEN ak.saldo_normal='D' 
-                            THEN COALESCE(SUM(jd.debit),0) - COALESCE(SUM(jd.kredit),0)
-                            ELSE COALESCE(SUM(jd.kredit),0) - COALESCE(SUM(jd.debit),0)
+                            THEN COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0)
+                            ELSE COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0)
                         END as saldo
                     FROM akun ak
                     LEFT JOIN jurnal_detail jd ON ak.id = jd.akun_id
@@ -1036,8 +1036,8 @@ switch ($id) {
             $akuns = $db->fetchAll(
                 "SELECT ak.kode, ak.nama, ak.tipe, ak.saldo_normal, ak.kelompok,
                     CASE WHEN ak.saldo_normal='D' 
-                        THEN COALESCE(SUM(jd.debit),0) - COALESCE(SUM(jd.kredit),0)
-                        ELSE COALESCE(SUM(jd.kredit),0) - COALESCE(SUM(jd.debit),0)
+                        THEN COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0)
+                        ELSE COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0)
                     END as saldo
                 FROM akun ak
                 LEFT JOIN jurnal_detail jd ON ak.id = jd.akun_id
@@ -1062,8 +1062,8 @@ switch ($id) {
             $lrAkuns = $db->fetchAll(
                 "SELECT ak.tipe, ak.saldo_normal,
                     CASE WHEN ak.saldo_normal='D'
-                        THEN COALESCE(SUM(jd.debit),0) - COALESCE(SUM(jd.kredit),0)
-                        ELSE COALESCE(SUM(jd.kredit),0) - COALESCE(SUM(jd.debit),0)
+                        THEN COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0)
+                        ELSE COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0)
                     END as saldo
                 FROM akun ak
                 LEFT JOIN jurnal_detail jd ON ak.id = jd.akun_id
@@ -1114,8 +1114,8 @@ switch ($id) {
             $akuns = $db->fetchAll(
                 "SELECT ak.id, ak.kode, ak.nama, ak.tipe, ak.saldo_normal, ak.kelompok_beban,
                     CASE WHEN ak.saldo_normal='D' 
-                        THEN COALESCE(SUM(jd.debit),0) - COALESCE(SUM(jd.kredit),0)
-                        ELSE COALESCE(SUM(jd.kredit),0) - COALESCE(SUM(jd.debit),0)
+                        THEN COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0)
+                        ELSE COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0)
                     END as saldo
                 FROM akun ak
                 LEFT JOIN jurnal_detail jd ON ak.id = jd.akun_id

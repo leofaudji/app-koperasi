@@ -369,6 +369,17 @@ switch ($method) {
                 $binds[] = $metode;
             }
 
+            $dari = $params['dari'] ?? $params['from'] ?? '';
+            if ($dari) {
+                $where .= " AND s.tgl_transaksi >= ?";
+                $binds[] = $dari;
+            }
+            $sampai = $params['sampai'] ?? $params['to'] ?? '';
+            if ($sampai) {
+                $where .= " AND s.tgl_transaksi <= ?";
+                $binds[] = $sampai;
+            }
+
             paginatedResponse(
                 "SELECT s.*, a.nama as anggota_nama, a.no_anggota,
                         js.nama as jenis_simpanan, kt.nama as nama_transaksi,

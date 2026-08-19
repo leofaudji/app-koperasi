@@ -503,7 +503,9 @@ const PinjamanPage = {
                 tenor: document.getElementById('pf-tenor').value,
                 agunan: agunanPayload,
                 is_topup: document.getElementById('pf-is-topup')?.checked ? 1 : 0,
-                topup_ref_id: PinjamanPage._activeLoan?.id || null,
+                topup_ref_id: document.getElementById('pf-is-topup')?.checked 
+                    ? Array.from(document.querySelectorAll('input[name="pf-topup-loans"]:checked')).map(cb => cb.value).join(',')
+                    : null,
                 keterangan: document.getElementById('pf-ket').value
             };
 
@@ -732,146 +734,188 @@ const PinjamanPage = {
         errorBox.classList.add('hidden');
         if (isTopup) isTopup.checked = false;
         PinjamanPage._activeLoan = null;
+        PinjamanPage._activeLoans = [];
         PinjamanPage._topupPelunasan = 0;
         document.getElementById('pf-topup-details').classList.add('hidden');
         section.classList.add('hidden');
 
-        const res = await App.api(`pinjaman?anggota_id=${anggotaId}&jenis_pinjaman_id=${jenisId}&status=pending,disetujui,cair&per_page=1`);
-        
-        if (res?.success && res.data.length > 0) {
-            const loan = res.data[0];
-            PinjamanPage._activeLoan = (loan.status === 'cair') ? loan : null;
-            
+        // Check if there is any pending or disetujui loan of the SAME type
+        const resPending = await App.api(`pinjaman?anggota_id=${anggotaId}&jenis_pinjaman_id=${jenisId}&status=pending,disetujui&per_page=1`);
+        if (resPending?.success && resPending.data.length > 0) {
+            const loan = resPending.data[0];
             errorBox.classList.remove('hidden');
             simBox.classList.add('hidden');
-
-            let msg = `
+            errorBox.innerHTML = `
                 <div class="flex items-start gap-3">
                     <i class="ri-error-warning-fill text-xl mt-0.5"></i>
                     <div>
-                        <div class="font-bold uppercase text-[10px] tracking-widest mb-1">Peringatan: Pinjaman Terdeteksi</div>
+                        <div class="font-bold uppercase text-[10px] tracking-widest mb-1">Peringatan: Pengajuan Aktif</div>
                         <p class="text-xs leading-relaxed">
-                            Anggota sudah memiliki pinjaman <strong>${loan.jenis_pinjaman}</strong> (${loan.no_pinjaman}) 
-                            dengan status <strong>${loan.status.toUpperCase()}</strong>.
+                            Anggota sudah memiliki pengajuan pinjaman <strong>${loan.jenis_pinjaman}</strong> (${loan.no_pinjaman}) 
+                            yang sedang aktif dengan status <strong>${loan.status.toUpperCase()}</strong>.
+                            Pengajuan baru untuk jenis ini tidak diizinkan sampai pengajuan sebelumnya selesai diproses.
                         </p>
-                        ${loan.status === 'cair' ? `
-                            <p class="text-[10px] mt-2 font-medium bg-white/50 p-2 rounded-lg border border-rose-100">
-                                Sisa Baki Debet: <strong>${App.formatRupiah(loan.sisa_pinjaman)}</strong>. 
-                                <br>Gunakan fitur <b>Top-up</b> jika ingin melakukan pembiayaan ulang.
-                            </p>
-                        ` : `
-                            <p class="text-[10px] mt-2 font-bold text-rose-800">
-                                Pengajuan baru tidak diizinkan sampai pengajuan sebelumnya selesai diproses.
-                            </p>
-                        `}
                     </div>
                 </div>
             `;
-            errorBox.innerHTML = msg;
+            return;
+        }
 
-            if (loan.status === 'cair') {
-                section.classList.remove('hidden');
-            }
+        // Fetch all active (cair) loans of the member
+        const resActive = await App.api(`pinjaman?anggota_id=${anggotaId}&status=cair&per_page=100`);
+        if (resActive?.success && resActive.data.length > 0) {
+            PinjamanPage._activeLoans = resActive.data;
+            // Default to the first active loan or the one with same type if matching
+            const matchingLoan = resActive.data.find(l => l.jenis_pinjaman_id == jenisId);
+            PinjamanPage._activeLoan = matchingLoan || resActive.data[0];
+
+            section.classList.remove('hidden');
         }
     },
 
     async checkActiveLoan(anggotaId) {
-        // We now use checkExistingLoan which is more specific
         this.checkExistingLoan(anggotaId);
+    },
+
+    async changeTopupLoan(loanId) {
+        const activeLoan = (PinjamanPage._activeLoans || []).find(l => l.id == loanId);
+        if (activeLoan) {
+            PinjamanPage._activeLoan = activeLoan;
+            await PinjamanPage.toggleTopup(true);
+            PinjamanPage.calcSimulation();
+        }
     },
 
     async toggleTopup(checked) {
         const details = document.getElementById('pf-topup-details');
-        if (checked && PinjamanPage._activeLoan) {
+        if (checked && PinjamanPage._activeLoans && PinjamanPage._activeLoans.length > 0) {
             details.classList.remove('hidden');
-            details.innerHTML = `<div class="flex items-center gap-2 py-2"><i class="ri-loader-4-line animate-spin text-lg"></i> Menghitung detail pelunasan...</div>`;
-
-            const res = await App.api(`angsuran/kalkulasi-lunas?pinjaman_id=${PinjamanPage._activeLoan.id}`);
-            if (res?.success) {
-                const s = res.data;
-                PinjamanPage._topupPelunasan = s.total_pelunasan;
-                details.innerHTML = `
-                    <div class="grid grid-cols-2 gap-x-4 gap-y-1 bg-white/50 p-3 rounded-lg border border-amber-100 mt-1">
-                        <div class="text-gray-500">Sisa Pokok:</div><div class="font-semibold text-right">${App.formatRupiah(s.sisa_pokok)}</div>
-                        <div class="text-gray-500">Bunga Berjalan:</div><div class="font-semibold text-right">${App.formatRupiah(s.bunga_berjalan)}</div>
-                        <div class="text-gray-500">Denda:</div><div class="font-semibold text-right text-red-600">${App.formatRupiah(s.denda_berjalan)}</div>
-                        <div class="col-span-2 border-t border-amber-200 my-1 pt-1 flex justify-between">
-                            <span class="font-bold">Total Pelunasan:</span>
-                            <span class="font-bold text-primary-700">${App.formatRupiah(s.total_pelunasan)}</span>
-                        </div>
-                    </div>
-                    <div class="text-[10px] italic text-amber-600 mt-1">* Bunga belum jatuh tempo ${App.formatRupiah(s.bunga_dibebaskan)} dibebaskan.</div>
-                `;
-
-                // Auto copy old agunan if any
-                if (PinjamanPage._activeLoan.agunan) {
-                    try {
-                        let parsedAgunan = null;
-                        const rawAgunan = PinjamanPage._activeLoan.agunan;
-                        if (typeof rawAgunan === 'object') {
-                            parsedAgunan = rawAgunan;
-                        } else if (typeof rawAgunan === 'string') {
-                            const trimmed = rawAgunan.trim();
-                            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-                                parsedAgunan = JSON.parse(trimmed);
-                            }
-                        }
-
-                        if (parsedAgunan) {
-                            let list = [];
-                            if (Array.isArray(parsedAgunan)) {
-                                list = parsedAgunan;
-                            } else if (typeof parsedAgunan === 'object' && parsedAgunan.tipe) {
-                                list = [parsedAgunan];
-                            }
-                            
-                            // Map and ensure _label exists for each item
-                            PinjamanPage._agunanList = list.map(item => {
-                                if (!item._label) {
-                                    const noDoc = item.data['No. Sertifikat'] || item.data['No. Bpkb'] || item.data['No. Rekening'] || item.data['No Sertifikat'] || item.data['No Bpkb'] || item.data['No Rekening'] || '';
-                                    const nilai = item.data['Nilai Estimasi'] || item.data['Nominal Saldo'] || item.data['Estimasi Nilai'] || 0;
-                                    item._label = `${item.tipe}${noDoc ? ' — ' + noDoc : ''}${nilai ? ' · ' + App.formatRupiah(parseFloat(String(nilai).replace(/[^0-9]/g, '')) || 0) : ''}`;
-                                }
-                                return item;
-                            });
-                            
-                            PinjamanPage.renderAgunanList();
-                            App.toast('Agunan pinjaman lama berhasil disalin otomatis!', 'info', 2500);
-                        } else if (typeof rawAgunan === 'string' && rawAgunan.trim().length > 0) {
-                            // Fallback for plain text agunan
-                            const text = rawAgunan.trim();
-                            let tipe = "Lainnya";
-                            if (text.includes("Sertifikat")) {
-                                tipe = "Sertifikat Tanah (SHM/SHGB)";
-                            } else if (text.includes("BPKB") || text.includes("Bpkb")) {
-                                tipe = "BPKB Kendaraan";
-                            } else if (text.includes("Deposito") || text.includes("Simpanan")) {
-                                tipe = "Deposito/Simpanan";
-                            }
-                            
-                            PinjamanPage._agunanList = [{
-                                tipe: tipe,
-                                data: { "Keterangan": text },
-                                _label: text
-                            }];
-                            PinjamanPage.renderAgunanList();
-                            App.toast('Agunan pinjaman lama berhasil disalin otomatis!', 'info', 2500);
-                        }
-                    } catch (e) {
-                        console.error("Gagal memproses agunan lama", e);
-                    }
-                }
-            } else {
-                App.toast('Gagal memuat detail pelunasan', 'error');
-                document.getElementById('pf-is-topup').checked = false;
-                details.classList.add('hidden');
-            }
+            
+            // Render list of active loans as checkbox list
+            details.innerHTML = `
+                <div class="text-[10px] font-bold text-amber-800 mb-1.5 uppercase tracking-wider">Pilih Pinjaman Lama Yang Ingin Dilunasi (Bisa Pilih > 1):</div>
+                <div class="space-y-2 bg-white/60 p-3 rounded-xl border border-amber-100 mb-2 max-h-48 overflow-y-auto">
+                    ${PinjamanPage._activeLoans.map((l, idx) => `
+                        <label class="flex items-start gap-2.5 cursor-pointer font-semibold text-gray-800 hover:text-amber-900 text-xs py-1">
+                            <input type="checkbox" name="pf-topup-loans" value="${l.id}" 
+                                   ${idx === 0 || l.jenis_pinjaman_id == document.getElementById('pf-jenis').value ? 'checked' : ''} 
+                                   class="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-4 h-4 mt-0.5" 
+                                   onchange="PinjamanPage.calcTopupSelected()">
+                            <div>
+                                <span class="font-mono font-bold text-amber-900 block text-xs">${l.no_pinjaman}</span>
+                                <span class="text-[10px] text-gray-500">${l.jenis_pinjaman} &nbsp;·&nbsp; Sisa: <strong class="text-gray-800">${App.formatRupiah(l.sisa_pinjaman)}</strong></span>
+                            </div>
+                        </label>
+                    `).join('')}
+                </div>
+                <div id="pf-topup-calc-details" class="text-xs text-amber-800 space-y-2 pt-2 border-t border-dashed border-amber-200"></div>
+            `;
+            await PinjamanPage.calcTopupSelected();
         } else {
             details.classList.add('hidden');
             PinjamanPage._topupPelunasan = 0;
-            PinjamanPage._agunanList = [];
+            PinjamanPage.calcSimulation();
+        }
+    },
+
+    async calcTopupSelected() {
+        const checkedBoxes = document.querySelectorAll('input[name="pf-topup-loans"]:checked');
+        const calcDetails = document.getElementById('pf-topup-calc-details');
+        if (!calcDetails) return;
+
+        if (checkedBoxes.length === 0) {
+            PinjamanPage._topupPelunasan = 0;
+            calcDetails.innerHTML = `<div class="text-amber-600 italic py-1">Pilih minimal satu pinjaman lama untuk melakukan top-up.</div>`;
+            PinjamanPage.calcSimulation();
+            return;
+        }
+
+        calcDetails.innerHTML = `<div class="flex items-center gap-2 py-1"><i class="ri-loader-4-line animate-spin text-lg"></i> Menghitung total pelunasan...</div>`;
+
+        let totalPokok = 0;
+        let totalBunga = 0;
+        let totalDenda = 0;
+        let totalLunas = 0;
+        let totalDibebaskan = 0;
+        
+        // Salin agunan dari semua pinjaman lama yang dipilih
+        PinjamanPage._agunanList = [];
+
+        for (const cb of checkedBoxes) {
+            const id = cb.value;
+            const res = await App.api(`angsuran/kalkulasi-lunas?pinjaman_id=${id}`);
+            if (res?.success) {
+                const s = res.data;
+                totalPokok += parseFloat(s.sisa_pokok) || 0;
+                totalBunga += parseFloat(s.bunga_berjalan) || 0;
+                totalDenda += parseFloat(s.denda_berjalan) || 0;
+                totalLunas += parseFloat(s.total_pelunasan) || 0;
+                totalDibebaskan += parseFloat(s.bunga_dibebaskan) || 0;
+            }
+
+            // Cari loan object
+            const l = (PinjamanPage._activeLoans || []).find(x => x.id == id);
+            if (l && l.agunan) {
+                try {
+                    let parsed = typeof l.agunan === 'object' ? l.agunan : JSON.parse(l.agunan);
+                    let list = Array.isArray(parsed) ? parsed : [parsed];
+                    list.forEach(item => {
+                        if (!item._label) {
+                            const noDoc = item.data['No. Sertifikat'] || item.data['No. Bpkb'] || item.data['No. Rekening'] || '';
+                            const nilai = item.data['Nilai Estimasi'] || item.data['Nominal Saldo'] || 0;
+                            item._label = `${item.tipe}${noDoc ? ' — ' + noDoc : ''}${nilai ? ' · ' + App.formatRupiah(parseFloat(String(nilai).replace(/[^0-9]/g, '')) || 0) : ''}`;
+                        }
+                        if (!PinjamanPage._agunanList.some(x => x._label === item._label)) {
+                            PinjamanPage._agunanList.push(item);
+                        }
+                    });
+                } catch (e) {}
+            }
+        }
+
+        PinjamanPage._topupPokokSum = totalPokok;
+        PinjamanPage._topupPelunasan = totalLunas;
+
+        calcDetails.innerHTML = `
+            <div class="grid grid-cols-2 gap-x-4 gap-y-2 bg-white/40 p-2.5 rounded-lg border border-amber-100/50 mt-1">
+                <div class="text-gray-500 flex items-center">Total Pokok:</div>
+                <div class="font-semibold text-right py-1">${App.formatRupiah(totalPokok)}</div>
+                
+                <div class="text-gray-500 flex items-center">Bunga Berjalan:</div>
+                <div>
+                    <input type="number" id="pf-topup-input-bunga" value="${totalBunga}" min="0" class="w-full border border-amber-200 rounded px-2 py-1 text-right text-xs font-bold text-gray-800 focus:ring-1 focus:ring-amber-500 bg-white" oninput="PinjamanPage.recalcTopupInputs()">
+                </div>
+                
+                <div class="text-gray-500 flex items-center">Total Denda:</div>
+                <div>
+                    <input type="number" id="pf-topup-input-denda" value="${totalDenda}" min="0" class="w-full border border-amber-200 rounded px-2 py-1 text-right text-xs font-bold text-gray-800 focus:ring-1 focus:ring-amber-500 bg-white" oninput="PinjamanPage.recalcTopupInputs()">
+                </div>
+                
+                <div class="col-span-2 border-t border-amber-200/50 my-1 pt-2 flex justify-between items-center">
+                    <span class="font-bold text-xs">Total Pelunasan Gabungan:</span>
+                    <span class="font-bold text-amber-700 text-sm" id="pf-topup-total-lunas-lbl">${App.formatRupiah(totalLunas)}</span>
+                </div>
+            </div>
+            <div class="text-[10px] italic text-amber-600 mt-1">* Bunga belum jatuh tempo ${App.formatRupiah(totalDibebaskan)} dibebaskan.</div>
+        `;
+
+        if (PinjamanPage._agunanList.length > 0) {
             PinjamanPage.renderAgunanList();
         }
+        this.calcSim();
+    },
+
+    recalcTopupInputs() {
+        const sisaPokok = parseFloat(PinjamanPage._topupPokokSum) || 0;
+        const customBunga = parseFloat(document.getElementById('pf-topup-input-bunga')?.value) || 0;
+        const customDenda = parseFloat(document.getElementById('pf-topup-input-denda')?.value) || 0;
+        
+        const totalLunas = sisaPokok + customBunga + customDenda;
+        PinjamanPage._topupPelunasan = totalLunas;
+
+        const lbl = document.getElementById('pf-topup-total-lunas-lbl');
+        if (lbl) lbl.textContent = App.formatRupiah(totalLunas);
+
         this.calcSim();
     },
 
@@ -1100,14 +1144,17 @@ const PinjamanPage = {
     },
 
     async approve(id) {
-        // Load data pinjaman & jenis biaya secara paralel
-        const [resPnj, resBiaya] = await Promise.all([
+        // Load data pinjaman, jenis biaya & akun secara paralel
+        const [resPnj, resBiaya, resAkun] = await Promise.all([
             App.api(`pinjaman/${id}`),
-            App.api('biaya-pinjaman?active=1')
+            App.api('biaya-pinjaman?active=1'),
+            App.api('keuangan/akun')
         ]);
         if (!resPnj?.success) { App.toast('Gagal memuat data pinjaman', 'error'); return; }
         const p = resPnj.data;
         const biayaList = resBiaya?.data || [];
+        const accounts = resAkun?.data || [];
+        const assetAccounts = accounts.filter(a => a.tipe === 'aset');
 
         // Hitung estimasi otomatis berdasarkan jumlah pinjaman
         const renderBiayaRows = (list, jumlah) => list.map((b, i) => {
@@ -1133,6 +1180,31 @@ const PinjamanPage = {
                 <div class="mt-1">Jumlah: <span class="font-bold">${App.formatRupiah(p.jumlah)}</span> &nbsp;·&nbsp; Tenor: <span class="font-semibold">${p.tenor} bulan</span></div>
             </div>
 
+            ${p.topup_old_loans && p.topup_old_loans.length > 0 ? `
+            <!-- Refinancing Top-up Details -->
+            <div class="mb-4 bg-amber-50/70 p-4 rounded-xl border border-amber-100/70 space-y-4">
+                <h4 class="text-xs font-bold text-amber-800 uppercase tracking-wider"><i class="ri-refresh-line mr-1"></i>Pelunasan Pinjaman Lama (Refinancing)</h4>
+                ${p.topup_old_loans.map(l => `
+                    <div class="border-b border-amber-200/40 last:border-0 pb-3 last:pb-0 space-y-2">
+                        <div class="text-xs font-medium text-gray-700 flex justify-between">
+                            <span>No: <strong class="font-mono text-primary-700">${l.no_pinjaman}</strong></span>
+                            <span>Sisa Pokok: <strong class="text-gray-800">${App.formatRupiah(l.sisa_pinjaman)}</strong></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                                <label class="block text-[10px] text-gray-500 font-semibold mb-0.5">Bunga Berjalan (Rp) *</label>
+                                <input type="number" data-topup-id="${l.id}" data-type="bunga" value="${l.bunga_berjalan}" min="0" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 font-bold text-gray-800 text-right focus:ring-2 focus:ring-amber-500" oninput="PinjamanPage.calcTotalBiaya()">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-gray-500 font-semibold mb-0.5">Denda Berjalan (Rp) *</label>
+                                <input type="number" data-topup-id="${l.id}" data-type="denda" value="${l.denda_berjalan}" min="0" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 font-bold text-gray-800 text-right focus:ring-2 focus:ring-amber-500" oninput="PinjamanPage.calcTotalBiaya()">
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+
             <div class="mb-4">
                 <div class="flex items-center justify-between mb-2">
                     <h4 class="text-sm font-semibold text-gray-700"><i class="ri-coins-line text-amber-500 mr-1"></i>Biaya Pencairan</h4>
@@ -1154,6 +1226,25 @@ const PinjamanPage = {
                 </div>
             </div>
 
+            <!-- Metode Pencairan & Kas/Bank COA -->
+            <div class="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">Metode Pencairan *</label>
+                    <select id="pf-metode" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 bg-white">
+                        <option value="tunai" selected>Tunai (Kas)</option>
+                        <option value="transfer">Transfer Bank</option>
+                    </select>
+                </div>
+                <div id="pf-akun-kas-container" class="hidden">
+                    <label class="block text-xs font-semibold text-gray-500 mb-1">Pilih Rekening Bank/COA *</label>
+                    <div class="relative" id="pf-akun-kas-wrapper">
+                        <input type="text" id="pf-akun-kas-search" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 bg-white" placeholder="Ketik untuk mencari akun..." autocomplete="off">
+                        <input type="hidden" id="pf-akun-kas" value="">
+                        <div id="pf-akun-kas-results" class="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl hidden"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Potongan Simpanan Wajib -->
             <div class="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                 <label class="flex items-center gap-2.5 cursor-pointer font-bold text-sm text-gray-700">
@@ -1166,15 +1257,93 @@ const PinjamanPage = {
                 </div>
             </div>
 
+            <!-- Net Pencairan Estimasi -->
+            <div class="mb-6 bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center shadow-sm">
+                <div>
+                    <div class="text-sm font-bold text-emerald-800">Estimasi Dana Diterima</div>
+                    <div class="text-xs text-emerald-600 mt-0.5">Sisa bersih setelah potongan & pelunasan</div>
+                </div>
+                <div class="text-lg font-black text-emerald-700" id="pf-net-cair-lbl">Rp 0</div>
+            </div>
+
             <div class="flex justify-end gap-3 pt-4 border-t">
                 <button type="button" onclick="App.closeModal()" class="px-4 py-2.5 border border-gray-300 rounded-xl text-sm hover:bg-gray-50 text-gray-600">Batal</button>
                 <button type="button" onclick="PinjamanPage.doApprove(${id})" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold"><i class="ri-check-line mr-1"></i>Setujui & Cairkan</button>
             </div>
         </div>`);
 
+        // Setup Autocomplete event listeners untuk Rekening Bank COA
+        const metodeSelect = document.getElementById('pf-metode');
+        const akunKasContainer = document.getElementById('pf-akun-kas-container');
+        const searchCoaInput = document.getElementById('pf-akun-kas-search');
+        const hiddenCoaInput = document.getElementById('pf-akun-kas');
+        const dropCoaContainer = document.getElementById('pf-akun-kas-results');
+
+        const filterCoa = (q = '') => {
+            const query = q.toLowerCase().trim();
+            const filtered = assetAccounts.filter(a => 
+                a.kode.toLowerCase().includes(query) || 
+                a.nama.toLowerCase().includes(query)
+            );
+
+            if (filtered.length) {
+                dropCoaContainer.innerHTML = filtered.map(a => `
+                    <div class="px-4 py-2.5 hover:bg-emerald-50 cursor-pointer text-sm border-b border-gray-50 last:border-0" data-id="${a.id}" data-text="${a.kode} - ${a.nama}">
+                        <span class="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded mr-2">${a.kode}</span>
+                        <span class="font-medium text-gray-800">${a.nama}</span>
+                    </div>
+                `).join('');
+                dropCoaContainer.classList.remove('hidden');
+            } else {
+                dropCoaContainer.innerHTML = '<div class="px-4 py-3 text-gray-400 text-xs italic">Akun tidak ditemukan</div>';
+                dropCoaContainer.classList.remove('hidden');
+            }
+        };
+
+        searchCoaInput.addEventListener('focus', () => {
+            filterCoa(searchCoaInput.value);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#pf-akun-kas-wrapper')) {
+                dropCoaContainer.classList.add('hidden');
+            }
+        });
+
+        searchCoaInput.addEventListener('input', (e) => {
+            filterCoa(e.target.value);
+        });
+
+        dropCoaContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-id]');
+            if (item) {
+                const id = item.getAttribute('data-id');
+                const text = item.getAttribute('data-text');
+                hiddenCoaInput.value = id;
+                searchCoaInput.value = text;
+                dropCoaContainer.classList.add('hidden');
+            }
+        });
+
+        metodeSelect.addEventListener('change', () => {
+            if (metodeSelect.value === 'transfer') {
+                akunKasContainer.classList.remove('hidden');
+                searchCoaInput.setAttribute('required', 'required');
+            } else {
+                akunKasContainer.classList.add('hidden');
+                searchCoaInput.removeAttribute('required');
+                hiddenCoaInput.value = '';
+                searchCoaInput.value = '';
+            }
+        });
+
         // Simpan rowCount agar addBiayaRow tahu index
         PinjamanPage._approveJml = p.jumlah;
         PinjamanPage._biayaCount = biayaList.length;
+        PinjamanPage._topupOldLoans = p.topup_old_loans || [];
+
+        // Hitung estimasi awal dana diterima
+        PinjamanPage.calcTotalBiaya();
     },
 
     toggleSwInput() {
@@ -1188,17 +1357,35 @@ const PinjamanPage = {
             this.calcTotalBiaya();
         }
     },
-
     calcTotalBiaya() {
-        let total = 0;
-        document.querySelectorAll('[id^="bjml-"]').forEach(el => { total += parseFloat(el.value) || 0; });
+        let totalBiaya = 0;
+        document.querySelectorAll('[id^="bjml-"]').forEach(el => { totalBiaya += parseFloat(el.value) || 0; });
         const potongSw = document.getElementById('potong-sw')?.checked;
         const swNominal = parseFloat(document.getElementById('sw-nominal')?.value) || 0;
-        if (potongSw) total += swNominal;
+        if (potongSw) totalBiaya += swNominal;
         const lbl = document.getElementById('total-biaya-lbl');
-        if (lbl) lbl.textContent = App.formatRupiah(total);
-    },
+        if (lbl) lbl.textContent = App.formatRupiah(totalBiaya);
 
+        // Hitung Estimasi Bersih Dana Pencairan (Net Payout)
+        const plafon = parseFloat(PinjamanPage._approveJml) || 0;
+        let totalPotongan = totalBiaya;
+
+        // Tambah potongan pelunasan pinjaman lama jika refinancing / top-up
+        if (PinjamanPage._topupOldLoans && PinjamanPage._topupOldLoans.length > 0) {
+            PinjamanPage._topupOldLoans.forEach(l => {
+                const sisaPokok = parseFloat(l.sisa_pinjaman) || 0;
+                const bEl = document.querySelector(`input[data-topup-id="${l.id}"][data-type="bunga"]`);
+                const dEl = document.querySelector(`input[data-topup-id="${l.id}"][data-type="denda"]`);
+                const topupBunga = bEl ? parseFloat(bEl.value) || 0 : 0;
+                const topupDenda = dEl ? parseFloat(dEl.value) || 0 : 0;
+                totalPotongan += sisaPokok + topupBunga + topupDenda;
+            });
+        }
+
+        const netCair = Math.max(0, plafon - totalPotongan);
+        const netLbl = document.getElementById('pf-net-cair-lbl');
+        if (netLbl) netLbl.textContent = App.formatRupiah(netCair);
+    },
     addBiayaRow() {
         const tbody = document.getElementById('biaya-tbody');
         if (!tbody) return;
@@ -1238,6 +1425,26 @@ const PinjamanPage = {
         const potongSw = document.getElementById('potong-sw')?.checked || false;
         const swNominal = parseFloat(document.getElementById('sw-nominal')?.value) || 0;
 
+        const metodePembayaran = document.getElementById('pf-metode')?.value || 'tunai';
+        const akunKasId = document.getElementById('pf-akun-kas')?.value || '';
+
+        if (metodePembayaran === 'transfer' && !akunKasId) {
+            App.toast('Pilih rekening bank COA terlebih dahulu', 'warning');
+            return;
+        }
+
+        // Kumpulkan bunga dan denda kustom untuk setiap pinjaman topup
+        const topupDetails = [];
+        if (PinjamanPage._topupOldLoans) {
+            PinjamanPage._topupOldLoans.forEach(l => {
+                const bEl = document.querySelector(`input[data-topup-id="${l.id}"][data-type="bunga"]`);
+                const dEl = document.querySelector(`input[data-topup-id="${l.id}"][data-type="denda"]`);
+                const bunga = bEl ? parseFloat(bEl.value) || 0 : 0;
+                const denda = dEl ? parseFloat(dEl.value) || 0 : 0;
+                topupDetails.push({ id: l.id, bunga, denda });
+            });
+        }
+
         const ok = await App.confirm('Setujui Pinjaman', `Yakin ingin menyetujui pinjaman ini${biaya.length || potongSw ? ' dengan rincian potongan tersebut' : ''}?`, 'question');
         if (!ok) return;
 
@@ -1247,7 +1454,10 @@ const PinjamanPage = {
                 status: 'disetujui', 
                 biaya, 
                 potong_sw: potongSw, 
-                sw_nominal: swNominal 
+                sw_nominal: swNominal,
+                metode_pembayaran: metodePembayaran,
+                akun_kas_id: akunKasId,
+                topup_details: topupDetails
             } 
         });
         if (r?.success) {
@@ -1256,6 +1466,7 @@ const PinjamanPage = {
             this.loadList(this.container);
         } else App.toast(r?.message || 'Gagal menyetujui pinjaman', 'error');
     },
+
     async pelunasan(pinjamanId) {
         const btn = document.querySelector(`button[onclick="PinjamanPage.pelunasan(${pinjamanId})"]`);
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ri-loader-4-line animate-spin mr-1"></i>Menghitung...'; }

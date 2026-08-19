@@ -16,22 +16,29 @@ const SimpananPage = {
         this.page = page;
         const search = document.getElementById('simp-search')?.value || App.queryParams?.search || '';
         const metode = document.getElementById('simp-filter-metode')?.value || '';
+        const dari = document.getElementById('simp-filter-dari')?.value || '';
+        const sampai = document.getElementById('simp-filter-sampai')?.value || '';
         const anggotaId = App.queryParams?.anggota_id || '';
-        const res = await App.api(`simpanan?page=${page}&search=${encodeURIComponent(search)}&metode_pembayaran=${metode}&anggota_id=${anggotaId}`);
+        const res = await App.api(`simpanan?page=${page}&search=${encodeURIComponent(search)}&metode_pembayaran=${metode}&dari=${dari}&sampai=${sampai}&anggota_id=${anggotaId}`);
         if (!res?.success) return;
 
         container.innerHTML = `
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                <div class="flex flex-1 items-center gap-3 w-full max-w-2xl">
-                    <div class="relative flex-1 max-w-md"><i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    <input type="text" id="simp-search" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500" placeholder="Cari transaksi..." value="${search}" onkeyup="if(event.key==='Enter')SimpananPage.loadList(SimpananPage.container)"></div>
+            <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
+                <div class="flex flex-wrap items-center gap-3 w-full max-w-4xl">
+                    <div class="relative flex-1 min-w-[200px] max-w-xs"><i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="simp-search" class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500" placeholder="Cari transaksi..." value="${search}" onkeyup="if(event.key==='Enter')SimpananPage.loadList(SimpananPage.container)"></div>
                     <div>
-                        <select id="simp-filter-metode" onchange="SimpananPage.loadList(SimpananPage.container)" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 bg-white">
+                        <select id="simp-filter-metode" onchange="SimpananPage.loadList(SimpananPage.container)" class="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-primary-500 bg-white">
                             <option value="">Semua Metode</option>
                             <option value="tunai" ${metode === 'tunai' ? 'selected' : ''}>Tunai</option>
                             <option value="transfer" ${metode === 'transfer' ? 'selected' : ''}>Transfer</option>
                         </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="date" id="simp-filter-dari" value="${dari}" onchange="SimpananPage.loadList(SimpananPage.container)" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 bg-white" title="Dari Tanggal">
+                        <span class="text-gray-400 text-xs">s/d</span>
+                        <input type="date" id="simp-filter-sampai" value="${sampai}" onchange="SimpananPage.loadList(SimpananPage.container)" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 bg-white" title="Sampai Tanggal">
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
@@ -340,7 +347,11 @@ const SimpananPage = {
 
     export(type) {
         const search = document.getElementById('simp-search')?.value || '';
-        App.api(`simpanan?search=${encodeURIComponent(search)}&limit=1000`).then(res => {
+        const metode = document.getElementById('simp-filter-metode')?.value || '';
+        const dari = document.getElementById('simp-filter-dari')?.value || '';
+        const sampai = document.getElementById('simp-filter-sampai')?.value || '';
+        const anggotaId = App.queryParams?.anggota_id || '';
+        App.api(`simpanan?search=${encodeURIComponent(search)}&metode_pembayaran=${metode}&dari=${dari}&sampai=${sampai}&anggota_id=${anggotaId}&limit=1000`).then(res => {
             if (!res?.success) return;
             const columns = [
                 { title: 'No. Transaksi', key: 'no_transaksi' },

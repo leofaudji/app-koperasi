@@ -399,6 +399,37 @@ switch ($method) {
             );
             $data['total_biaya'] = array_sum(array_column($data['biaya_pencairan'], 'jumlah'));
 
+            // If it is topup, fetch details of all old loans and default bunga/denda
+            if ($data['is_topup'] && $data['topup_ref_id']) {
+                $oldIds = array_filter(array_map('intval', explode(',', $data['topup_ref_id'])));
+                $data['topup_old_loans'] = [];
+                foreach ($oldIds as $oldId) {
+                    $oldLoan = $db->fetch("SELECT * FROM pinjaman WHERE id = ?", [$oldId]);
+                    if ($oldLoan) {
+                        $sisaAngsuran = $db->fetchAll("SELECT * FROM angsuran WHERE pinjaman_id = ? AND status = 'belum'", [$oldLoan['id']]);
+                        $today = strtotime('today');
+                        $bungaBerjalan = 0;
+                        $dendaBerjalan = 0;
+                        foreach ($sisaAngsuran as $ag) {
+                            $jatuhTempo = strtotime($ag['tgl_jatuh_tempo']);
+                            if ($jatuhTempo <= $today) {
+                                $bungaBerjalan += $ag['bunga'];
+                                $hariTerlambat = max(0, floor(($today - $jatuhTempo) / 86400));
+                                $dendaBerjalan += $hariTerlambat > 0 ? $hariTerlambat * 5000 : 0;
+                            }
+                        }
+                        $data['topup_old_loans'][] = [
+                            'id' => $oldLoan['id'],
+                            'no_pinjaman' => $oldLoan['no_pinjaman'],
+                            'sisa_pinjaman' => (float)$oldLoan['sisa_pinjaman'],
+                            'bunga_berjalan' => (float)$bungaBerjalan,
+                            'denda_berjalan' => (float)$dendaBerjalan,
+                            'total_lunas' => (float)$oldLoan['sisa_pinjaman'] + (float)$bungaBerjalan + (float)$dendaBerjalan
+                        ];
+                    }
+                }
+            }
+
             if (!empty($data['agunan'])) {
                 $decoded = json_decode($data['agunan'], true);
                 if (json_last_error() === JSON_ERROR_NONE) {
@@ -501,6 +532,34 @@ switch ($method) {
                             [$jurnalId, $od['akun_id'], $od['kredit'], $od['debit'], $od['keterangan']]
                         );
                     }
+
+                    // 3. Restore all old top-up loans if exist
+                    if ($pinjaman['is_topup'] && $pinjaman['topup_ref_id']) {
+                        $oldLoanIds = array_filter(array_map('intval', explode(',', $pinjaman['topup_ref_id'])));
+                        foreach ($oldLoanIds as $oldLoanId) {
+                            $oldLoanType = $db->fetch("SELECT jp.akun_id FROM pinjaman p JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id WHERE p.id = ?", [$oldLoanId]);
+                            if ($oldLoanType) {
+                                $oldDetailCredit = $db->fetch(
+                                    "SELECT kredit FROM jurnal_detail WHERE jurnal_id = ? AND akun_id = ? AND kredit > 0 LIMIT 1",
+                                    [$oldJurnal['id'], $oldLoanType['akun_id']]
+                                );
+                                if ($oldDetailCredit) {
+                                    $oldSisaPokok = (float)$oldDetailCredit['kredit'];
+                                    // Restore old loan status and sisa_pinjaman
+                                    $db->execute(
+                                        "UPDATE pinjaman SET status = 'cair', sisa_pinjaman = ? WHERE id = ?",
+                                        [$oldSisaPokok, $oldLoanId]
+                                    );
+                                    
+                                    // Restore the old loan's unpaid installments back to 'belum'
+                                    $db->execute(
+                                        "UPDATE angsuran SET status = 'belum', tgl_bayar = NULL, created_by = NULL WHERE pinjaman_id = ? AND status = 'lunas'",
+                                        [$oldLoanId]
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
 
                 $db->commit();
@@ -544,7 +603,10 @@ switch ($method) {
         // Check existing active loan OF THE SAME TYPE
         $whereActive = "anggota_id = ? AND jenis_pinjaman_id = ? AND status IN ('pending','disetujui','cair')";
         if ($isTopup && $topupRefId) {
-            $whereActive .= " AND id != " . (int) $topupRefId;
+            $refIds = array_filter(array_map('intval', explode(',', $topupRefId)));
+            if (!empty($refIds)) {
+                $whereActive .= " AND id NOT IN (" . implode(',', $refIds) . ")";
+            }
         }
 
         $activeLoan = $db->count(
@@ -556,9 +618,12 @@ switch ($method) {
         }
 
         if ($isTopup && $topupRefId) {
-            $refLoan = $db->fetch("SELECT status FROM pinjaman WHERE id = ?", [$topupRefId]);
-            if (!$refLoan || $refLoan['status'] !== 'cair') {
-                errorResponse('Pinjaman yang akan ditop-up tidak valid atau tidak berstatus cair');
+            $refIds = array_filter(array_map('intval', explode(',', $topupRefId)));
+            foreach ($refIds as $rId) {
+                $refLoan = $db->fetch("SELECT status FROM pinjaman WHERE id = ?", [$rId]);
+                if (!$refLoan || $refLoan['status'] !== 'cair') {
+                    errorResponse('Salah satu pinjaman yang akan ditop-up tidak valid atau tidak berstatus cair');
+                }
             }
         }
 
@@ -599,7 +664,7 @@ switch ($method) {
                 $bungaPersen,
                 $totalBunga,
                 $totalBayar,
-                $totalBayar,
+                $jumlah,
                 'pending',
                 $params['keterangan'] ?? '',
                 $agunan,
@@ -743,6 +808,9 @@ switch ($method) {
                 errorResponse('Status harus disetujui atau ditolak');
             }
 
+            $metodePembayaran = $params['metode_pembayaran'] ?? 'tunai';
+            $akunKasId = isset($params['akun_kas_id']) && $params['akun_kas_id'] ? (int)$params['akun_kas_id'] : null;
+
             // Parse biaya pencairan dari request
             $biayaList = $params['biaya'] ?? [];
             if (!is_array($biayaList))
@@ -750,39 +818,66 @@ switch ($method) {
 
             $db->beginTransaction();
             try {
-                // Jika Top-up, lunasi pinjaman lama terlebih dahulu
+                // Jika Top-up, lunasi semua pinjaman lama terlebih dahulu
+                $totalLunasOld = 0;
+                $topupSettleLoans = [];
+                $topupDetails = $params['topup_details'] ?? [];
+
                 if ($pinjaman['is_topup'] && $pinjaman['topup_ref_id']) {
-                    $oldId = $pinjaman['topup_ref_id'];
-                    $oldLoan = $db->fetch("SELECT * FROM pinjaman WHERE id = ? AND status = 'cair'", [$oldId]);
-
-                    if ($oldLoan) {
-                        $sisaAngsuran = $db->fetchAll("SELECT * FROM angsuran WHERE pinjaman_id = ? AND status = 'belum'", [$oldId]);
-                        $today = strtotime('today');
-                        $bungaBerjalan = 0;
-                        $dendaBerjalan = 0;
-
-                        foreach ($sisaAngsuran as $ag) {
-                            $jatuhTempo = strtotime($ag['tgl_jatuh_tempo']);
-                            if ($jatuhTempo <= $today) {
-                                $bungaBerjalan += $ag['bunga'];
-                                $hariTerlambat = max(0, floor(($today - $jatuhTempo) / 86400));
-                                $dendaBerjalan += $hariTerlambat > 0 ? $hariTerlambat * 5000 : 0;
+                    $oldIds = array_filter(array_map('intval', explode(',', $pinjaman['topup_ref_id'])));
+                    foreach ($oldIds as $oldId) {
+                        $oldLoan = $db->fetch("SELECT * FROM pinjaman WHERE id = ? AND status = 'cair'", [$oldId]);
+                        if ($oldLoan) {
+                            $bungaBerjalan = null;
+                            $dendaBerjalan = null;
+                            
+                            // Ambil bunga/denda kustom jika dikirim
+                            if (is_array($topupDetails)) {
+                                foreach ($topupDetails as $td) {
+                                    if (isset($td['id']) && $td['id'] == $oldId) {
+                                        $bungaBerjalan = isset($td['bunga']) ? (float)$td['bunga'] : 0;
+                                        $dendaBerjalan = isset($td['denda']) ? (float)$td['denda'] : 0;
+                                        break;
+                                    }
+                                }
                             }
+
+                            // Jika tidak dikustomisasi, hitung default
+                            if ($bungaBerjalan === null || $dendaBerjalan === null) {
+                                $sisaAngsuran = $db->fetchAll("SELECT * FROM angsuran WHERE pinjaman_id = ? AND status = 'belum'", [$oldId]);
+                                $today = strtotime('today');
+                                $calcBunga = 0;
+                                $calcDenda = 0;
+                                foreach ($sisaAngsuran as $ag) {
+                                    $jatuhTempo = strtotime($ag['tgl_jatuh_tempo']);
+                                    if ($jatuhTempo <= $today) {
+                                        $calcBunga += $ag['bunga'];
+                                        $hariTerlambat = max(0, floor(($today - $jatuhTempo) / 86400));
+                                        $calcDenda += $hariTerlambat > 0 ? $hariTerlambat * 5000 : 0;
+                                    }
+                                }
+                                if ($bungaBerjalan === null) $bungaBerjalan = $calcBunga;
+                                if ($dendaBerjalan === null) $dendaBerjalan = $calcDenda;
+                            }
+
+                            $sisaPokokOld = (float)$oldLoan['sisa_pinjaman'];
+                            $lunasThisLoan = $sisaPokokOld + $bungaBerjalan + $dendaBerjalan;
+                            $totalLunasOld += $lunasThisLoan;
+
+                            $topupSettleLoans[] = [
+                                'id' => $oldId,
+                                'no_pinjaman' => $oldLoan['no_pinjaman'],
+                                'sisa_pokok' => $sisaPokokOld,
+                                'bunga' => $bungaBerjalan,
+                                'denda' => $dendaBerjalan,
+                                'total_lunas' => $lunasThisLoan
+                            ];
+
+                            // Lunasi angsuran lama
+                            $db->execute("UPDATE angsuran SET tgl_bayar=CURDATE(), status='lunas', created_by=? WHERE pinjaman_id=? AND status='belum'", [$_SESSION['user_id'], $oldId]);
+                            // Update status pinjaman lama
+                            $db->execute("UPDATE pinjaman SET status='lunas', sisa_pinjaman=0 WHERE id=?", [$oldId]);
                         }
-
-                        $sisaPokokOld = (float) $oldLoan['sisa_pinjaman'];
-                        $totalLunasOld = $sisaPokokOld + $bungaBerjalan + $dendaBerjalan;
-
-                        // Lunasi angsuran lama
-                        $db->execute("UPDATE angsuran SET tgl_bayar=CURDATE(), status='lunas', created_by=? WHERE pinjaman_id=? AND status='belum'", [$_SESSION['user_id'], $oldId]);
-                        // Update status pinjaman lama
-                        $db->execute("UPDATE pinjaman SET status='lunas', sisa_pinjaman=0 WHERE id=?", [$oldId]);
-
-                        $pinjaman['topup_sisa_pokok'] = $sisaPokokOld;
-                        $pinjaman['topup_bunga'] = $bungaBerjalan;
-                        $pinjaman['topup_denda'] = $dendaBerjalan;
-                        $pinjaman['topup_total_lunas'] = $totalLunasOld;
-                        $pinjaman['topup_no_pinjaman'] = $oldLoan['no_pinjaman'];
                     }
                 }
 
@@ -797,7 +892,7 @@ switch ($method) {
                     $bungaPerBulan = $pinjaman['jumlah'] * ($pinjaman['bunga_persen'] / 100);
 
                     for ($i = 1; $i <= $pinjaman['tenor']; $i++) {
-                        $jatuhTempo = date('Y-m-d', strtotime("+$i month"));
+                        $jatuhTempo = date('Y-m-d', strtotime("+$i month", strtotime($pinjaman['tgl_pengajuan'])));
                         $total = $pokokPerBulan + $bungaPerBulan;
                         $noTrx = generateNo('AG', 'angsuran', 'no_transaksi');
 
@@ -832,7 +927,7 @@ switch ($method) {
                     $akunSwId = null;
 
                     if ($potongSw && $swNominal > 0) {
-                        $jenisSW = $db->fetch("SELECT id, akun_id FROM jenis_simpanan WHERE kode = 'SW' OR is_wajib = 1 LIMIT 1");
+                        $jenisSW = $db->fetch("SELECT id, akun_id FROM jenis_simpanan WHERE kode = 'SW' LIMIT 1");
                         if (!$jenisSW) {
                             $jenisSW = $db->fetch("SELECT id, akun_id FROM jenis_simpanan WHERE nama LIKE '%wajib%' LIMIT 1");
                         }
@@ -879,15 +974,15 @@ switch ($method) {
                         }
                     }
 
-                    $totalLunasOld = $pinjaman['topup_total_lunas'] ?? 0;
                     $swDeduction = ($potongSw && $swNominal > 0) ? $swNominal : 0;
                     $kasKeluar = $pinjaman['jumlah'] - $totalLunasOld - $totalBiaya - $swDeduction;
 
                     // ── Jurnal Konsolidasi (Pencairan + Potongan + Topup) ──
                     $noBukti = generateNo('PJ', 'jurnal', 'no_bukti');
                     $ketJurnal = 'Pencairan Pinjaman - ' . $anggota['nama'];
-                    if (isset($pinjaman['topup_no_pinjaman'])) {
-                        $ketJurnal .= " (Top-up Pelunasan " . $pinjaman['topup_no_pinjaman'] . ")";
+                    if (!empty($topupSettleLoans)) {
+                        $noList = implode(', ', array_column($topupSettleLoans, 'no_pinjaman'));
+                        $ketJurnal .= " (Top-up Pelunasan " . $noList . ")";
                     }
                     if ($totalBiaya > 0) {
                         $ketJurnal .= " - Potongan Biaya Rp " . number_format($totalBiaya, 0, ',', '.');
@@ -898,8 +993,8 @@ switch ($method) {
 
                     $jurnalId = $db->insert(
                         "INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by)
-                         VALUES (?,CURDATE(),?,?,?,?,?,?)",
-                        [$noBukti, $ketJurnal, 'pinjaman', $id, $pinjaman['jumlah'], $pinjaman['jumlah'], $_SESSION['user_id']]
+                         VALUES (?,?,?,?,?,?,?,?)",
+                        [$noBukti, $pinjaman['tgl_pengajuan'], $ketJurnal, 'pinjaman', $id, $pinjaman['jumlah'], $pinjaman['jumlah'], $_SESSION['user_id']]
                     );
 
                     // 1. D: Piutang Pinjaman (Dynamic) - Gross Plafon
@@ -907,9 +1002,14 @@ switch ($method) {
                     $akunPiutangId = $pinjaman['akun_id'] ?: ($piutangRow ? $piutangRow['id'] : null);
                     $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnalId, $akunPiutangId, $pinjaman['jumlah']]);
 
-                    // 2. K: Kas (1000) - Sisa Cair (Net)
+                    // 2. K: Kas (1000) atau Rekening Bank terpilih - Sisa Cair (Net)
                     if ($kasKeluar > 0) {
-                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='1000' LIMIT 1), (SELECT id FROM akun WHERE kode='100' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Kas%' LIMIT 1))), 0, ?)", [$jurnalId, $kasKeluar]);
+                        $creditAkunId = $akunKasId ?: null;
+                        if ($creditAkunId) {
+                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $creditAkunId, $kasKeluar]);
+                        } else {
+                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='1000' LIMIT 1), (SELECT id FROM akun WHERE kode='100' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Kas%' LIMIT 1))), 0, ?)", [$jurnalId, $kasKeluar]);
+                        }
                     }
 
                     // 3. K: Potongan Biaya -> Pendapatan Administrasi (4300)
@@ -922,28 +1022,24 @@ switch ($method) {
                         $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunSwId, $swDeduction]);
                     }
 
-                    // 4. Jika Top-up, Kreditkan komponen pelunasan pinjaman lama
-                    if ($totalLunasOld > 0) {
-                        $sisaPokokOld = $pinjaman['topup_sisa_pokok'];
-                        $bungaOld = $pinjaman['topup_bunga'];
-                        $dendaOld = $pinjaman['topup_denda'];
-
-                        if ($sisaPokokOld > 0) {
+                    // 4. Jika Top-up, Kreditkan komponen pelunasan untuk masing-masing pinjaman lama
+                    foreach ($topupSettleLoans as $tsl) {
+                        if ($tsl['sisa_pokok'] > 0) {
                             // Fetch old loan's account
-                            $oldPinj = $db->fetch("SELECT jp.akun_id FROM pinjaman p JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id WHERE p.no_pinjaman = ?", [$pinjaman['topup_no_pinjaman']]);
+                            $oldPinj = $db->fetch("SELECT jp.akun_id FROM pinjaman p JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id WHERE p.id = ?", [$tsl['id']]);
                             $piutangRowOld = $db->fetch("SELECT id FROM akun WHERE kode='1200' OR kode='190' OR nama LIKE '%Piutang%' LIMIT 1");
                             $akunOldId = ($oldPinj && $oldPinj['akun_id']) ? $oldPinj['akun_id'] : ($piutangRowOld ? $piutangRowOld['id'] : null);
-                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunOldId, $sisaPokokOld]);
+                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunOldId, $tsl['sisa_pokok']]);
                         }
-                        if ($bungaOld > 0) {
-                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4000' LIMIT 1), (SELECT id FROM akun WHERE kode='400' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Pendapatan Jasa%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Bunga%' AND tipe='pendapatan' LIMIT 1))), 0, ?)", [$jurnalId, $bungaOld]);
+                        if ($tsl['bunga'] > 0) {
+                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4000' LIMIT 1), (SELECT id FROM akun WHERE kode='400' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Pendapatan Jasa%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Bunga%' AND tipe='pendapatan' LIMIT 1))), 0, ?)", [$jurnalId, $tsl['bunga']]);
                         }
-                        if ($dendaOld > 0) {
-                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4200' LIMIT 1), (SELECT id FROM akun WHERE kode='409' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Denda%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Lain-lain%' LIMIT 1))), 0, ?)", [$jurnalId, $dendaOld]);
+                        if ($tsl['denda'] > 0) {
+                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4200' LIMIT 1), (SELECT id FROM akun WHERE kode='409' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Denda%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Lain-lain%' LIMIT 1))), 0, ?)", [$jurnalId, $tsl['denda']]);
                         }
                     }
 
-                    $db->execute("UPDATE pinjaman SET status='cair', tgl_pencairan=CURDATE() WHERE id=?", [$id]);
+                    $db->execute("UPDATE pinjaman SET status='cair', tgl_pencairan=?, metode_pembayaran=?, akun_kas_id=? WHERE id=?", [$pinjaman['tgl_pengajuan'], $metodePembayaran, $akunKasId, $id]);
                 }
 
                 $db->commit();

@@ -128,6 +128,24 @@ const KartuAngsuranPage = {
         const totalDenda = txs.reduce((s, a) => s + parseFloat(a.denda || 0), 0);
         const sudahBayar = txs.filter(a => a.status !== 'belum').reduce((s, a) => s + parseFloat(a.total || 0), 0);
         const progressPct = p.total_bayar > 0 ? Math.min(100, Math.round(((parseFloat(p.total_bayar) - parseFloat(p.sisa_pinjaman)) / parseFloat(p.total_bayar)) * 100)) : 0;
+        
+        // Hitung Baki Debet secara progresif/realistis menyesuaikan p.sisa_pinjaman
+        const sisaPinjaman = parseFloat(p.sisa_pinjaman || 0);
+        let lastPaidIdx = -1;
+        for (let i = 0; i < txs.length; i++) {
+            if (txs[i].status !== 'belum') {
+                lastPaidIdx = i;
+            }
+        }
+        const bakiDebetList = new Array(txs.length);
+        let currentBD = sisaPinjaman;
+        for (let i = lastPaidIdx; i >= 0; i--) {
+            bakiDebetList[i] = currentBD;
+            currentBD += parseFloat(txs[i].pokok || 0);
+        }
+        for (let i = lastPaidIdx + 1; i < txs.length; i++) {
+            bakiDebetList[i] = sisaPinjaman;
+        }
 
         const statusColor = p.status === 'lunas'
             ? 'from-emerald-600 via-emerald-700 to-emerald-900'
@@ -226,20 +244,20 @@ const KartuAngsuranPage = {
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100">
                             <th class="px-4 py-3 text-center font-semibold text-gray-500 text-xs w-12">Ke-</th>
-                            <th class="px-4 py-3 text-left font-semibold text-gray-500 text-xs">No. Transaksi</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-500 text-xs">Transaksi / Tgl Bayar</th>
                             <th class="px-4 py-3 text-center font-semibold text-gray-500 text-xs">Jatuh Tempo</th>
-                            <th class="px-4 py-3 text-center font-semibold text-gray-500 text-xs">Tgl Bayar</th>
                             <th class="px-4 py-3 text-right font-semibold text-gray-500 text-xs">Pokok</th>
                             <th class="px-4 py-3 text-right font-semibold text-gray-500 text-xs">Bunga</th>
                             <th class="px-4 py-3 text-right font-semibold text-gray-500 text-xs">Denda</th>
                             <th class="px-4 py-3 text-right font-semibold text-gray-500 text-xs">Total</th>
+                            <th class="px-4 py-3 text-right font-semibold text-gray-500 text-xs">Baki Debet</th>
                             <th class="px-4 py-3 text-center font-semibold text-gray-500 text-xs">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${txs.length === 0 ? `<tr><td colspan="9" class="text-center py-12 text-gray-400">
                             <i class="ri-inbox-line text-4xl block mb-2"></i>Belum ada jadwal angsuran</td></tr>`
-                : txs.map(a => {
+                : txs.map((a, idx) => {
                     const isLunas = a.status === 'lunas';
                     const isTerlambat = a.status === 'terlambat';
                     const isBelum = a.status === 'belum';
@@ -254,30 +272,30 @@ const KartuAngsuranPage = {
                     return `<tr class="border-b border-gray-50 hover:bg-gray-50/70 transition-colors ${rowClass}">
                                 <td class="px-4 py-3 text-center font-bold text-gray-600">${a.angsuran_ke}</td>
                                 <td class="px-4 py-3">
-                                    <span class="font-mono text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">${a.no_transaksi || '-'}</span>
+                                    <span class="font-mono text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded block w-fit mb-1">${a.no_transaksi || '-'}</span>
+                                    <span class="text-xs ${a.tgl_bayar ? 'text-gray-600' : 'text-gray-300'}">${a.tgl_bayar ? App.formatDate(a.tgl_bayar) : '—'}</span>
                                 </td>
                                 <td class="px-4 py-3 text-center text-sm ${isJatuhTempo ? 'text-red-600 font-bold' : 'text-gray-600'}">
                                     ${App.formatDate(a.tgl_jatuh_tempo)}
                                     ${isJatuhTempo ? '<br><span class="text-[9px] bg-red-100 text-red-600 px-1 rounded">Jatuh Tempo!</span>' : ''}
                                 </td>
-                                <td class="px-4 py-3 text-center text-sm ${a.tgl_bayar ? 'text-gray-600' : 'text-gray-300'}">
-                                    ${a.tgl_bayar ? App.formatDate(a.tgl_bayar) : '—'}
-                                </td>
                                 <td class="px-4 py-3 text-right text-sm font-semibold text-gray-700">${App.formatRupiah(a.pokok)}</td>
                                 <td class="px-4 py-3 text-right text-sm text-blue-600">${App.formatRupiah(a.bunga)}</td>
                                 <td class="px-4 py-3 text-right text-sm ${parseFloat(a.denda || 0) > 0 ? 'text-red-500 font-semibold' : 'text-gray-300'}">${parseFloat(a.denda || 0) > 0 ? App.formatRupiah(a.denda) : '—'}</td>
                                 <td class="px-4 py-3 text-right text-sm font-bold text-gray-800">${App.formatRupiah(a.total)}</td>
+                                <td class="px-4 py-3 text-right text-sm font-semibold text-gray-700">${App.formatRupiah(bakiDebetList[idx])}</td>
                                 <td class="px-4 py-3 text-center">${App.statusBadge(a.status)}</td>
                             </tr>`;
                 }).join('')}
 
                         <!-- Row Total -->
                         <tr class="bg-gray-50 border-t-2 border-gray-200 font-bold">
-                            <td class="px-4 py-3 text-center text-gray-500 text-xs" colspan="4">TOTAL</td>
+                            <td class="px-4 py-3 text-center text-gray-500 text-xs" colspan="3">TOTAL</td>
                             <td class="px-4 py-3 text-right text-gray-800">${App.formatRupiah(totalPokok)}</td>
                             <td class="px-4 py-3 text-right text-blue-600">${App.formatRupiah(totalBunga)}</td>
                             <td class="px-4 py-3 text-right text-red-500">${App.formatRupiah(totalDenda)}</td>
                             <td class="px-4 py-3 text-right text-gray-800 text-base">${App.formatRupiah(totalPokok + totalBunga + totalDenda)}</td>
+                            <td class="px-4 py-3 text-right text-gray-800">${App.formatRupiah(p.sisa_pinjaman)}</td>
                             <td></td>
                         </tr>
                     </tbody>
@@ -329,35 +347,52 @@ const KartuAngsuranPage = {
         row(R, 66, 'Tenor / Bunga', `${p.tenor} bulan / ${p.bunga_persen}%/bln`);
 
         // ── Tabel ──
+        const sisaPinjaman = parseFloat(p.sisa_pinjaman || 0);
+        let lastPaidIdx = -1;
+        for (let i = 0; i < txs.length; i++) {
+            if (txs[i].status !== 'belum') {
+                lastPaidIdx = i;
+            }
+        }
+        const bakiDebetList = new Array(txs.length);
+        let currentBD = sisaPinjaman;
+        for (let i = lastPaidIdx; i >= 0; i--) {
+            bakiDebetList[i] = currentBD;
+            currentBD += parseFloat(txs[i].pokok || 0);
+        }
+        for (let i = lastPaidIdx + 1; i < txs.length; i++) {
+            bakiDebetList[i] = sisaPinjaman;
+        }
+
         const body = txs.map((a, i) => [
             a.angsuran_ke,
-            a.no_transaksi || '-',
+            `${a.no_transaksi || '-'}\n${a.tgl_bayar ? App.formatDate(a.tgl_bayar) : '-'}`,
             App.formatDate(a.tgl_jatuh_tempo),
-            a.tgl_bayar ? App.formatDate(a.tgl_bayar) : '-',
             App.formatRupiah(a.pokok),
             App.formatRupiah(a.bunga),
             parseFloat(a.denda || 0) > 0 ? App.formatRupiah(a.denda) : '-',
             App.formatRupiah(a.total),
+            App.formatRupiah(bakiDebetList[i]),
             (a.status || '-').toUpperCase()
         ]);
 
         doc.autoTable({
             startY: 80,
-            head: [['Ke-', 'No. Transaksi', 'Jatuh Tempo', 'Tgl Bayar', 'Pokok', 'Bunga', 'Denda', 'Total', 'Status']],
+            head: [['Ke-', 'Transaksi / Tgl Bayar', 'Jatuh Tempo', 'Pokok', 'Bunga', 'Denda', 'Total', 'Baki Debet', 'Status']],
             body,
             theme: 'striped',
             headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8, fontStyle: 'bold', halign: 'center', cellPadding: 3 },
             bodyStyles: { fontSize: 7.5, cellPadding: 2.5, textColor: [51, 65, 85] },
             columnStyles: {
                 0: { halign: 'center', cellWidth: 10 },
-                1: { cellWidth: 32 },
-                2: { halign: 'center', cellWidth: 25 },
-                3: { halign: 'center', cellWidth: 25 },
+                1: { cellWidth: 40 },
+                2: { halign: 'center', cellWidth: 28 },
+                3: { halign: 'right', cellWidth: 28 },
                 4: { halign: 'right', cellWidth: 28 },
-                5: { halign: 'right', cellWidth: 28 },
-                6: { halign: 'right', cellWidth: 22 },
-                7: { halign: 'right', cellWidth: 30, fontStyle: 'bold' },
-                8: { halign: 'center', cellWidth: 20 }
+                5: { halign: 'right', cellWidth: 24 },
+                6: { halign: 'right', cellWidth: 30, fontStyle: 'bold' },
+                7: { halign: 'right', cellWidth: 30 },
+                8: { halign: 'center', cellWidth: 22 }
             },
             alternateRowStyles: { fillColor: [248, 250, 252] },
             margin: { left: 14, right: 14, top: 48, bottom: 20 },
@@ -388,26 +423,45 @@ const KartuAngsuranPage = {
         if (!this.pinjamanData) return;
         const cols = [
             { title: 'Ke-', key: 'angsuran_ke' },
-            { title: 'No. Transaksi', key: 'no_transaksi' },
+            { title: 'Transaksi / Tgl Bayar', key: 'transaksi_tgl_bayar' },
             { title: 'Jatuh Tempo', key: 'tgl_jatuh_tempo' },
-            { title: 'Tgl Bayar', key: 'tgl_bayar' },
             { title: 'Pokok', key: 'pokok' },
             { title: 'Bunga', key: 'bunga' },
             { title: 'Denda', key: 'denda' },
             { title: 'Total', key: 'total' },
+            { title: 'Baki Debet', key: 'baki_debet' },
             { title: 'Status', key: 'status' }
         ];
-        const data = this.angsuranData.map(a => ({
-            angsuran_ke: a.angsuran_ke,
-            no_transaksi: a.no_transaksi || '-',
-            tgl_jatuh_tempo: App.formatDate(a.tgl_jatuh_tempo),
-            tgl_bayar: a.tgl_bayar ? App.formatDate(a.tgl_bayar) : '-',
-            pokok: App.formatRupiah(a.pokok),
-            bunga: App.formatRupiah(a.bunga),
-            denda: parseFloat(a.denda || 0) > 0 ? App.formatRupiah(a.denda) : '-',
-            total: App.formatRupiah(a.total),
-            status: a.status
-        }));
+        let csvBakiDebetList = new Array(this.angsuranData.length);
+        const sisaPinjamanCSV = parseFloat(this.pinjamanData.sisa_pinjaman || 0);
+        let lastPaidIdxCSV = -1;
+        for (let i = 0; i < this.angsuranData.length; i++) {
+            if (this.angsuranData[i].status !== 'belum') {
+                lastPaidIdxCSV = i;
+            }
+        }
+        let currentBDCSV = sisaPinjamanCSV;
+        for (let i = lastPaidIdxCSV; i >= 0; i--) {
+            csvBakiDebetList[i] = currentBDCSV;
+            currentBDCSV += parseFloat(this.angsuranData[i].pokok || 0);
+        }
+        for (let i = lastPaidIdxCSV + 1; i < this.angsuranData.length; i++) {
+            csvBakiDebetList[i] = sisaPinjamanCSV;
+        }
+
+        const data = this.angsuranData.map((a, i) => {
+            return {
+                angsuran_ke: a.angsuran_ke,
+                transaksi_tgl_bayar: `${a.no_transaksi || '-'} / ${a.tgl_bayar ? App.formatDate(a.tgl_bayar) : '-'}`,
+                tgl_jatuh_tempo: App.formatDate(a.tgl_jatuh_tempo),
+                pokok: App.formatRupiah(a.pokok),
+                bunga: App.formatRupiah(a.bunga),
+                denda: parseFloat(a.denda || 0) > 0 ? App.formatRupiah(a.denda) : '-',
+                total: App.formatRupiah(a.total),
+                baki_debet: App.formatRupiah(csvBakiDebetList[i]),
+                status: a.status
+            };
+        });
         App.exportCSV(`kartu_angsuran_${this.pinjamanData.no_pinjaman}`, cols, data);
     }
 };

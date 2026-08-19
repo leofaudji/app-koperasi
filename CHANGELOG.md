@@ -6,6 +6,39 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v2.1.9] - 2026-08-19
+
+### 🐛 Diperbaiki & Dioptimalkan
+- **Potongan Simpanan Wajib Pencairan:** Memperbaiki bug query pencarian Simpanan Wajib pada pencairan pinjaman yang salah mendeteksi produk Simpanan Pokok (karena kode dan kriteria `is_wajib = 1` yang tumpang tindih). Sekarang potongan simpanan wajib dijamin masuk ke produk Simpanan Wajib secara tepat.
+
+## [v2.1.8] - 2026-08-19
+
+### 🎨 Desain & UI
+- **Redesain Kas Masuk & Keluar:** Memperbarui format tampilan menu Kas Masuk & Keluar dengan tata letak kartu lipat (collapsible layout) modern. Sekarang pengguna dapat memperluas baris transaksi untuk melihat rincian posting jurnal double-entry secara instan.
+- **Ekspor PDF & CSV:** Menambahkan tombol ekspor langsung pada menu transaksi kas untuk mendownload riwayat kas masuk/keluar yang sedang difilter.
+- **Fitur Pembatalan (Reversal):** Menambahkan tombol aksi reversal instan pada baris kas masuk/keluar untuk mempermudah pembatalan transaksi kas salah input.
+
+## [v2.1.7] - 2026-08-15
+
+### ✨ Ditambahkan
+- **Filter Rentang Tanggal Simpanan:** Menambahkan filter **Dari Tanggal s/d Sampai Tanggal** pada daftar transaksi simpanan untuk membatasi pencarian transaksi berdasarkan tanggal tertentu, lengkap dengan integrasi ke fitur ekspor PDF/CSV.
+
+## [v2.1.6] - 2026-08-15
+
+### ✨ Ditambahkan & Dioptimalkan
+- **Multi-Refinancing (Refinancing > 1 Pinjaman):** Menambahkan dukungan penuh untuk membiayai kembali (melunasi) lebih dari satu pinjaman lama sekaligus dalam satu pengajuan baru.
+- **Kustomisasi Bunga & Denda Refinancing:** Menambahkan masukan Bunga Berjalan dan Denda Berjalan secara individual untuk setiap pinjaman yang dilunasi pada modal persetujuan.
+- **Estimasi Kas Bersih (Live Net Payout Calculation):** Menambahkan kalkulator kas bersih (Dana Bersih Diterima) pada modal persetujuan pinjaman yang berinteraksi langsung (live update) saat nominal potongan bunga/denda diubah.
+- **Reversal Multi-Refinancing:** Memastikan pembatalan (reversal) pencairan pinjaman top-up mengembalikan status dan saldo seluruh pinjaman lama yang dilunasi sebelumnya ke status aktif semula.
+
+## [v2.1.5] - 2026-08-15
+
+### 🐛 Diperbaiki & Dioptimalkan
+- **Filter Tanggal Laporan Keuangan:** Memperbaiki bug kalkulasi saldo akun per tanggal/periode (Neraca, Penilaian Kesehatan, Buku Besar, Tutup Buku) agar data transaksi di luar tanggal filter tidak ikut dijumlahkan oleh query `LEFT JOIN` pada database.
+- **Inisialisasi Sisa Pinjaman:** Mengubah setelan `sisa_pinjaman` baru agar diisi sebesar nominal pokok plafon pinjaman (`jumlah`), bukan total bayar (`total_bayar` dengan bunga), untuk mencegah selisih audit modul vs GL di masa depan.
+- **Sistem Reversal Top-up:** Menambahkan pemulihan status dan sisa pinjaman lama serta pengembalian status angsuran lamanya kembali ke status belum bayar saat transaksi pencairan pinjaman top-up baru dibatalkan (direversal).
+- **Skrip Koreksi Database:** Menyediakan skrip mandiri `fix_historical_data.php` untuk menyeimbangkan data pembukuan historis yang telanjur selisih.
+
 ## [v2.1.4] - 2026-07-07
 
 ### 🎨 Desain & UI

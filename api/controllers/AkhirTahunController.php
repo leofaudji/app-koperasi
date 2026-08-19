@@ -34,8 +34,8 @@ if ($method === 'GET') {
     $akuns = $db->fetchAll(
         "SELECT ak.kode, ak.nama, ak.tipe, ak.id,
             CASE WHEN ak.saldo_normal='D'
-                THEN COALESCE(SUM(jd.debit),0) - COALESCE(SUM(jd.kredit),0)
-                ELSE COALESCE(SUM(jd.kredit),0) - COALESCE(SUM(jd.debit),0)
+                THEN COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0)
+                ELSE COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0)
             END as saldo
          FROM akun ak
          LEFT JOIN jurnal_detail jd ON ak.id = jd.akun_id
@@ -121,8 +121,8 @@ elseif ($method === 'POST') {
     $akuns = $db->fetchAll(
         "SELECT ak.id, ak.kode, ak.nama, ak.tipe, ak.saldo_normal,
             CASE WHEN ak.saldo_normal='D'
-                THEN COALESCE(SUM(jd.debit),0) - COALESCE(SUM(jd.kredit),0)
-                ELSE COALESCE(SUM(jd.kredit),0) - COALESCE(SUM(jd.debit),0)
+                THEN COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0)
+                ELSE COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0)
             END as saldo
          FROM akun ak
          LEFT JOIN jurnal_detail jd ON ak.id = jd.akun_id

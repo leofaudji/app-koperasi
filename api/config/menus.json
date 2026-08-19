@@ -141,6 +141,13 @@
                 "icon": "ri-book-open-line",
                 "url": "#/jurnal",
                 "perm": "keuangan.jurnal"
+            },
+            {
+                "id": 44,
+                "nama": "Kas Masuk & Keluar",
+                "icon": "ri-exchange-funds-line",
+                "url": "#/kas-transaksi",
+                "perm": "keuangan.jurnal"
             }
         ]
     },
