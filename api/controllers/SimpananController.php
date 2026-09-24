@@ -2,6 +2,7 @@
 // Simpanan Controller
 authCheck();
 $db = Database::getInstance();
+require_once __DIR__ . '/../config/finance_helpers.php';
 
 switch ($method) {
     case 'GET':
@@ -415,6 +416,8 @@ switch ($method) {
                 [$targetId]
             );
             if (!$original) errorResponse('Transaksi tidak ditemukan');
+
+            checkAccountingPeriodLock($db, $original['tgl_transaksi'], 'Reversal Simpanan');
             
             // Check if already reversed
             $exists = $db->fetch("SELECT id FROM simpanan WHERE keterangan LIKE ?", ["%REVERSAL OF {$original['no_transaksi']}%"]);
@@ -507,6 +510,8 @@ switch ($method) {
         if (empty($anggotaId) || empty($jenisId) || empty($kodeTransaksiId) || $jumlah <= 0) {
             errorResponse('Anggota, jenis simpanan, kode transaksi, dan jumlah wajib diisi');
         }
+
+        checkAccountingPeriodLock($db, $tgl, 'Transaksi Simpanan');
  
         // Validate anggota
         $anggota = $db->fetch("SELECT id, nama, no_anggota FROM anggota WHERE id = ? AND status = 'aktif'", [$anggotaId]);

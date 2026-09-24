@@ -3,6 +3,7 @@
 authCheck();
 $db = Database::getInstance();
 $redis = RedisManager::getInstance();
+require_once __DIR__ . '/../config/finance_helpers.php';
 
 function normalizeKelompokAkun($tipe, $kode = '', $nama = '', $kelompok = '') {
     $kelompok = trim((string) ($kelompok ?: ''));
@@ -570,6 +571,8 @@ switch ($id) {
                 if (!$original)
                     errorResponse('Jurnal tidak ditemukan');
 
+                checkAccountingPeriodLock($db, $original['tgl_transaksi'], 'Reversal Jurnal');
+
                 // Check if already reversed
                 $exists = $db->fetch("SELECT id FROM jurnal WHERE ref_tipe = 'reversal' AND ref_id = ?", [$targetId]);
                 if ($exists)
@@ -607,6 +610,7 @@ switch ($id) {
             } else {
                 // Manual journal entry
                 $tgl = $params['tgl_transaksi'] ?? date('Y-m-d');
+                checkAccountingPeriodLock($db, $tgl, 'Pencatatan Jurnal Manual');
                 $keterangan = $params['keterangan'] ?? '';
                 $details = $params['details'] ?? [];
 
@@ -661,6 +665,8 @@ switch ($id) {
             }
 
             $tgl = $params['tgl_transaksi'] ?? $original['tgl_transaksi'];
+            checkAccountingPeriodLock($db, $original['tgl_transaksi'], 'Koreksi Jurnal');
+            checkAccountingPeriodLock($db, $tgl, 'Koreksi Jurnal');
             $keterangan = $params['keterangan'] ?? $original['keterangan'];
             $details = $params['details'] ?? [];
 
@@ -815,9 +821,12 @@ switch ($id) {
             $allBunga = $db->fetchAll("
                 SELECT a.id as anggota_id, a.nama as anggota_nama, a.no_anggota,
                        SUM(an.bunga) as total_bunga,
-                       ROUND(SUM(an.bunga) * (? / 100), 0) as potential_nilai
+                       ROUND(SUM(an.bunga) * (? / 100), 0) as potential_nilai,
+                       SUBSTRING_INDEX(GROUP_CONCAT(jp.kode ORDER BY an.bunga DESC), ',', 1) as main_kode_jp,
+                       SUBSTRING_INDEX(GROUP_CONCAT(jp.nama ORDER BY an.bunga DESC), ',', 1) as main_nama_jp
                 FROM angsuran an
                 JOIN pinjaman p ON an.pinjaman_id = p.id
+                LEFT JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
                 JOIN anggota a ON p.anggota_id = a.id
                 WHERE an.status IN ('lunas', 'terlambat')
                   AND MONTH(an.tgl_bayar) = ? AND YEAR(an.tgl_bayar) = ?
@@ -853,6 +862,24 @@ switch ($id) {
 
             if (empty($data)) errorResponse('Data sudah diposting atau tidak ada data bunga baru untuk diproses.');
 
+            // Resolusi Akun Kredit (Simpanan Partisipatif)
+            $akunKreditId = !empty($js['akun_id']) ? (int)$js['akun_id'] : null;
+            if (!$akunKreditId) {
+                $rowKredit = $db->fetch("SELECT id FROM akun WHERE kode = '214' OR (tipe = 'kewajiban' AND nama LIKE '%Partisipatif%') LIMIT 1");
+                if ($rowKredit) $akunKreditId = (int)$rowKredit['id'];
+            }
+            if (!$akunKreditId) {
+                errorResponse('Akun Simpanan Partisipatif tidak ditemukan pada Bagan Akun (COA). Pastikan kode akun 214 atau setting akun_id pada jenis simpanan SPRT telah terisi.');
+            }
+
+            // Cek konfigurasi akun debit khusus jika disetel di app_settings atau akun beban jasa partisipatif
+            $settingDebit = $db->fetch("SELECT setting_value FROM app_settings WHERE setting_key = 'akun_debit_jasa_partisipatif' LIMIT 1");
+            $globalAkunDebitId = !empty($settingDebit['setting_value']) ? (int)$settingDebit['setting_value'] : null;
+            if (!$globalAkunDebitId) {
+                $rowKhusus = $db->fetch("SELECT id FROM akun WHERE (tipe IN ('beban', 'pendapatan')) AND (nama LIKE '%Jasa Partisipatif%' OR nama LIKE '%Beban Partisipatif%') LIMIT 1");
+                if ($rowKhusus) $globalAkunDebitId = (int)$rowKhusus['id'];
+            }
+
             $db->beginTransaction();
             try {
                 $tgl = date('Y-m-d');
@@ -884,12 +911,29 @@ switch ($id) {
                     // 3. Update Saldo Rekening
                     $db->execute("UPDATE rekening_simpanan SET saldo = ? WHERE id = ?", [$saldoSsdh, $rekeningId]);
 
+                    // Tentukan akun debit (pendapatan bunga / beban jasa)
+                    $akunDebitId = $globalAkunDebitId;
+                    if (!$akunDebitId) {
+                        $akunDebitId = getAkunBungaByPinjaman($db, $row['main_kode_jp'] ?? '', $row['main_nama_jp'] ?? '');
+                    }
+                    if (!$akunDebitId) {
+                        $rowFallback = $db->fetch("SELECT id FROM akun WHERE kode='400' OR kode='4000' OR (tipe='pendapatan' AND (nama LIKE '%Jasa%' OR nama LIKE '%Bunga%')) ORDER BY kode LIMIT 1");
+                        if ($rowFallback) $akunDebitId = (int)$rowFallback['id'];
+                    }
+                    if (!$akunDebitId) {
+                        $rowLast = $db->fetch("SELECT id FROM akun WHERE tipe='pendapatan' ORDER BY kode LIMIT 1");
+                        if ($rowLast) $akunDebitId = (int)$rowLast['id'];
+                    }
+                    if (!$akunDebitId) {
+                        throw new Exception("Akun pendapatan/beban bunga untuk debit jurnal jasa partisipatif tidak ditemukan.");
+                    }
+
                     // 4. Jurnal Otomatis (D: Pendapatan Bunga, K: Simpanan Partisipatif)
                     $noBukti = generateNo('TB', 'jurnal', 'no_bukti');
                     $jId = $db->insert("INSERT INTO jurnal (no_bukti, tgl_transaksi, keterangan, ref_tipe, ref_id, total_debit, total_kredit, created_by) VALUES (?,?,?, 'simpanan', ?, ?, ?, ?)", [$noBukti, $tgl, "Posting Jasa Partisipatif - ".$row['anggota_nama']." ($paddedBulan-$tahun)", $simpananId, $jumlah, $jumlah, $_SESSION['user_id']]);
                     
-                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4000' LIMIT 1), ?, 0)", [$jId, $jumlah]);
-                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jId, $js['akun_id'], $jumlah]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?, ?, ?, 0, ?)", [$jId, $akunDebitId, $jumlah, "Alokasi Bunga ke Simpanan Partisipatif"]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?, ?, 0, ?, ?)", [$jId, $akunKreditId, $jumlah, "Setoran Simpanan Partisipatif"]);
 
                     $totalPosted += $jumlah;
                     $count++;
@@ -1163,6 +1207,581 @@ switch ($id) {
                 'laba_sebelum_pajak' => $labaSebelumPajak,
                 'laba_setelah_pajak' => $labaSetelahPajak,
                 'laba_rugi' => $labaSetelahPajak
+            ];
+        });
+
+        successResponse($responseData);
+        break;
+
+    case 'pertumbuhan-labarugi':
+        checkPermission('keuangan.laba_rugi');
+        $mode = $params['mode'] ?? 'bulanan'; // 'bulanan' | 'tahunan'
+        $tahun = (int)($params['tahun'] ?? date('Y'));
+        $tahunAwal = (int)($params['tahun_awal'] ?? ($tahun - 4));
+        $tahunAkhir = (int)($params['tahun_akhir'] ?? $tahun);
+
+        if ($tahunAwal > $tahunAkhir) {
+            $tmp = $tahunAwal;
+            $tahunAwal = $tahunAkhir;
+            $tahunAkhir = $tmp;
+        }
+
+        $cacheKey = "rep_pertumbuhan_lr_{$mode}_{$tahun}_{$tahunAwal}_{$tahunAkhir}";
+        $responseData = getCachedData($cacheKey, function() use ($db, $mode, $tahun, $tahunAwal, $tahunAkhir) {
+            $namaBulan = [
+                1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+                5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+                9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+            ];
+
+            if ($mode === 'bulanan') {
+                $rows = $db->fetchAll(
+                    "SELECT 
+                        MONTH(j.tgl_transaksi) as bulan,
+                        ak.tipe,
+                        ak.saldo_normal,
+                        ak.kelompok_beban,
+                        COALESCE(SUM(CASE WHEN ak.saldo_normal = 'D' THEN jd.debit - jd.kredit ELSE jd.kredit - jd.debit END), 0) as net_saldo
+                     FROM akun ak
+                     JOIN jurnal_detail jd ON ak.id = jd.akun_id
+                     JOIN jurnal j ON jd.jurnal_id = j.id
+                     WHERE ak.tipe IN ('pendapatan', 'beban')
+                       AND YEAR(j.tgl_transaksi) = ?
+                       AND j.ref_tipe != 'akhir_tahun'
+                     GROUP BY MONTH(j.tgl_transaksi), ak.tipe, ak.saldo_normal, ak.kelompok_beban",
+                    [$tahun]
+                );
+
+                $dataBulan = [];
+                for ($b = 1; $b <= 12; $b++) {
+                    $dataBulan[$b] = [
+                        'periode' => $namaBulan[$b],
+                        'bulan_angka' => $b,
+                        'tahun' => $tahun,
+                        'pendapatan' => 0.0,
+                        'beban_operasional' => 0.0,
+                        'beban_pajak' => 0.0,
+                        'total_beban' => 0.0,
+                        'shu' => 0.0,
+                        'pertumbuhan_nominal' => 0.0,
+                        'pertumbuhan_persen' => 0.0,
+                        'tren' => 'tetap'
+                    ];
+                }
+
+                foreach ($rows as $r) {
+                    $b = (int)$r['bulan'];
+                    if (!isset($dataBulan[$b])) continue;
+                    $val = (float)$r['net_saldo'];
+
+                    if ($r['tipe'] === 'pendapatan') {
+                        $dataBulan[$b]['pendapatan'] += $val;
+                    } elseif ($r['tipe'] === 'beban') {
+                        if ($r['kelompok_beban'] === 'Pajak') {
+                            $dataBulan[$b]['beban_pajak'] += $val;
+                        } else {
+                            $dataBulan[$b]['beban_operasional'] += $val;
+                        }
+                        $dataBulan[$b]['total_beban'] += $val;
+                    }
+                }
+
+                $prevShu = null;
+                $totalPendapatan = 0;
+                $totalBeban = 0;
+                $totalShu = 0;
+                $bulanTertinggi = null;
+                $maxShu = -PHP_FLOAT_MAX;
+                $listPertumbuhanPersen = [];
+                $activeMonthCount = 0;
+
+                $currYear = (int)date('Y');
+                $currMonth = (int)date('n');
+
+                foreach ($dataBulan as $b => &$item) {
+                    $isFutureMonth = ($tahun === $currYear && $b > $currMonth);
+                    $hasActivity = ($item['pendapatan'] > 0 || $item['total_beban'] > 0);
+                    $item['has_activity'] = $hasActivity;
+                    $item['is_future'] = $isFutureMonth;
+                    $item['shu'] = round($item['pendapatan'] - $item['total_beban'], 2);
+
+                    if ($hasActivity) {
+                        $totalPendapatan += $item['pendapatan'];
+                        $totalBeban += $item['total_beban'];
+                        $totalShu += $item['shu'];
+                        $activeMonthCount++;
+
+                        if ($item['shu'] > $maxShu) {
+                            $maxShu = $item['shu'];
+                            $bulanTertinggi = $item['periode'];
+                        }
+                    }
+
+                    if ($isFutureMonth) {
+                        $item['pertumbuhan_nominal'] = 0.0;
+                        $item['pertumbuhan_persen'] = 0.0;
+                        $item['tren'] = 'belum';
+                    } elseif ($prevShu !== null) {
+                        $delta = round($item['shu'] - $prevShu, 2);
+                        $item['pertumbuhan_nominal'] = $delta;
+                        if (abs($prevShu) > 0.01) {
+                            $pct = round(($delta / abs($prevShu)) * 100, 2);
+                        } else {
+                            $pct = $delta > 0 ? 100.0 : ($delta < 0 ? -100.0 : 0.0);
+                        }
+                        $item['pertumbuhan_persen'] = $pct;
+                        $item['tren'] = $delta > 0 ? 'naik' : ($delta < 0 ? 'turun' : 'tetap');
+                        $listPertumbuhanPersen[] = $pct;
+                    } else {
+                        $item['pertumbuhan_nominal'] = 0.0;
+                        $item['pertumbuhan_persen'] = 0.0;
+                        $item['tren'] = 'awal';
+                    }
+
+                    if ($hasActivity) {
+                        $prevShu = $item['shu'];
+                    }
+                }
+                unset($item);
+
+                $divisorBulan = ($tahun === $currYear && $currMonth < 12) ? max(1, $currMonth) : 12;
+                $rataPertumbuhan = count($listPertumbuhanPersen) > 0 
+                    ? round(array_sum($listPertumbuhanPersen) / count($listPertumbuhanPersen), 2) 
+                    : 0.0;
+
+                return [
+                    'mode' => 'bulanan',
+                    'filter' => ['tahun' => $tahun],
+                    'items' => array_values($dataBulan),
+                    'ringkasan' => [
+                        'total_pendapatan' => round($totalPendapatan, 2),
+                        'total_beban' => round($totalBeban, 2),
+                        'total_shu' => round($totalShu, 2),
+                        'bulan_aktif' => $activeMonthCount,
+                        'rata_pendapatan_bulanan' => round($totalPendapatan / $divisorBulan, 2),
+                        'rata_beban_bulanan' => round($totalBeban / $divisorBulan, 2),
+                        'rata_shu_bulanan' => round($totalShu / $divisorBulan, 2),
+                        'rata_pertumbuhan_persen' => $rataPertumbuhan,
+                        'periode_tertinggi' => $bulanTertinggi ?? '-',
+                        'shu_tertinggi' => ($maxShu > -PHP_FLOAT_MAX) ? $maxShu : 0
+                    ]
+                ];
+
+            } else {
+                $rows = $db->fetchAll(
+                    "SELECT 
+                        YEAR(j.tgl_transaksi) as thn,
+                        ak.tipe,
+                        ak.saldo_normal,
+                        ak.kelompok_beban,
+                        COALESCE(SUM(CASE WHEN ak.saldo_normal = 'D' THEN jd.debit - jd.kredit ELSE jd.kredit - jd.debit END), 0) as net_saldo
+                     FROM akun ak
+                     JOIN jurnal_detail jd ON ak.id = jd.akun_id
+                     JOIN jurnal j ON jd.jurnal_id = j.id
+                     WHERE ak.tipe IN ('pendapatan', 'beban')
+                       AND YEAR(j.tgl_transaksi) BETWEEN ? AND ?
+                       AND j.ref_tipe != 'akhir_tahun'
+                     GROUP BY YEAR(j.tgl_transaksi), ak.tipe, ak.saldo_normal, ak.kelompok_beban
+                     ORDER BY thn ASC",
+                    [$tahunAwal, $tahunAkhir]
+                );
+
+                $dataTahun = [];
+                for ($th = $tahunAwal; $th <= $tahunAkhir; $th++) {
+                    $dataTahun[$th] = [
+                        'periode' => "Tahun $th",
+                        'tahun' => $th,
+                        'pendapatan' => 0.0,
+                        'beban_operasional' => 0.0,
+                        'beban_pajak' => 0.0,
+                        'total_beban' => 0.0,
+                        'shu' => 0.0,
+                        'pertumbuhan_nominal' => 0.0,
+                        'pertumbuhan_persen' => 0.0,
+                        'tren' => 'tetap'
+                    ];
+                }
+
+                foreach ($rows as $r) {
+                    $th = (int)$r['thn'];
+                    if (!isset($dataTahun[$th])) continue;
+                    $val = (float)$r['net_saldo'];
+
+                    if ($r['tipe'] === 'pendapatan') {
+                        $dataTahun[$th]['pendapatan'] += $val;
+                    } elseif ($r['tipe'] === 'beban') {
+                        if ($r['kelompok_beban'] === 'Pajak') {
+                            $dataTahun[$th]['beban_pajak'] += $val;
+                        } else {
+                            $dataTahun[$th]['beban_operasional'] += $val;
+                        }
+                        $dataTahun[$th]['total_beban'] += $val;
+                    }
+                }
+
+                $prevShu = null;
+                $totalPendapatan = 0;
+                $totalBeban = 0;
+                $totalShu = 0;
+                $tahunTertinggi = null;
+                $maxShu = -PHP_FLOAT_MAX;
+                $listPertumbuhanPersen = [];
+
+                foreach ($dataTahun as $th => &$item) {
+                    $item['shu'] = round($item['pendapatan'] - $item['total_beban'], 2);
+                    $totalPendapatan += $item['pendapatan'];
+                    $totalBeban += $item['total_beban'];
+                    $totalShu += $item['shu'];
+
+                    if ($item['shu'] > $maxShu && ($item['pendapatan'] > 0 || $item['total_beban'] > 0)) {
+                        $maxShu = $item['shu'];
+                        $tahunTertinggi = "Tahun $th";
+                    }
+
+                    if ($prevShu !== null) {
+                        $delta = round($item['shu'] - $prevShu, 2);
+                        $item['pertumbuhan_nominal'] = $delta;
+                        if (abs($prevShu) > 0.01) {
+                            $pct = round(($delta / abs($prevShu)) * 100, 2);
+                        } else {
+                            $pct = $delta > 0 ? 100.0 : ($delta < 0 ? -100.0 : 0.0);
+                        }
+                        $item['pertumbuhan_persen'] = $pct;
+                        $item['tren'] = $delta > 0 ? 'naik' : ($delta < 0 ? 'turun' : 'tetap');
+                        $listPertumbuhanPersen[] = $pct;
+                    } else {
+                        $item['pertumbuhan_nominal'] = 0.0;
+                        $item['pertumbuhan_persen'] = 0.0;
+                        $item['tren'] = 'awal';
+                    }
+
+                    if ($item['pendapatan'] > 0 || $item['total_beban'] > 0) {
+                        $prevShu = $item['shu'];
+                    }
+                }
+                unset($item);
+
+                $n = count($dataTahun);
+                $rataPertumbuhan = count($listPertumbuhanPersen) > 0 
+                    ? round(array_sum($listPertumbuhanPersen) / count($listPertumbuhanPersen), 2) 
+                    : 0.0;
+
+                return [
+                    'mode' => 'tahunan',
+                    'filter' => ['tahun_awal' => $tahunAwal, 'tahun_akhir' => $tahunAkhir],
+                    'items' => array_values($dataTahun),
+                    'ringkasan' => [
+                        'total_pendapatan' => round($totalPendapatan, 2),
+                        'total_beban' => round($totalBeban, 2),
+                        'total_shu' => round($totalShu, 2),
+                        'rata_pendapatan_tahunan' => round($totalPendapatan / max(1, $n), 2),
+                        'rata_beban_tahunan' => round($totalBeban / max(1, $n), 2),
+                        'rata_shu_tahunan' => round($totalShu / max(1, $n), 2),
+                        'rata_pertumbuhan_persen' => $rataPertumbuhan,
+                        'periode_tertinggi' => $tahunTertinggi ?? '-',
+                        'shu_tertinggi' => ($maxShu > -PHP_FLOAT_MAX) ? $maxShu : 0
+                    ]
+                ];
+            }
+        });
+
+        successResponse($responseData);
+        break;
+
+    case 'arus-kas':
+        checkPermission('keuangan.neraca');
+        $dari = $params['dari'] ?? date('Y-01-01');
+        $sampai = $params['sampai'] ?? date('Y-m-d');
+
+        $cacheKey = "rep_aruskas_{$dari}_{$sampai}";
+        $responseData = getCachedData($cacheKey, function() use ($db, $dari, $sampai) {
+            // 1. Akun Kas & Bank (Likuid)
+            $kasAkuns = $db->fetchAll(
+                "SELECT id, kode, nama, tipe, saldo_normal 
+                 FROM akun 
+                 WHERE is_active = 1 AND tipe = 'aset' 
+                   AND (kode IN ('100', '101', '102', '103', '1000', '1100') OR nama LIKE '%Kas%' OR nama LIKE '%Bank%')
+                 ORDER BY kode"
+            );
+            $kasIds = array_map(fn($a) => (int)$a['id'], $kasAkuns);
+            if (empty($kasIds)) {
+                $kasIds = [0];
+            }
+            $kasIdsPlaceholders = implode(',', array_fill(0, count($kasIds), '?'));
+
+            // 2. Saldo Awal Kas (< $dari ATAU jurnal saldo_awal_neraca)
+            $saldoAwalParams = array_merge($kasIds, [$dari]);
+            $saldoAwalRow = $db->fetch(
+                "SELECT 
+                    COALESCE(SUM(jd.debit - jd.kredit), 0) as saldo_awal
+                 FROM jurnal_detail jd
+                 JOIN jurnal j ON jd.jurnal_id = j.id
+                 WHERE jd.akun_id IN ($kasIdsPlaceholders)
+                   AND (j.tgl_transaksi < ? OR j.ref_tipe = 'saldo_awal_neraca')",
+                $saldoAwalParams
+            );
+            $saldoAwalKas = (float)($saldoAwalRow['saldo_awal'] ?? 0);
+
+            // 3. Ambil semua jurnal operasional yang melibatkan Kas/Bank pada periode [dari, sampai]
+            // Exclude saldo_awal_neraca & saldo_awal_labarugi karena itu saldo awal bukan mutasi berjalan
+            $jurnalKasParams = array_merge($kasIds, [$dari, $sampai]);
+            $jurnalKasList = $db->fetchAll(
+                "SELECT DISTINCT j.id, j.no_bukti, j.tgl_transaksi, j.keterangan, j.ref_tipe, j.ref_id
+                 FROM jurnal j
+                 JOIN jurnal_detail jd ON j.id = jd.jurnal_id
+                 WHERE jd.akun_id IN ($kasIdsPlaceholders)
+                   AND j.tgl_transaksi BETWEEN ? AND ?
+                   AND j.ref_tipe NOT IN ('saldo_awal_neraca', 'saldo_awal_labarugi')
+                 ORDER BY j.tgl_transaksi ASC, j.id ASC",
+                $jurnalKasParams
+            );
+
+            // Kategori aktivitas
+            // A. Operasi
+            $op_penerimaan_pokok = 0;
+            $op_penerimaan_jasa = 0;
+            $op_penerimaan_provisi = 0;
+            $op_penerimaan_lain = 0;
+            $op_pengeluaran_pinjaman = 0;
+            $op_pengeluaran_beban_op = 0;
+            $op_pengeluaran_beban_bunga = 0;
+            $op_pengeluaran_beban_organisasi = 0;
+            $op_pengeluaran_pajak = 0;
+            $op_pengeluaran_lain = 0;
+
+            // B. Investasi
+            $inv_pengeluaran_aset_tetap = 0;
+            $inv_pengeluaran_penyertaan = 0;
+            $inv_penerimaan_aset_tetap = 0;
+            $inv_penerimaan_penyertaan = 0;
+
+            // C. Pendanaan
+            $pend_penerimaan_simpanan_pokok_wajib = 0;
+            $pend_penerimaan_simpanan_sukarela = 0;
+            $pend_penerimaan_modal_luar = 0;
+            $pend_pengeluaran_simpanan_pokok_wajib = 0;
+            $pend_pengeluaran_simpanan_sukarela = 0;
+            $pend_pengeluaran_modal_luar = 0;
+            $pend_pengeluaran_shu = 0;
+
+            foreach ($jurnalKasList as $j) {
+                $details = $db->fetchAll(
+                    "SELECT jd.*, ak.kode as akun_kode, ak.nama as akun_nama, ak.tipe as akun_tipe, ak.kelompok as akun_kelompok
+                     FROM jurnal_detail jd
+                     JOIN akun ak ON jd.akun_id = ak.id
+                     WHERE jd.jurnal_id = ?",
+                    [$j['id']]
+                );
+
+                // Hitung total net kas pada jurnal ini
+                $cashDebit = 0;
+                $cashKredit = 0;
+                foreach ($details as $d) {
+                    if (in_array((int)$d['akun_id'], $kasIds)) {
+                        $cashDebit += (float)$d['debit'];
+                        $cashKredit += (float)$d['kredit'];
+                    }
+                }
+
+                // Jika internal transfer antar kas (debit kas = kredit kas), lewati karena net effect = 0
+                if ($cashDebit > 0 && $cashKredit > 0 && abs($cashDebit - $cashKredit) < 0.01) {
+                    continue;
+                }
+
+                // Klasifikasikan berdasarkan akun lawan (non-kas)
+                foreach ($details as $d) {
+                    if (in_array((int)$d['akun_id'], $kasIds)) continue;
+
+                    $kode = (string)($d['akun_kode'] ?? '');
+                    $nama = strtolower((string)($d['akun_nama'] ?? ''));
+                    $tipe = (string)($d['akun_tipe'] ?? '');
+                    $kel = strtolower((string)($d['akun_kelompok'] ?? ''));
+                    $deb = (float)$d['debit'];
+                    $kred = (float)$d['kredit'];
+
+                    // Kas Masuk -> akun lawan berada di Kredit
+                    if ($cashDebit > 0 && $kred > 0) {
+                        $amount = min($kred, $cashDebit);
+                        
+                        if ($tipe === 'pendapatan') {
+                            if (strpos($nama, 'provisi') !== false || strpos($nama, 'administrasi') !== false) {
+                                $op_penerimaan_provisi += $amount;
+                            } elseif (strpos($nama, 'jasa') !== false || strpos($nama, 'bunga') !== false || in_array($kode, ['400','401','406','410'])) {
+                                $op_penerimaan_jasa += $amount;
+                            } else {
+                                $op_penerimaan_lain += $amount;
+                            }
+                        }
+                        elseif ($tipe === 'aset' && (strpos($nama, 'piutang') !== false || in_array($kode, ['104','105','106','107','108','1200','190']))) {
+                            $op_penerimaan_pokok += $amount;
+                        }
+                        elseif ($tipe === 'modal' || strpos($nama, 'simpanan pokok') !== false || strpos($nama, 'simpanan wajib') !== false || strpos($nama, 'partisipatif') !== false) {
+                            $pend_penerimaan_simpanan_pokok_wajib += $amount;
+                        }
+                        elseif ($tipe === 'kewajiban' && (strpos($nama, 'simpanan') !== false || strpos($nama, 'tabungan') !== false || in_array($kode, ['205','206','209','2000']))) {
+                            $pend_penerimaan_simpanan_sukarela += $amount;
+                        }
+                        elseif ($tipe === 'kewajiban' && (strpos($nama, 'hutang') !== false || strpos($nama, 'utang') !== false || strpos($nama, 'pinjaman') !== false)) {
+                            $pend_penerimaan_modal_luar += $amount;
+                        }
+                        elseif (strpos($kel, 'tetap') !== false || in_array($kode, ['117','118'])) {
+                            $inv_penerimaan_aset_tetap += $amount;
+                        }
+                        elseif (strpos($kel, 'penyertaan') !== false || strpos($nama, 'pkpri') !== false || in_array($kode, ['112','113','114','115','116'])) {
+                            $inv_penerimaan_penyertaan += $amount;
+                        }
+                        else {
+                            $op_penerimaan_lain += $amount;
+                        }
+                    }
+
+                    // Kas Keluar -> akun lawan berada di Debit
+                    if ($cashKredit > 0 && $deb > 0) {
+                        $amount = min($deb, $cashKredit);
+
+                        if ($tipe === 'aset' && (strpos($nama, 'piutang') !== false || in_array($kode, ['104','105','106','107','108','1200','190']))) {
+                            $op_pengeluaran_pinjaman += $amount;
+                        }
+                        elseif ($tipe === 'beban') {
+                            if (strpos($nama, 'bunga') !== false || strpos($nama, 'jasa') !== false || in_array($kode, ['501','5000'])) {
+                                $op_pengeluaran_beban_bunga += $amount;
+                            } elseif (strpos($nama, 'rat') !== false || strpos($nama, 'organisasi') !== false || in_array($kode, ['500'])) {
+                                $op_pengeluaran_beban_organisasi += $amount;
+                            } elseif (strpos($nama, 'pajak') !== false || in_array($kode, ['507','202','2200'])) {
+                                $op_pengeluaran_pajak += $amount;
+                            } else {
+                                $op_pengeluaran_beban_op += $amount;
+                            }
+                        }
+                        elseif ($tipe === 'modal' || strpos($nama, 'simpanan pokok') !== false || strpos($nama, 'simpanan wajib') !== false) {
+                            $pend_pengeluaran_simpanan_pokok_wajib += $amount;
+                        }
+                        elseif ($tipe === 'kewajiban' && (strpos($nama, 'simpanan') !== false || strpos($nama, 'tabungan') !== false || in_array($kode, ['205','206','209','2000']))) {
+                            $pend_pengeluaran_simpanan_sukarela += $amount;
+                        }
+                        elseif ($tipe === 'kewajiban' && (strpos($nama, 'hutang') !== false || strpos($nama, 'utang') !== false)) {
+                            $pend_pengeluaran_modal_luar += $amount;
+                        }
+                        elseif (strpos($nama, 'shu') !== false) {
+                            $pend_pengeluaran_shu += $amount;
+                        }
+                        elseif (strpos($kel, 'tetap') !== false || in_array($kode, ['117','118'])) {
+                            $inv_pengeluaran_aset_tetap += $amount;
+                        }
+                        elseif (strpos($kel, 'penyertaan') !== false || strpos($nama, 'pkpri') !== false || in_array($kode, ['112','113','114','115','116'])) {
+                            $inv_pengeluaran_penyertaan += $amount;
+                        }
+                        else {
+                            $op_pengeluaran_lain += $amount;
+                        }
+                    }
+                }
+            }
+
+            // Total per aktivitas
+            $total_masuk_operasi = $op_penerimaan_pokok + $op_penerimaan_jasa + $op_penerimaan_provisi + $op_penerimaan_lain;
+            $total_keluar_operasi = $op_pengeluaran_pinjaman + $op_pengeluaran_beban_op + $op_pengeluaran_beban_bunga + $op_pengeluaran_beban_organisasi + $op_pengeluaran_pajak + $op_pengeluaran_lain;
+            $arus_kas_operasi = $total_masuk_operasi - $total_keluar_operasi;
+
+            $total_masuk_investasi = $inv_penerimaan_aset_tetap + $inv_penerimaan_penyertaan;
+            $total_keluar_investasi = $inv_pengeluaran_aset_tetap + $inv_pengeluaran_penyertaan;
+            $arus_kas_investasi = $total_masuk_investasi - $total_keluar_investasi;
+
+            $total_masuk_pendanaan = $pend_penerimaan_simpanan_pokok_wajib + $pend_penerimaan_simpanan_sukarela + $pend_penerimaan_modal_luar;
+            $total_keluar_pendanaan = $pend_pengeluaran_simpanan_pokok_wajib + $pend_pengeluaran_simpanan_sukarela + $pend_pengeluaran_modal_luar + $pend_pengeluaran_shu;
+            $arus_kas_pendanaan = $total_masuk_pendanaan - $total_keluar_pendanaan;
+
+            $kenaikan_bersih_kas = $arus_kas_operasi + $arus_kas_investasi + $arus_kas_pendanaan;
+            $saldo_akhir_perhitungan = $saldoAwalKas + $kenaikan_bersih_kas;
+
+            // Saldo Kas Aktual per tanggal sampai (dari Neraca)
+            $saldoAkhirParams = array_merge($kasIds, [$sampai]);
+            $saldoAkhirRow = $db->fetch(
+                "SELECT 
+                    COALESCE(SUM(jd.debit), 0) - COALESCE(SUM(jd.kredit), 0) as saldo_akhir
+                 FROM jurnal_detail jd
+                 JOIN jurnal j ON jd.jurnal_id = j.id
+                 WHERE jd.akun_id IN ($kasIdsPlaceholders)
+                   AND j.tgl_transaksi <= ?",
+                $saldoAkhirParams
+            );
+            $saldoKasAktual = (float)($saldoAkhirRow['saldo_akhir'] ?? 0);
+            $selisih = round($saldo_akhir_perhitungan - $saldoKasAktual, 2);
+
+            // Rincian saldo per akun kas/bank
+            $rincianKas = [];
+            foreach ($kasAkuns as $ka) {
+                $sal = (float)($db->fetch(
+                    "SELECT COALESCE(SUM(jd.debit), 0) - COALESCE(SUM(jd.kredit), 0) as s
+                     FROM jurnal_detail jd
+                     JOIN jurnal j ON jd.jurnal_id = j.id
+                     WHERE jd.akun_id = ? AND j.tgl_transaksi <= ?",
+                    [$ka['id'], $sampai]
+                )['s'] ?? 0);
+                $rincianKas[] = [
+                    'kode' => $ka['kode'],
+                    'nama' => $ka['nama'],
+                    'saldo' => $sal
+                ];
+            }
+
+            return [
+                'periode' => ['dari' => $dari, 'sampai' => $sampai],
+                'saldo_awal' => $saldoAwalKas,
+                'operasi' => [
+                    'masuk' => [
+                        'angsuran_pokok' => $op_penerimaan_pokok,
+                        'jasa_pinjaman' => $op_penerimaan_jasa,
+                        'provisi_administrasi' => $op_penerimaan_provisi,
+                        'pendapatan_lain' => $op_penerimaan_lain,
+                        'total' => $total_masuk_operasi
+                    ],
+                    'keluar' => [
+                        'pencairan_pinjaman' => $op_pengeluaran_pinjaman,
+                        'beban_operasional' => $op_pengeluaran_beban_op,
+                        'beban_bunga_simpanan' => $op_pengeluaran_beban_bunga,
+                        'beban_organisasi_rat' => $op_pengeluaran_beban_organisasi,
+                        'pajak' => $op_pengeluaran_pajak,
+                        'beban_lain' => $op_pengeluaran_lain,
+                        'total' => $total_keluar_operasi
+                    ],
+                    'bersih' => $arus_kas_operasi
+                ],
+                'investasi' => [
+                    'masuk' => [
+                        'pelepasan_aktiva_tetap' => $inv_penerimaan_aset_tetap,
+                        'pencairan_penyertaan' => $inv_penerimaan_penyertaan,
+                        'total' => $total_masuk_investasi
+                    ],
+                    'keluar' => [
+                        'pengadaan_aktiva_tetap' => $inv_pengeluaran_aset_tetap,
+                        'penempatan_penyertaan' => $inv_pengeluaran_penyertaan,
+                        'total' => $total_keluar_investasi
+                    ],
+                    'bersih' => $arus_kas_investasi
+                ],
+                'pendanaan' => [
+                    'masuk' => [
+                        'simpanan_pokok_wajib' => $pend_penerimaan_simpanan_pokok_wajib,
+                        'simpanan_sukarela' => $pend_penerimaan_simpanan_sukarela,
+                        'pinjaman_luar' => $pend_penerimaan_modal_luar,
+                        'total' => $total_masuk_pendanaan
+                    ],
+                    'keluar' => [
+                        'pengembalian_pokok_wajib' => $pend_pengeluaran_simpanan_pokok_wajib,
+                        'penarikan_simpanan_sukarela' => $pend_pengeluaran_simpanan_sukarela,
+                        'pembayaran_pinjaman_luar' => $pend_pengeluaran_modal_luar,
+                        'pembagian_shu' => $pend_pengeluaran_shu,
+                        'total' => $total_keluar_pendanaan
+                    ],
+                    'bersih' => $arus_kas_pendanaan
+                ],
+                'kenaikan_bersih' => $kenaikan_bersih_kas,
+                'saldo_akhir_perhitungan' => $saldo_akhir_perhitungan,
+                'saldo_akhir_aktual' => $saldoKasAktual,
+                'selisih' => $selisih,
+                'is_balance' => (abs($selisih) < 0.01),
+                'rincian_kas' => $rincianKas
             ];
         });
 

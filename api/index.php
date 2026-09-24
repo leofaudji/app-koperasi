@@ -20,6 +20,7 @@ require_once __DIR__ . '/config/env.php';
 require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/redis.php';
+require_once __DIR__ . '/config/finance_helpers.php';
 require_once __DIR__ . '/middleware/auth.php';
 require_once __DIR__ . '/middleware/rbac.php';
 require_once __DIR__ . '/middleware/csrf.php';
@@ -154,6 +155,7 @@ function clearCache(array $types)
                 $redis->delete('rep_neraca_*');
                 $redis->delete('rep_labarugi_*');
                 $redis->delete('rep_bukubesar_*');
+                $redis->delete('rep_ekuitas_*');
                 $redis->delete('shu_preview_*');
                 $redis->delete('rep_audit_*');
                 $redis->delete('rep_tks_*');
@@ -402,6 +404,12 @@ try {
             break;
         case 'kesehatan':
             require_once $controllerPath . 'KesehatanController.php';
+            break;
+        case 'kemenkop':
+            require_once $controllerPath . 'KemenkopController.php';
+            break;
+        case 'perubahan-ekuitas':
+            require_once $controllerPath . 'PerubahanEkuitasController.php';
             break;
         case 'biaya-pinjaman':
             require_once $controllerPath . 'BiayaPinjamanController.php';

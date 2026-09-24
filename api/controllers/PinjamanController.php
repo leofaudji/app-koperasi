@@ -2,6 +2,7 @@
 // Pinjaman Controller
 authCheck();
 $db = Database::getInstance();
+require_once __DIR__ . '/../config/finance_helpers.php';
 
 switch ($method) {
     case 'GET':
@@ -799,13 +800,17 @@ switch ($method) {
 
         if ($action === 'approve') {
             checkPermission('pinjaman.approve');
-            $pinjaman = $db->fetch("SELECT p.*, jp.akun_id FROM pinjaman p JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id WHERE p.id = ? AND p.status = 'pending'", [$id]);
+            $pinjaman = $db->fetch("SELECT p.*, jp.kode as jenis_pinjaman_kode, jp.nama as jenis_pinjaman_nama, jp.akun_id FROM pinjaman p JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id WHERE p.id = ? AND p.status = 'pending'", [$id]);
             if (!$pinjaman)
                 errorResponse('Pinjaman tidak ditemukan atau sudah diproses');
 
             $statusApproval = $params['status'] ?? '';
             if (!in_array($statusApproval, ['disetujui', 'ditolak'])) {
                 errorResponse('Status harus disetujui atau ditolak');
+            }
+
+            if ($statusApproval === 'disetujui') {
+                checkAccountingPeriodLock($db, $pinjaman['tgl_pengajuan'], 'Pencairan Pinjaman');
             }
 
             $metodePembayaran = $params['metode_pembayaran'] ?? 'tunai';
@@ -873,8 +878,8 @@ switch ($method) {
                                 'total_lunas' => $lunasThisLoan
                             ];
 
-                            // Lunasi angsuran lama
-                            $db->execute("UPDATE angsuran SET tgl_bayar=CURDATE(), status='lunas', created_by=? WHERE pinjaman_id=? AND status='belum'", [$_SESSION['user_id'], $oldId]);
+                            // Lunasi angsuran lama (tandai metode topup)
+                            $db->execute("UPDATE angsuran SET tgl_bayar=CURDATE(), status='lunas', metode_pembayaran='topup', created_by=? WHERE pinjaman_id=? AND status='belum'", [$_SESSION['user_id'], $oldId]);
                             // Update status pinjaman lama
                             $db->execute("UPDATE pinjaman SET status='lunas', sisa_pinjaman=0 WHERE id=?", [$oldId]);
                         }
@@ -1012,9 +1017,41 @@ switch ($method) {
                         }
                     }
 
-                    // 3. K: Potongan Biaya -> Pendapatan Administrasi (4300)
-                    if ($totalBiaya > 0) {
-                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4300' LIMIT 1),(SELECT id FROM akun WHERE tipe='pendapatan' LIMIT 1))), 0, ?)", [$jurnalId, $totalBiaya]);
+                    // 3. K: Potongan Biaya Pencairan (Per-item sesuai akun di Menu Jenis Biaya Pinjaman)
+                    if (!empty($biayaList)) {
+                        foreach ($biayaList as $b) {
+                            $namaB = trim($b['nama'] ?? '');
+                            $jmlB = (float) ($b['jumlah'] ?? 0);
+                            $jenisId = isset($b['jenis_biaya_id']) && $b['jenis_biaya_id'] ? (int) $b['jenis_biaya_id'] : null;
+                            if (empty($namaB) || $jmlB <= 0) continue;
+
+                            $targetAkunId = null;
+
+                            // 1. Cek akun_id dari konfigurasi master jenis_biaya_pinjaman
+                            if ($jenisId) {
+                                $jbp = $db->fetch("SELECT akun_id FROM jenis_biaya_pinjaman WHERE id = ?", [$jenisId]);
+                                if (!empty($jbp['akun_id'])) {
+                                    $targetAkunId = (int) $jbp['akun_id'];
+                                }
+                            }
+
+                            // 2. Jika akun_id belum ditentukan di master:
+                            if (!$targetAkunId) {
+                                $isProvisi = ($jenisId == 1) || (stripos($namaB, 'provisi') !== false);
+                                if ($isProvisi) {
+                                    $targetAkunId = getAkunProvisiByPinjaman($db, $pinjaman['jenis_pinjaman_kode'] ?? '', $pinjaman['jenis_pinjaman_nama'] ?? '');
+                                } else {
+                                    $targetAkunId = getAkunBiayaLainByNama($db, $namaB, $jenisId);
+                                }
+                            }
+
+                            if ($targetAkunId) {
+                                $db->execute(
+                                    "INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?, ?, 0, ?, ?)",
+                                    [$jurnalId, $targetAkunId, $jmlB, 'Potongan ' . $namaB]
+                                );
+                            }
+                        }
                     }
 
                     // 3b. K: Potongan Simpanan Wajib -> Simpanan Wajib Anggota
@@ -1032,7 +1069,9 @@ switch ($method) {
                             $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunOldId, $tsl['sisa_pokok']]);
                         }
                         if ($tsl['bunga'] > 0) {
-                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4000' LIMIT 1), (SELECT id FROM akun WHERE kode='400' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Pendapatan Jasa%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Bunga%' AND tipe='pendapatan' LIMIT 1))), 0, ?)", [$jurnalId, $tsl['bunga']]);
+                            $oldPinjData = $db->fetch("SELECT jp.kode, jp.nama FROM pinjaman p JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id WHERE p.id = ?", [$tsl['id']]);
+                            $akunBungaOld = getAkunBungaByPinjaman($db, $oldPinjData['kode'] ?? '', $oldPinjData['nama'] ?? '');
+                            $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit, keterangan) VALUES (?, ?, 0, ?, ?)", [$jurnalId, $akunBungaOld, $tsl['bunga'], 'Pendapatan Bunga Pelunasan Topup']);
                         }
                         if ($tsl['denda'] > 0) {
                             $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4200' LIMIT 1), (SELECT id FROM akun WHERE kode='409' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Denda%' LIMIT 1), (SELECT id FROM akun WHERE nama LIKE '%Lain-lain%' LIMIT 1))), 0, ?)", [$jurnalId, $tsl['denda']]);

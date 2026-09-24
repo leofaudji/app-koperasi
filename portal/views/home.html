@@ -157,42 +157,16 @@
         </div>
     </div>
 
-    <!-- 5. GROWTH: SHU Simulation Card -->
-    <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-obsidian-800 mb-6 relative overflow-hidden transition-colors duration-300">
-        <div class="absolute top-0 right-0 p-4 opacity-5 pointer-events-none text-gray-900 dark:text-white">
-            <i class="bi bi-graph-up-arrow text-6xl"></i>
-        </div>
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <h3 class="text-sm font-black text-gray-800 dark:text-obsidian-100 uppercase tracking-widest">Estimasi SHU Aktif</h3>
-                <p class="text-[10px] text-gray-400 dark:text-obsidian-500 font-bold uppercase tracking-wider mt-0.5">Proyeksi Tahun <span
-                        id="shu-tahun">—</span></p>
+    <!-- 5. BILLING: Tagihan & Jadwal Angsuran Terdekat -->
+    <div id="h-billing-container" class="mb-6">
+        <!-- Rendered dynamically via Portal.renderBillingCard() -->
+        <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-obsidian-800 animate-pulse">
+            <div class="flex items-center justify-between mb-4">
+                <div class="h-4 bg-gray-200 dark:bg-obsidian-800 rounded w-1/3"></div>
+                <div class="h-6 bg-gray-200 dark:bg-obsidian-800 rounded-full w-20"></div>
             </div>
-            <div
-                class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shadow-sm border border-indigo-100 dark:border-indigo-800/50">
-                <i class="bi bi-award-fill"></i>
-            </div>
-        </div>
-
-        <div class="flex items-end gap-2 mb-6">
-            <span class="text-3xl font-black text-gray-900 dark:text-obsidian-50" id="shu-total-estimasi">Rp 0</span>
-            <span
-                class="text-[10px] font-black text-emerald-500 bg-emerald-50 dark:bg-emerald-900/40 px-2 py-1 rounded-lg mb-1 tracking-tighter animate-pulse uppercase">Aktif</span>
-        </div>
-
-        <div class="h-44 mb-6 relative">
-            <canvas id="shuChart"></canvas>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-            <div class="bg-gray-50 dark:bg-obsidian-800 rounded-2xl p-3 border border-gray-100 dark:border-obsidian-700">
-                <p class="text-[9px] font-black text-gray-400 dark:text-obsidian-500 uppercase tracking-widest mb-1">Jasa Modal</p>
-                <p class="text-xs font-black text-gray-800 dark:text-obsidian-200" id="shu-jasa-modal">Rp 0</p>
-            </div>
-            <div class="bg-gray-50 dark:bg-obsidian-800 rounded-2xl p-3 border border-gray-100 dark:border-obsidian-700">
-                <p class="text-[9px] font-black text-gray-400 dark:text-obsidian-500 uppercase tracking-widest mb-1">Jasa Pinjam</p>
-                <p class="text-xs font-black text-gray-800 dark:text-obsidian-200" id="shu-jasa-pinjaman">Rp 0</p>
-            </div>
+            <div class="h-8 bg-gray-200 dark:bg-obsidian-800 rounded w-1/2 mb-3"></div>
+            <div class="h-16 bg-gray-100 dark:bg-obsidian-800 rounded-2xl"></div>
         </div>
     </div>
 

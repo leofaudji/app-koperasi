@@ -7,6 +7,7 @@ const RolesPage = {
         App.setTitle('Manajemen Role', 'Kelola peran dan hak akses menu');
         const res = await App.api('roles');
         if (!res?.success) return;
+        this._roles = res.data;
 
         container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
             <div class="flex justify-between mb-6">
@@ -25,7 +26,7 @@ const RolesPage = {
                     <div class="flex gap-2 mt-3 pt-3 border-t border-gray-50">
                         ${r.id <= 3 ? '' : `${App.hasPerm('role.manage') ? `
                             <button onclick="RolesPage.form(${r.id})" class="text-amber-500 hover:bg-amber-50 px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-1"><i class="ri-edit-line"></i> Edit</button>
-                            <button onclick="RolesPage.del(${r.id},'${r.nama}')" class="text-red-400 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-1"><i class="ri-delete-bin-line"></i> Hapus</button>` : ''}`}
+                            <button onclick="RolesPage.del(${r.id})" class="text-red-400 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-1"><i class="ri-delete-bin-line"></i> Hapus</button>` : ''}`}
                         <button onclick="RolesPage.viewPerms(${r.id})" class="text-primary-500 hover:bg-primary-50 px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-1 ml-auto"><i class="ri-shield-check-line"></i> Lihat Akses</button>
                     </div>
                 </div>`).join('')}
@@ -252,7 +253,11 @@ const RolesPage = {
     },
 
     async del(id, name) {
-        const ok = await App.confirm('Hapus Role', `Yakin ingin menghapus role "${name}"?`);
+        if (!name && this._roles) {
+            const found = this._roles.find(x => x.id == id);
+            if (found) name = found.nama;
+        }
+        const ok = await App.confirm('Hapus Role', `Yakin ingin menghapus role "${name || ''}"?`);
         if (!ok) return;
         const r = await App.api(`roles/${id}`, { method: 'DELETE' });
         if (r?.success) {

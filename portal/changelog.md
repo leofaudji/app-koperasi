@@ -4,6 +4,18 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [1.7.0] - 2026-09-21
+### Added
+- **Widget Tagihan & Jadwal Angsuran Terdekat (Billing Card)**:
+    - Menggantikan widget estimasi SHU tahunan di beranda dengan kartu ringkasan tagihan angsuran terdekat yang belum lunas.
+    - Menampilkan informasi nomor pinjaman, tenor, angsuran ke-X, total nominal tagihan (mendukung masking privacy mode), serta rincian pokok, bunga, dan denda.
+    - Status badge tenggat dinamis: *Terlambat X Hari* (merah), *Jatuh Tempo Hari Ini!* (amber/pulse), atau *X Hari Lagi* (biru).
+    - **Quick Payment via Simpanan Sukarela**: Tombol aksi langsung dari beranda untuk mengajukan pembayaran angsuran autodebet jika saldo mencukupi.
+    - Indikator status *Menunggu ACC Bendahara* dan kartu apresiasi jika semua pinjaman telah lunas.
+- **Pengajuan Pembayaran Angsuran via Simpanan Sukarela pada Tab Pinjaman**:
+    - Tombol "Bayar via Sukarela" pada daftar angsuran yang belum lunas di tab pinjaman.
+    - Validasi saldo real-time dan notifikasi konfirmasi SweetAlert interaktif.
+
 ## [1.6.2] - 2026-05-06
 ### Added
 - **Dynamic Branding**:

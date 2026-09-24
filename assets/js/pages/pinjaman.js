@@ -460,16 +460,8 @@ const PinjamanPage = {
                 const dd = document.getElementById('pf-anggota-dd');
 
                 if (r?.data?.length) {
-                    dd.innerHTML = r.data.map(a => `<div class="px-4 py-3 hover:bg-primary-50 cursor-pointer border-b border-gray-50 last:border-0" onclick="
-                        document.getElementById('pf-anggota-id').value = ${a.id};
-                        document.getElementById('pf-anggota-search').value = '${a.no_anggota} - ${a.nama}';
-                        document.getElementById('pf-pekerjaan').value = '${a.pekerjaan || '-'}';
-                        document.getElementById('pf-penghasilan').value = '${App.formatRupiah(a.penghasilan_bulanan || 0)}';
-                        document.getElementById('pf-penghasilan').dataset.gaji = '${a.penghasilan_bulanan || 0}';
-                        document.getElementById('pf-anggota-dd').classList.add('hidden');
-                        PinjamanPage.checkActiveLoan(${a.id});
-                        PinjamanPage.calcSim();
-                    ">
+                    PinjamanPage._memberList = r.data;
+                    dd.innerHTML = r.data.map((a, idx) => `<div class="px-4 py-3 hover:bg-primary-50 cursor-pointer border-b border-gray-50 last:border-0" onclick="PinjamanPage.selectAnggotaByIndex(${idx})">
                         <div class="font-medium text-gray-800">${a.nama}</div>
                         <div class="text-xs text-gray-500 font-mono mt-0.5">${a.no_anggota}</div>
                     </div>`).join('');
@@ -521,6 +513,19 @@ const PinjamanPage = {
                 submitBtn.innerHTML = 'Ajukan Pinjaman';
             }
         };
+    },
+
+    selectAnggotaByIndex(idx) {
+        const a = this._memberList?.[idx];
+        if (!a) return;
+        document.getElementById('pf-anggota-id').value = a.id;
+        document.getElementById('pf-anggota-search').value = `${a.no_anggota} - ${a.nama}`;
+        document.getElementById('pf-pekerjaan').value = a.pekerjaan || '-';
+        document.getElementById('pf-penghasilan').value = App.formatRupiah(a.penghasilan_bulanan || 0);
+        document.getElementById('pf-penghasilan').dataset.gaji = a.penghasilan_bulanan || 0;
+        document.getElementById('pf-anggota-dd').classList.add('hidden');
+        PinjamanPage.checkActiveLoan(a.id);
+        PinjamanPage.calcSim();
     },
 
     toggleAgunan(tipe) {
@@ -582,9 +587,10 @@ const PinjamanPage = {
             const tipeIcon = { SHM: 'ri-home-2-line', SHGB: 'ri-building-line', BPKB: 'ri-car-line', Deposito: 'ri-bank-line', Lainnya: 'ri-file-paper-line' };
             const tipeColor = { SHM: 'text-emerald-600', SHGB: 'text-teal-600', BPKB: 'text-blue-600', Deposito: 'text-amber-600', Lainnya: 'text-gray-500' };
 
-            dd.innerHTML = res.data.map(a => `
+            PinjamanPage._agunanList = res.data;
+            dd.innerHTML = res.data.map((a, idx) => `
             <div class="px-4 py-3 hover:bg-amber-50 cursor-pointer border-b border-gray-50 last:border-0 flex items-start gap-3"
-                onclick="PinjamanPage.selectAgunanFromDB(${JSON.stringify(a).replace(/"/g, '&quot;')})">
+                onclick="PinjamanPage.selectAgunanFromDBByIndex(${idx})">
                 <i class="${tipeIcon[a.tipe_agunan] || 'ri-file-paper-line'} ${tipeColor[a.tipe_agunan] || 'text-gray-400'} mt-0.5 shrink-0"></i>
                 <div class="min-w-0">
                     <div class="text-xs font-bold text-gray-600">${a.tipe_agunan} &nbsp;·&nbsp; <span class="font-mono">${a.no_dokumen || '-'}</span></div>
@@ -594,6 +600,12 @@ const PinjamanPage = {
             </div>`).join('');
             dd.classList.remove('hidden');
         }, 300);
+    },
+
+    selectAgunanFromDBByIndex(idx) {
+        if (this._agunanList && this._agunanList[idx]) {
+            this.selectAgunanFromDB(this._agunanList[idx]);
+        }
     },
 
     selectAgunanFromDB(a) {

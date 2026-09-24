@@ -270,9 +270,10 @@ const SimpananPage = {
                     const jenisFilter = defaultJenisCode ? `&jenis_simpanan=${defaultJenisCode}` : '';
                     const res = await App.api(`rekening-simpanan?search=${encodeURIComponent(q)}&per_page=5${jenisFilter}`);
                     if (res?.data?.length) {
-                        resultsDiv.innerHTML = res.data.map(r => `
+                        SimpananPage._accountList = res.data;
+                        resultsDiv.innerHTML = res.data.map((r, idx) => `
                             <div class="px-4 py-3 hover:bg-emerald-50 cursor-pointer border-b border-gray-50 last:border-0" 
-                                 onclick="SimpananPage.selectAccount(${JSON.stringify(r).replace(/"/g, '&quot;')})">
+                                 onclick="SimpananPage.selectAccountByIndex(${idx})">
                                 <div class="flex justify-between items-center">
                                     <span class="font-medium text-gray-800">${r.anggota_nama}</span>
                                     <span class="text-[0.65rem] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono">${r.no_rekening}</span>
@@ -325,6 +326,12 @@ const SimpananPage = {
                 App.toast(res?.message || 'Gagal menyimpan transaksi', 'error');
             }
         };;
+    },
+
+    selectAccountByIndex(idx) {
+        if (this._accountList && this._accountList[idx]) {
+            this.selectAccount(this._accountList[idx]);
+        }
     },
 
     selectAccount(r) {

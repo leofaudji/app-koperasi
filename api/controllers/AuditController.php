@@ -5,6 +5,7 @@
 authCheck();
 checkPermission('keuangan.neraca'); // Menggunakan izin neraca karena terkait
 $db = Database::getInstance();
+require_once __DIR__ . '/../config/finance_helpers.php';
 
 switch ($id) {
     case 'reconcile':
@@ -106,13 +107,15 @@ switch ($id) {
         $orphans = getCachedData($cacheKey, function() use ($db) {
             $orphans = [];
 
-             // 1. Simpanan tanpa Jurnal
+             // 1. Simpanan tanpa Jurnal (abaikan potongan pinjaman yang terjurnal di level pencairan pinjaman)
             $simpananNoJurnal = $db->fetchAll(
                 "SELECT s.id, s.no_transaksi, s.tgl_transaksi, s.jumlah, a.nama as anggota_nama
                 FROM simpanan s
                 JOIN anggota a ON s.anggota_id = a.id
                 LEFT JOIN jurnal j ON j.ref_tipe = 'simpanan' AND j.ref_id = s.id
-                WHERE j.id IS NULL AND s.no_transaksi NOT LIKE 'REV%' AND NOT (s.keterangan LIKE '%Import%' OR s.keterangan LIKE '%Saldo Awal%')"
+                WHERE j.id IS NULL 
+                  AND s.no_transaksi NOT LIKE 'REV%' 
+                  AND NOT (s.keterangan LIKE '%Import%' OR s.keterangan LIKE '%Saldo Awal%' OR s.keterangan LIKE '%Pencairan Pinjaman%' OR s.keterangan LIKE '%Potongan Simpanan Wajib%' OR s.keterangan LIKE '%[AG:%' OR s.keterangan LIKE '%Pembayaran Angsuran%' OR s.metode_pembayaran = 'sukarela')"
             );
             foreach ($simpananNoJurnal as $s) {
                 $orphans[] = [
@@ -144,8 +147,7 @@ switch ($id) {
                 ];
             }
 
-            // 3. Angsuran Masuk tanpa Jurnal Angsuran
-            // Exclude angsuran with NULL tgl_bayar (historical/migrated installments handled via opening balance)
+            // 3. Angsuran Masuk tanpa Jurnal Angsuran (abaikan pelunasan via Top-up/Refinancing yang terjurnal di pencairan pinjaman baru)
             $angsuranNoJurnal = $db->fetchAll(
                 "SELECT ag.id, ag.no_transaksi, ag.tgl_bayar, ag.total, a.nama as anggota_nama
                 FROM angsuran ag
@@ -155,7 +157,12 @@ switch ($id) {
                 WHERE ag.status != 'belum'
                   AND ag.tgl_bayar IS NOT NULL
                   AND j.id IS NULL
-                  AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')"
+                  AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')
+                  AND NOT EXISTS (
+                      SELECT 1 FROM pinjaman p_topup 
+                      WHERE p_topup.is_topup = 1 
+                        AND FIND_IN_SET(p.id, p_topup.topup_ref_id) > 0
+                  )"
             );
             foreach ($angsuranNoJurnal as $ag) {
                 $orphans[] = [
@@ -353,17 +360,17 @@ switch ($id) {
                 $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, ?, 0)", [$jurnalId, $akunPiutangId, $p['jumlah']]);
 
                 if ($kasKeluar > 0) {
-                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='1000' LIMIT 1), 0, ?)", [$jurnalId, $kasKeluar]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='100' LIMIT 1), (SELECT id FROM akun WHERE kode='1000' LIMIT 1), (SELECT id FROM akun WHERE tipe='aset' AND nama LIKE '%Kas%' LIMIT 1))), 0, ?)", [$jurnalId, $kasKeluar]);
                 }
                 if ($totalBiaya > 0) {
-                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='4300' LIMIT 1),(SELECT id FROM akun WHERE tipe='pendapatan' LIMIT 1))), 0, ?)", [$jurnalId, $totalBiaya]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='402' LIMIT 1), (SELECT id FROM akun WHERE kode='4300' LIMIT 1), (SELECT id FROM akun WHERE tipe='pendapatan' LIMIT 1))), 0, ?)", [$jurnalId, $totalBiaya]);
                 }
                 if ($totalLunasOld > 0) {
                     $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunPiutangId, $p['topup_sisa_pokok']]);
                     if ($p['topup_bunga'] > 0)
-                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4000' LIMIT 1), 0, ?)", [$jurnalId, $p['topup_bunga']]);
+                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='400' LIMIT 1), (SELECT id FROM akun WHERE kode='4000' LIMIT 1), (SELECT id FROM akun WHERE tipe='pendapatan' AND (nama LIKE '%Jasa%' OR nama LIKE '%Bunga%') LIMIT 1))), 0, ?)", [$jurnalId, $p['topup_bunga']]);
                     if ($p['topup_denda'] > 0)
-                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4200' LIMIT 1), 0, ?)", [$jurnalId, $p['topup_denda']]);
+                        $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='409' LIMIT 1), (SELECT id FROM akun WHERE kode='4200' LIMIT 1), (SELECT id FROM akun WHERE tipe='pendapatan' AND nama LIKE '%Lain%' LIMIT 1))), 0, ?)", [$jurnalId, $p['topup_denda']]);
                 }
             } elseif ($type === 'Angsuran') {
                 $ag = $db->fetch(
@@ -387,15 +394,15 @@ switch ($id) {
                 );
 
                 if ($ag['total'] > 0)
-                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='1000'), ?, 0)", [$jurnalId, $ag['total']]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='100' LIMIT 1), (SELECT id FROM akun WHERE kode='1000' LIMIT 1), (SELECT id FROM akun WHERE tipe='aset' AND nama LIKE '%Kas%' LIMIT 1))), ?, 0)", [$jurnalId, $ag['total']]);
                 if ($ag['pokok'] > 0) {
-                    $akunPiutangId = $ag['akun_id'] ?: $db->fetch("SELECT id FROM akun WHERE kode='1200' LIMIT 1")['id'];
+                    $akunPiutangId = $ag['akun_id'] ?: ($db->fetch("SELECT id FROM akun WHERE kode='104' OR kode='1200' OR (tipe='aset' AND nama LIKE '%Piutang%') LIMIT 1")['id'] ?? null);
                     $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, ?, 0, ?)", [$jurnalId, $akunPiutangId, $ag['pokok']]);
                 }
                 if ($ag['bunga'] > 0)
-                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4000'), 0, ?)", [$jurnalId, $ag['bunga']]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='400' LIMIT 1), (SELECT id FROM akun WHERE kode='4000' LIMIT 1), (SELECT id FROM akun WHERE tipe='pendapatan' AND (nama LIKE '%Jasa%' OR nama LIKE '%Bunga%') LIMIT 1))), 0, ?)", [$jurnalId, $ag['bunga']]);
                 if ($ag['denda'] > 0)
-                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT id FROM akun WHERE kode='4200'), 0, ?)", [$jurnalId, $ag['denda']]);
+                    $db->execute("INSERT INTO jurnal_detail (jurnal_id, akun_id, debit, kredit) VALUES (?, (SELECT COALESCE((SELECT id FROM akun WHERE kode='409' LIMIT 1), (SELECT id FROM akun WHERE kode='4200' LIMIT 1), (SELECT id FROM akun WHERE tipe='pendapatan' AND nama LIKE '%Lain%' LIMIT 1))), 0, ?)", [$jurnalId, $ag['denda']]);
             }
 
             $db->commit();
@@ -547,9 +554,9 @@ switch ($id) {
             // 2. Check Orphans (-10 per record)
             // Angsuran with NULL tgl_bayar are historical/migrated data - excluded from orphan check
             $orphanCount = 0;
-            $orphanCount += $db->count("SELECT COUNT(*) FROM simpanan s LEFT JOIN jurnal j ON j.ref_tipe = 'simpanan' AND j.ref_id = s.id WHERE j.id IS NULL AND s.no_transaksi NOT LIKE 'REV%' AND NOT (s.keterangan LIKE '%Import%' OR s.keterangan LIKE '%Saldo Awal%')");
-            $orphanCount += $db->count("SELECT COUNT(*) FROM pinjaman p LEFT JOIN jurnal j ON j.ref_tipe = 'pinjaman' AND j.ref_id = p.id WHERE p.status IN ('cair', 'lunas') AND j.id IS NULL AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')");
-            $orphanCount += $db->count("SELECT COUNT(*) FROM angsuran ag JOIN pinjaman p ON ag.pinjaman_id = p.id LEFT JOIN jurnal j ON j.ref_tipe = 'angsuran' AND j.ref_id = ag.id WHERE ag.status != 'belum' AND ag.tgl_bayar IS NOT NULL AND j.id IS NULL AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')");
+            $orphanCount += $db->count("SELECT COUNT(*) FROM simpanan s LEFT JOIN jurnal j ON j.ref_tipe = 'simpanan' AND j.ref_id = s.id WHERE j.id IS NULL AND s.no_transaksi NOT LIKE 'REV%' AND NOT (s.keterangan LIKE '%Import%' OR s.keterangan LIKE '%Saldo Awal%' OR s.keterangan LIKE '%Pencairan Pinjaman%' OR s.keterangan LIKE '%Potongan Simpanan Wajib%' OR s.keterangan LIKE '%[AG:%' OR s.keterangan LIKE '%Pembayaran Angsuran%' OR s.metode_pembayaran = 'sukarela')");
+            $orphanCount += $db->count("SELECT COUNT(*) FROM pinjaman p LEFT JOIN jurnal j ON j.ref_tipe = 'pinjaman' AND j.ref_id = p.id WHERE p.status IN ('cair', 'lunas') AND p.tgl_pencairan IS NOT NULL AND j.id IS NULL AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%')");
+            $orphanCount += $db->count("SELECT COUNT(*) FROM angsuran ag JOIN pinjaman p ON ag.pinjaman_id = p.id LEFT JOIN jurnal j ON j.ref_tipe = 'angsuran' AND j.ref_id = ag.id WHERE ag.status != 'belum' AND ag.tgl_bayar IS NOT NULL AND j.id IS NULL AND NOT (p.keterangan LIKE '%Migrasi%' OR p.keterangan LIKE '%Saldo Awal%') AND NOT EXISTS (SELECT 1 FROM pinjaman p_topup WHERE p_topup.is_topup = 1 AND FIND_IN_SET(p.id, p_topup.topup_ref_id) > 0)");
             $orphanCount += $db->count("SELECT COUNT(*) FROM jurnal j WHERE j.ref_tipe IN ('simpanan', 'pinjaman', 'angsuran') AND ((j.ref_tipe = 'simpanan' AND NOT EXISTS (SELECT 1 FROM simpanan WHERE id = j.ref_id)) OR (j.ref_tipe = 'pinjaman' AND NOT EXISTS (SELECT 1 FROM pinjaman WHERE id = j.ref_id)) OR (j.ref_tipe = 'angsuran' AND NOT EXISTS (SELECT 1 FROM angsuran WHERE id = j.ref_id)))");
 
             if ($orphanCount > 0) {

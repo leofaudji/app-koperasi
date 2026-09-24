@@ -149,8 +149,9 @@ const RekeningSimpananPage = {
                     return;
                 }
 
-                resultsBox.innerHTML = res.data.map(a => `
-                    <div class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors" onclick="RekeningSimpananPage.selectMember(${a.id}, '${a.no_anggota}', '${a.nama}')">
+                RekeningSimpananPage._memberList = res.data;
+                resultsBox.innerHTML = res.data.map((a, idx) => `
+                    <div class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors" onclick="RekeningSimpananPage.selectMemberByIndex(${idx})">
                         <div class="text-sm font-bold text-gray-800">${a.nama}</div>
                         <div class="text-xs text-gray-500 font-mono">${a.no_anggota}</div>
                     </div>
@@ -186,6 +187,13 @@ const RekeningSimpananPage = {
                 App.toast(r?.message || 'Gagal membuat rekening', 'error');
             }
         };
+    },
+
+    selectMemberByIndex(idx) {
+        const a = this._memberList?.[idx];
+        if (a) {
+            this.selectMember(a.id, a.no_anggota, a.nama);
+        }
     },
 
     selectMember(id, no, nama) {

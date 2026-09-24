@@ -5,6 +5,7 @@ const KodeTransaksiPage = {
         App.setTitle('Kode Transaksi Simpanan', 'Setting kode transaksi (D/K)');
         const res = await App.api('kode-transaksi');
         if (!res?.success) return;
+        this._list = res.data;
         container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
             <div class="flex justify-between mb-6"><h3 class="font-semibold text-gray-800">Daftar Kode Transaksi</h3>
             ${App.hasPerm('simpanan.setting') ? '<button onclick="KodeTransaksiPage.form()" class="bg-primary-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><i class="ri-add-line"></i> Tambah</button>' : ''}</div>
@@ -12,7 +13,7 @@ const KodeTransaksiPage = {
             <tbody>${res.data.map(k => `<tr class="border-t border-gray-50"><td class="px-4 py-3 font-mono font-bold">${k.kode}</td><td class="px-4 py-3 font-medium">${k.nama}</td><td class="px-4 py-3 text-center">${App.dkBadge(k.dk)}</td>
             <td class="px-4 py-3">${k.akun_debit_kode ? `<span class="font-mono text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">${k.akun_debit_kode}</span> ${k.akun_debit_nama}` : '<span class="text-gray-400 text-xs">Dari Jenis Simpanan</span>'}</td>
             <td class="px-4 py-3">${k.akun_kredit_kode ? `<span class="font-mono text-xs bg-red-50 text-red-700 px-2 py-0.5 rounded">${k.akun_kredit_kode}</span> ${k.akun_kredit_nama}` : '<span class="text-gray-400 text-xs">Dari Jenis Simpanan</span>'}</td>
-            <td class="px-4 py-3 text-center"><div class="flex justify-center gap-1">${App.hasPerm('simpanan.setting') ? `<button onclick="KodeTransaksiPage.form(${k.id})" class="p-1.5 hover:bg-amber-50 rounded-lg text-amber-500"><i class="ri-edit-line"></i></button><button onclick="KodeTransaksiPage.del(${k.id},'${k.nama}')" class="p-1.5 hover:bg-red-50 rounded-lg text-red-400"><i class="ri-delete-bin-line"></i></button>` : ''}</div></td></tr>`).join('')}</tbody></table></div></div>`;
+            <td class="px-4 py-3 text-center"><div class="flex justify-center gap-1">${App.hasPerm('simpanan.setting') ? `<button onclick="KodeTransaksiPage.form(${k.id})" class="p-1.5 hover:bg-amber-50 rounded-lg text-amber-500"><i class="ri-edit-line"></i></button><button onclick="KodeTransaksiPage.del(${k.id})" class="p-1.5 hover:bg-red-50 rounded-lg text-red-400"><i class="ri-delete-bin-line"></i></button>` : ''}</div></td></tr>`).join('')}</tbody></table></div></div>`;
     },
     async form(id = null) {
         // Load akun list for dropdown
@@ -65,7 +66,7 @@ const KodeTransaksiPage = {
             else App.toast(r?.message || 'Gagal', 'error');
         };
     },
-    async del(id, name) { const ok = await App.confirm('Hapus Data', `Yakin ingin menghapus "${name}"?`); if (!ok) return; const r = await App.api(`kode-transaksi/${id}`, { method: 'DELETE' }); if (r?.success) { App.toast(r.message, 'success'); this.render(document.getElementById('app-content')); } else App.toast(r?.message || 'Gagal', 'error'); }
+    async del(id, name) { if (!name && this._list) { const item = this._list.find(x => x.id == id); if (item) name = item.nama; } const ok = await App.confirm('Hapus Data', `Yakin ingin menghapus "${name || ''}"?`); if (!ok) return; const r = await App.api(`kode-transaksi/${id}`, { method: 'DELETE' }); if (r?.success) { App.toast(r.message, 'success'); this.render(document.getElementById('app-content')); } else App.toast(r?.message || 'Gagal', 'error'); }
 };
 window.KodeTransaksiPage = KodeTransaksiPage;
 export default KodeTransaksiPage;

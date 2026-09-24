@@ -742,72 +742,182 @@ const Portal = {
         this.tab('home');
     },
 
-    renderSHUChart(data) {
-        const canvas = document.getElementById('shuChart');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (window.myShuChart) window.myShuChart.destroy();
+    renderBillingCard(data) {
+        const container = document.getElementById('h-billing-container');
+        if (!container) return;
 
-        const isDark = document.documentElement.classList.contains('dark');
-        const primaryColor = isDark ? '#818cf8' : '#4f46e5';
-        const gridColor = isDark ? '#334155' : '#e2e8f0';
-        const textColor = isDark ? '#94a3b8' : '#64748b';
+        if (!data) {
+            container.innerHTML = '';
+            return;
+        }
 
-        window.myShuChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.map(d => d.label),
-                datasets: [{
-                    label: 'Proyeksi SHU',
-                    data: data.map(d => d.shu),
-                    borderColor: primaryColor,
-                    backgroundColor: (context) => {
-                        const chart = context.chart;
-                        const { ctx, canvas } = chart;
-                        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                        gradient.addColorStop(0, isDark ? 'rgba(129, 140, 248, 0.2)' : 'rgba(79, 70, 229, 0.2)');
-                        gradient.addColorStop(1, 'rgba(79, 70, 229, 0)');
-                        return gradient;
-                    },
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: data.map(d => d.is_projection ? 0 : 4),
-                    pointBackgroundColor: isDark ? '#0f172a' : '#fff',
-                    pointBorderColor: primaryColor,
-                    pointBorderWidth: 2,
-                    segment: {
-                        borderDash: ctx => ctx.p0.parsed.x >= (new Date().getMonth()) ? [5, 5] : undefined
-                    }
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: isDark ? '#1e293b' : '#0f172a',
-                        titleFont: { size: 10, weight: 'bold' },
-                        bodyFont: { size: 12, weight: 'black' },
-                        padding: 12,
-                        borderRadius: 12,
-                        callbacks: {
-                            label: (context) => ' Proyeksi: ' + this.rp(context.raw)
-                        }
-                    }
-                },
-                scales: {
-                    y: { display: false, beginAtZero: true },
-                    x: {
-                        grid: { display: false },
-                        border: { display: false },
-                        ticks: { font: { size: 9, weight: 'bold' }, color: textColor }
-                    }
-                }
+        const tagihan = data.tagihan;
+        const sukarela = data.sukarela;
+        const pendingPengajuan = data.pending_pengajuan;
+        const hasLoan = data.has_loan;
+
+        if (tagihan) {
+            const hariLagi = parseInt(tagihan.hari_lagi || 0);
+            const isOverdue = hariLagi < 0;
+            const isToday = hariLagi === 0;
+
+            let urgencyBadgeClass = 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800';
+            let urgencyLabel = `${hariLagi} Hari Lagi`;
+            if (isOverdue) {
+                urgencyBadgeClass = 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800 animate-pulse';
+                urgencyLabel = `Terlambat ${Math.abs(hariLagi)} Hari`;
+            } else if (isToday) {
+                urgencyBadgeClass = 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800 animate-pulse';
+                urgencyLabel = 'Jatuh Tempo Hari Ini';
             }
-        });
-        this.tab('home');
+
+            const totalBayar = parseFloat(tagihan.total || 0);
+            const saldoSukarela = sukarela ? parseFloat(sukarela.saldo || 0) : 0;
+            const cukupSaldo = saldoSukarela >= totalBayar;
+
+            container.innerHTML = `
+                <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-obsidian-800 relative overflow-hidden transition-colors duration-300">
+                    <div class="absolute top-0 right-0 p-4 opacity-5 pointer-events-none text-gray-900 dark:text-white">
+                        <i class="bi bi-receipt text-6xl"></i>
+                    </div>
+                    
+                    <!-- Header -->
+                    <div class="flex items-center justify-between mb-3 relative z-10">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-2xl ${isOverdue ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'} flex items-center justify-center text-lg shadow-xs">
+                                <i class="bi ${isOverdue ? 'bi-exclamation-triangle-fill' : 'bi-calendar-check-fill'}"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-black text-gray-800 dark:text-obsidian-100 uppercase tracking-wider">Tagihan Terdekat</h3>
+                                <p class="text-[10px] text-gray-400 dark:text-obsidian-500 font-bold uppercase tracking-wider">${tagihan.jenis_pinjaman} · ${tagihan.no_pinjaman}</p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${urgencyBadgeClass}">
+                            ${urgencyLabel}
+                        </span>
+                    </div>
+
+                    <!-- Nominal Box -->
+                    <div class="p-4 bg-slate-50/80 dark:bg-obsidian-800/60 rounded-2xl border border-slate-100 dark:border-obsidian-700/60 mb-4 relative z-10">
+                        <div class="flex items-baseline justify-between">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-obsidian-400">Nominal Tagihan</span>
+                            <span class="text-xs font-semibold text-slate-600 dark:text-obsidian-300">
+                                Angsuran Ke-<b>${tagihan.angsuran_ke}</b> / ${tagihan.tenor}
+                            </span>
+                        </div>
+                        <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-obsidian-50 mt-1">
+                            ${this.rp(tagihan.total)}
+                        </div>
+                        <div class="text-[10px] text-slate-500 dark:text-obsidian-400 mt-1 flex items-center gap-1">
+                            <i class="bi bi-clock-history"></i> Jatuh Tempo: <b class="text-slate-700 dark:text-obsidian-200">${this.fdate(tagihan.tgl_jatuh_tempo)}</b>
+                        </div>
+
+                        <!-- Rincian Tagihan -->
+                        <div class="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-slate-200/60 dark:border-obsidian-700/60 text-[10px]">
+                            <div class="flex justify-between text-slate-500 dark:text-obsidian-400">
+                                <span>Pokok:</span>
+                                <span class="font-bold text-slate-700 dark:text-obsidian-200">${this.rp(tagihan.pokok)}</span>
+                            </div>
+                            <div class="flex justify-between text-slate-500 dark:text-obsidian-400">
+                                <span>Jasa/Bunga:</span>
+                                <span class="font-bold text-slate-700 dark:text-obsidian-200">${this.rp(tagihan.bunga)}</span>
+                            </div>
+                            ${parseFloat(tagihan.denda) > 0 ? `
+                                <div class="flex justify-between col-span-2 text-rose-600 dark:text-rose-400 font-semibold pt-1 border-t border-slate-200/40">
+                                    <span>Denda Keterlambatan:</span>
+                                    <span>${this.rp(tagihan.denda)}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Payment Action Area -->
+                    <div class="relative z-10">
+                        ${pendingPengajuan ? `
+                            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-2xl flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2 text-xs text-amber-800 dark:text-amber-200">
+                                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0"></span>
+                                    <div>
+                                        <div class="font-bold">Pengajuan Menunggu ACC</div>
+                                        <div class="text-[10px] text-amber-600 dark:text-amber-400 font-mono">${pendingPengajuan.no_pengajuan}</div>
+                                    </div>
+                                </div>
+                                <button onclick="Portal.tab('pinjaman')" class="px-3 py-1.5 bg-amber-200/80 dark:bg-amber-800/60 text-amber-900 dark:text-amber-100 rounded-xl text-[11px] font-bold transition">
+                                    Lihat Status
+                                </button>
+                            </div>
+                        ` : (sukarela && cukupSaldo ? `
+                            <div class="space-y-2">
+                                <button onclick="Portal.bayarAngsuranSukarela(${tagihan.pinjaman_id}, ${tagihan.angsuran_id}, ${tagihan.angsuran_ke}, ${tagihan.total}, ${sukarela.saldo})" 
+                                    class="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-98 transition">
+                                    <i class="bi bi-wallet2 text-sm"></i>
+                                    <span>Bayar via Simpanan Sukarela</span>
+                                </button>
+                                <div class="flex items-center justify-between px-1 text-[10px] text-slate-400 dark:text-obsidian-400">
+                                    <span>Saldo Sukarela: <b class="text-emerald-600 dark:text-emerald-400">${this.rp(sukarela.saldo)}</b></span>
+                                    <span class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><i class="bi bi-check-circle-fill"></i> Saldo Cukup</span>
+                                </div>
+                            </div>
+                        ` : (sukarela ? `
+                            <div class="p-3 bg-slate-50 dark:bg-obsidian-800 rounded-2xl border border-slate-200/80 dark:border-obsidian-700 flex items-center justify-between gap-2">
+                                <div class="text-xs">
+                                    <div class="text-gray-500 dark:text-obsidian-400 text-[10px]">Saldo Sukarela: <b>${this.rp(sukarela.saldo)}</b></div>
+                                    <div class="text-rose-600 dark:text-rose-400 font-semibold text-[10px]">Kurang ${this.rp(tagihan.total - sukarela.saldo)}</div>
+                                </div>
+                                <button onclick="Portal.tab('pinjaman')" class="px-3 py-1.5 bg-gray-200 dark:bg-obsidian-700 hover:bg-gray-300 text-gray-800 dark:text-obsidian-100 rounded-xl text-xs font-bold transition">
+                                    Rincian Pinjaman
+                                </button>
+                            </div>
+                        ` : `
+                            <button onclick="Portal.tab('pinjaman')" class="w-full py-2.5 px-4 bg-gray-100 dark:bg-obsidian-800 hover:bg-gray-200 text-gray-800 dark:text-obsidian-100 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition">
+                                <span>Lihat Rincian Pinjaman</span>
+                                <i class="bi bi-arrow-right"></i>
+                            </button>
+                        `))}
+                    </div>
+                </div>
+            `;
+        } else if (hasLoan) {
+            container.innerHTML = `
+                <div class="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent dark:from-emerald-900/30 dark:via-emerald-900/10 rounded-3xl p-5 border border-emerald-200/60 dark:border-emerald-800/50 shadow-xs relative overflow-hidden transition-all">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-2xl shrink-0">
+                            <i class="bi bi-patch-check-fill"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-sm font-bold text-emerald-900 dark:text-emerald-100">Semua Angsuran Lunas</h4>
+                            <p class="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5">Tidak ada tagihan tertunggak. Terima kasih atas ketepatan pembayaran Anda!</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-emerald-200/50 dark:border-emerald-800/50 flex justify-between items-center text-xs">
+                        <span class="text-[10px] text-emerald-700/80 dark:text-emerald-400/80">Kolektibilitas: <b>Lancar</b></span>
+                        <button onclick="Portal.tab('pinjaman')" class="text-xs font-bold text-emerald-800 dark:text-emerald-200 hover:underline flex items-center gap-1">
+                            <span>Riwayat Pinjaman</span> <i class="bi bi-chevron-right text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="bg-gradient-to-br from-indigo-500/10 via-primary-500/5 to-transparent dark:from-indigo-900/30 dark:via-indigo-900/10 rounded-3xl p-5 border border-indigo-200/60 dark:border-indigo-800/50 shadow-xs relative overflow-hidden transition-all">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-2xl shrink-0">
+                            <i class="bi bi-shield-heart-fill"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-sm font-bold text-gray-900 dark:text-obsidian-100">Bebas Kewajiban Pinjaman</h4>
+                            <p class="text-[11px] text-gray-500 dark:text-obsidian-400 mt-0.5">Saat ini Anda tidak memiliki pinjaman aktif di koperasi.</p>
+                        </div>
+                    </div>
+                    <div class="mt-3.5 pt-3 border-t border-indigo-100 dark:border-indigo-800/50 flex items-center justify-between">
+                        <span class="text-[10px] text-gray-400 dark:text-obsidian-400 font-medium">Butuh dana usaha / darurat?</span>
+                        <button onclick="Portal.tab('pinjaman')" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 active:scale-95">
+                            <span>Simulasi Pinjaman</span> <i class="bi bi-arrow-right text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
     },
 
     initTheme() {
@@ -883,30 +993,18 @@ const Portal = {
         }
 
         // Parallel fetching logic for dashboard
-        const [rSaldo, rPinjaman, rUpcoming, rNotif, rSHU, rPengumuman] = await Promise.all([
+        const [rSaldo, rPinjaman, rUpcoming, rNotif, rTagihan, rPengumuman] = await Promise.all([
             this.api('portal/saldo'),
             this.api('portal/pinjaman'),
             this.api('portal/angsuran-upcoming'),
             this.api('portal/notifications'),
-            this.api('rat/shu/simulation'),
+            this.api('portal/tagihan-terdekat'),
             this.api('portal/pengumuman')
         ]);
 
-        /* Update SHU Widget if exists */
-        if (rSHU?.success) {
-            const shuData = rSHU.data;
-            const elTotal = document.getElementById('shu-total-estimasi');
-            const elModal = document.getElementById('shu-jasa-modal');
-            const elPinjam = document.getElementById('shu-jasa-pinjaman');
-
-            if (elTotal) elTotal.innerText = this.rp(shuData.summary.estimasi_total);
-            if (elModal) elModal.innerText = this.rp(shuData.summary.jasa_modal);
-            if (elPinjam) elPinjam.innerText = this.rp(shuData.summary.jasa_pinjaman);
-
-            const elTahun = document.getElementById('shu-tahun');
-            if (elTahun) elTahun.innerText = new Date().getFullYear();
-
-            this.renderSHUChart(shuData.chart);
+        /* Update Billing Card Widget */
+        if (rTagihan?.success) {
+            this.renderBillingCard(rTagihan.data);
         }
 
         // Update Dynamic Greeting (Home Tab)
@@ -1112,6 +1210,210 @@ const Portal = {
             elAsetBar.className = `h-full rounded-full ${barColor} transition-all duration-700`;
             setTimeout(() => { elAsetBar.style.width = rasio + '%'; }, 100);
         }
+    },
+
+    renderBillingCard(data) {
+        const container = document.getElementById('h-billing-container');
+        if (!container) return;
+
+        if (!data) {
+            container.innerHTML = '';
+            return;
+        }
+
+        const { has_loan, tagihan, sukarela, pending_pengajuan } = data;
+
+        // KASUS 1: Ada tagihan angsuran terdekat belum lunas
+        if (tagihan) {
+            const hariLagi = parseInt(tagihan.hari_lagi || 0);
+            const totalNominal = parseFloat(tagihan.total || 0);
+            const saldoSukarela = sukarela ? parseFloat(sukarela.saldo || 0) : 0;
+            const isSaldoCukup = saldoSukarela >= totalNominal;
+
+            // Status Badge Urgensi
+            let badgeClass = '';
+            let badgeIcon = '';
+            let badgeText = '';
+
+            if (hariLagi < 0) {
+                const terlambat = Math.abs(hariLagi);
+                badgeClass = 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800';
+                badgeIcon = 'bi-exclamation-triangle-fill';
+                badgeText = `Terlambat ${terlambat} Hari`;
+            } else if (hariLagi === 0) {
+                badgeClass = 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 animate-pulse';
+                badgeIcon = 'bi-alarm-fill';
+                badgeText = 'Jatuh Tempo Hari Ini!';
+            } else if (hariLagi <= 3) {
+                badgeClass = 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800';
+                badgeIcon = 'bi-hourglass-split';
+                badgeText = `${hariLagi} Hari Lagi`;
+            } else {
+                badgeClass = 'bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800';
+                badgeIcon = 'bi-calendar-event';
+                badgeText = `${hariLagi} Hari Lagi`;
+            }
+
+            // Rincian Pokok, Bunga, Denda
+            const pokok = parseFloat(tagihan.pokok || 0);
+            const bunga = parseFloat(tagihan.bunga || 0);
+            const denda = parseFloat(tagihan.denda || 0);
+
+            // Action section: Pending pengajuan vs Tombol Bayar vs Info Saldo
+            let actionHtml = '';
+            if (pending_pengajuan) {
+                actionHtml = `
+                <div class="mt-4 p-3.5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="relative flex h-3 w-3 shrink-0">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                        </span>
+                        <div>
+                            <p class="text-xs font-bold text-amber-900 dark:text-amber-200">Menunggu ACC Bendahara</p>
+                            <p class="text-[10px] text-amber-700 dark:text-amber-400">Pengajuan ${pending_pengajuan.no_pengajuan || ''} sedang diproses</p>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-200/60 dark:bg-amber-800/50 text-amber-800 dark:text-amber-300">
+                        Pending
+                    </span>
+                </div>`;
+            } else if (isSaldoCukup) {
+                actionHtml = `
+                <div class="mt-4 pt-4 border-t border-gray-100 dark:border-obsidian-800 space-y-2">
+                    <button onclick="Portal.bayarAngsuranSukarela('${tagihan.pinjaman_id}', '${tagihan.angsuran_id}', ${tagihan.angsuran_ke}, ${totalNominal}, ${saldoSukarela})"
+                        class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                        <i class="bi bi-wallet2 text-sm"></i>
+                        <span>Bayar via Simpanan Sukarela</span>
+                    </button>
+                    <div class="flex items-center justify-between px-1 text-[11px] text-gray-500 dark:text-obsidian-400">
+                        <span>Saldo Sukarela: <strong class="text-emerald-600 dark:text-emerald-400">${this.rp(saldoSukarela)}</strong></span>
+                        <span class="text-gray-400 dark:text-obsidian-500">Autodebet</span>
+                    </div>
+                </div>`;
+            } else if (sukarela) {
+                actionHtml = `
+                <div class="mt-4 pt-4 border-t border-gray-100 dark:border-obsidian-800 space-y-2">
+                    <div class="p-3 rounded-2xl bg-gray-50 dark:bg-obsidian-800/60 border border-gray-100 dark:border-obsidian-800 flex items-center justify-between text-xs">
+                        <div>
+                            <p class="text-[10px] text-gray-400 dark:text-obsidian-400">Saldo Sukarela Tidak Mencukupi</p>
+                            <p class="font-bold text-gray-700 dark:text-obsidian-200">${this.rp(saldoSukarela)}</p>
+                        </div>
+                        <button onclick="Portal.tab('simpanan')" class="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-semibold hover:bg-indigo-100 transition-colors">
+                            Top Up <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                    <button onclick="Portal.tab('pinjaman')" class="w-full py-2 text-center text-xs font-semibold text-gray-600 dark:text-obsidian-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                        Lihat Jadwal & Detail Pinjaman &rarr;
+                    </button>
+                </div>`;
+            } else {
+                actionHtml = `
+                <div class="mt-4 pt-3 border-t border-gray-100 dark:border-obsidian-800">
+                    <button onclick="Portal.tab('pinjaman')" class="w-full py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-100 transition-colors flex items-center justify-center gap-1.5">
+                        <span>Lihat Rincian Jadwal Angsuran</span>
+                        <i class="bi bi-chevron-right text-[11px]"></i>
+                    </button>
+                </div>`;
+            }
+
+            container.innerHTML = `
+            <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-obsidian-800 transition-colors duration-300">
+                <div class="flex items-start justify-between gap-2 mb-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                            <i class="bi bi-receipt text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-sm">Tagihan Angsuran</h3>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-obsidian-800 text-gray-600 dark:text-obsidian-300 font-semibold">Ke-${tagihan.angsuran_ke}/${tagihan.tenor}</span>
+                            </div>
+                            <p class="text-[11px] text-gray-400 dark:text-obsidian-400 truncate max-w-[180px] sm:max-w-none">${tagihan.jenis_pinjaman} &bull; ${tagihan.no_pinjaman}</p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${badgeClass}">
+                        <i class="bi ${badgeIcon}"></i> ${badgeText}
+                    </span>
+                </div>
+
+                <div class="bg-gray-50/70 dark:bg-obsidian-800/40 rounded-2xl p-3.5 border border-gray-100/80 dark:border-obsidian-800 mb-2">
+                    <div class="flex items-baseline justify-between mb-1">
+                        <span class="text-[11px] font-medium text-gray-500 dark:text-obsidian-400">Total Tagihan</span>
+                        <span class="text-[11px] text-gray-500 dark:text-obsidian-400">Jatuh Tempo: <b class="text-gray-700 dark:text-obsidian-200">${this.fdate(tagihan.tgl_jatuh_tempo)}</b></span>
+                    </div>
+                    <div class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
+                        ${this.rp(totalNominal)}
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 mt-3 pt-2.5 border-t border-gray-200/60 dark:border-obsidian-700/60 text-center">
+                        <div>
+                            <span class="block text-[9px] text-gray-400 dark:text-obsidian-400">Pokok</span>
+                            <span class="text-[11px] font-bold text-gray-700 dark:text-obsidian-200">${this.rp(pokok)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-[9px] text-gray-400 dark:text-obsidian-400">Bunga</span>
+                            <span class="text-[11px] font-bold text-gray-700 dark:text-obsidian-200">${this.rp(bunga)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-[9px] text-gray-400 dark:text-obsidian-400">Denda</span>
+                            <span class="text-[11px] font-bold ${denda > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-700 dark:text-obsidian-200'}">${this.rp(denda)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                ${actionHtml}
+            </div>`;
+            return;
+        }
+
+        // KASUS 2: Punya pinjaman dan SEMUA SUDAH LUNAS
+        if (has_loan && !tagihan) {
+            container.innerHTML = `
+            <div class="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent dark:from-emerald-950/30 dark:via-teal-950/10 dark:to-transparent rounded-3xl p-5 border border-emerald-200/70 dark:border-emerald-800/50 transition-colors duration-300">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-emerald-800">
+                        <i class="bi bi-shield-check text-2xl"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                            <h3 class="font-bold text-gray-900 dark:text-white text-sm">Semua Angsuran Lunas!</h3>
+                            <span class="px-2 py-0.2 rounded-full text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">Lancar</span>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-obsidian-400 line-clamp-2">Tidak ada kewajiban tagihan pinjaman saat ini. Terima kasih telah menjaga kedisiplinan pembayaran Anda.</p>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-emerald-100/80 dark:border-emerald-900/40 flex justify-end">
+                    <button onclick="Portal.tab('pinjaman')" class="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1">
+                        Lihat Riwayat Pinjaman <i class="bi bi-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+            </div>`;
+            return;
+        }
+
+        // KASUS 3: Tidak punya pinjaman sama sekali
+        container.innerHTML = `
+        <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-obsidian-800 transition-colors duration-300">
+            <div class="flex items-start gap-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-900/50">
+                    <i class="bi bi-lightning-charge-fill text-xl"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-sm">Bebas Kewajiban Pinjaman</h3>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300">Aktif</span>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-obsidian-400">Anda tidak memiliki tanggungan pinjaman aktif. Butuh tambahan modal usaha atau dana darurat?</p>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-obsidian-800 flex items-center justify-between">
+                <span class="text-[11px] text-gray-400 dark:text-obsidian-400">Bunga kompetitif & proses cepat</span>
+                <button onclick="Portal.tab('pinjaman')" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-sm flex items-center gap-1">
+                    <span>Simulasi Pinjaman</span>
+                    <i class="bi bi-arrow-right text-[10px]"></i>
+                </button>
+            </div>
+        </div>`;
     },
 
     async tab(name, isManual = false) {
@@ -1876,41 +2178,112 @@ const Portal = {
                     listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="bi bi-inbox text-2xl block mb-2"></i>Belum ada jadwal angsuran</div>';
                     return;
                 }
+
+                // Tampilkan info Saldo Simpanan Sukarela
+                const sukarelaBox = document.getElementById('pin-ang-sukarela-box');
+                const sukarelaSaldoEl = document.getElementById('pin-ang-sukarela-saldo');
+                const saldoSukarela = parseFloat(ra.data[0]?.saldo_sukarela || 0);
+                const hasSukarela = !!ra.data[0]?.has_sukarela;
+
+                if (sukarelaBox && sukarelaSaldoEl) {
+                    if (hasSukarela || saldoSukarela > 0) {
+                        sukarelaBox.classList.remove('hidden');
+                        sukarelaSaldoEl.textContent = this.rp(saldoSukarela);
+                    } else {
+                        sukarelaBox.classList.add('hidden');
+                    }
+                }
+
+                // Cari angsuran belum lunas pertama yang belum diajukan
+                const firstPayable = ra.data.find(x => x.status !== 'lunas' && x.status_pengajuan !== 'pending');
+
                 listEl.innerHTML = ra.data.map(a => {
                     const isLunas2 = a.status === 'lunas';
                     const isTerlambat = a.status === 'terlambat';
-                    const statusBadge = isLunas2
-                        ? '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">Lunas</span>'
-                        : (isTerlambat
-                            ? '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">Terlambat</span>'
-                            : '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-gray-100 dark:bg-obsidian-800 text-gray-600 dark:text-obsidian-500">Belum</span>');
-                    const rowBg = isLunas2 ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/30' : (isTerlambat ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-800/30' : 'bg-gray-50 dark:bg-obsidian-800/30 border-gray-100 dark:border-obsidian-800');
+                    const isPendingACC = a.status_pengajuan === 'pending';
+
+                    let statusBadge = '';
+                    if (isLunas2) {
+                        statusBadge = '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">Lunas</span>';
+                    } else if (isPendingACC) {
+                        statusBadge = '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 flex items-center gap-1"><i class="bi bi-hourglass-split animate-spin"></i> Menunggu ACC</span>';
+                    } else if (isTerlambat) {
+                        statusBadge = '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">Terlambat</span>';
+                    } else {
+                        statusBadge = '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-gray-100 dark:bg-obsidian-800 text-gray-600 dark:text-obsidian-500">Belum</span>';
+                    }
+
+                    const rowBg = isLunas2 
+                        ? 'bg-emerald-50/60 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/30' 
+                        : (isPendingACC 
+                            ? 'bg-amber-50/70 dark:bg-amber-900/20 border-amber-200/60 dark:border-amber-800/40' 
+                            : (isTerlambat 
+                                ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-800/30' 
+                                : 'bg-gray-50 dark:bg-obsidian-800/30 border-gray-100 dark:border-obsidian-800'));
+
+                    // Area Aksi Pembayaran Sukarela
+                    let actionHtml = '';
+                    if (!isLunas2) {
+                        if (isPendingACC) {
+                            actionHtml = `
+                            <div class="mt-2.5 p-2.5 bg-amber-100/60 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700/50 rounded-xl flex items-center justify-between text-[11px]">
+                                <span class="text-amber-800 dark:text-amber-200 font-semibold flex items-center gap-1.5">
+                                    <i class="bi bi-clock-history text-sm text-amber-600"></i> Pengajuan sedang diverifikasi Bendahara
+                                </span>
+                                <span class="text-[10px] text-amber-600 dark:text-amber-400 font-mono">${a.no_pengajuan || ''}</span>
+                            </div>`;
+                        } else if (firstPayable && a.id === firstPayable.id) {
+                            const totalTagihan = parseFloat(a.total);
+                            if (!hasSukarela) {
+                                actionHtml = `
+                                <div class="mt-2.5 p-2 bg-gray-100/80 dark:bg-obsidian-800 border border-gray-200 dark:border-obsidian-700 rounded-xl text-[10px] text-gray-500 dark:text-obsidian-400 flex items-center gap-1.5">
+                                    <i class="bi bi-info-circle text-gray-400"></i> Anda belum memiliki rekening Simpanan Sukarela untuk bayar angsuran
+                                </div>`;
+                            } else if (saldoSukarela >= totalTagihan) {
+                                actionHtml = `
+                                <button onclick="event.stopPropagation(); Portal.bayarAngsuranSukarela(${p.id}, ${a.id}, ${a.angsuran_ke}, ${totalTagihan}, ${saldoSukarela})"
+                                    class="w-full mt-2.5 py-2 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm shadow-emerald-500/20 active:scale-[0.98] transition-all">
+                                    <i class="bi bi-wallet2 text-sm"></i> Bayar via Simpanan Sukarela
+                                </button>`;
+                            } else {
+                                actionHtml = `
+                                <div class="mt-2.5 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/40 rounded-xl flex items-center justify-between text-[10px]">
+                                    <span class="text-amber-700 dark:text-amber-300 font-medium flex items-center gap-1">
+                                        <i class="bi bi-exclamation-circle text-amber-500"></i> Saldo sukarela (${this.rp(saldoSukarela)}) tidak cukup
+                                    </span>
+                                    <span class="text-gray-400 dark:text-obsidian-500 text-[9px] font-bold">Tagihan: ${this.rp(totalTagihan)}</span>
+                                </div>`;
+                            }
+                        }
+                    }
+
                     return `
-                    <div class="p-3 rounded-xl border ${rowBg}">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <div class="flex items-center gap-2">
-                                <span class="w-7 h-7 rounded-full ${isLunas2 ? 'bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200' : 'bg-gray-200 dark:bg-obsidian-700 text-gray-600 dark:text-obsidian-400'} flex items-center justify-center text-[10px] font-bold">${a.angsuran_ke}</span>
+                    <div class="p-3.5 rounded-2xl border ${rowBg} transition-all">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-7 h-7 rounded-full ${isLunas2 ? 'bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200' : (isPendingACC ? 'bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200' : 'bg-gray-200 dark:bg-obsidian-700 text-gray-600 dark:text-obsidian-400')} flex items-center justify-center text-[11px] font-bold">${a.angsuran_ke}</span>
                                 <div>
-                                    <p class="text-xs font-semibold text-gray-700 dark:text-obsidian-200">Jatuh Tempo: ${this.fdate(a.tgl_jatuh_tempo)}</p>
-                                    ${a.tgl_bayar ? '<p class="text-[9px] text-emerald-600 dark:text-emerald-400">Dibayar: ' + this.fdate(a.tgl_bayar) + '</p>' : ''}
+                                    <p class="text-xs font-bold text-gray-800 dark:text-obsidian-100">Jatuh Tempo: ${this.fdate(a.tgl_jatuh_tempo)}</p>
+                                    ${a.tgl_bayar ? '<p class="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">Dibayar: ' + this.fdate(a.tgl_bayar) + '</p>' : ''}
                                 </div>
                             </div>
                             ${statusBadge}
                         </div>
-                        <div class="grid grid-cols-3 gap-1 mt-2 text-center">
-                            <div class="bg-white/60 dark:bg-obsidian-900/40 rounded-lg p-1.5">
-                                <p class="text-[8px] text-gray-400 dark:text-obsidian-500 mb-0.5">Pokok</p>
+                        <div class="grid grid-cols-3 gap-1.5 text-center">
+                            <div class="bg-white/70 dark:bg-obsidian-900/50 rounded-xl p-1.5 border border-black/5 dark:border-white/5">
+                                <p class="text-[8px] text-gray-400 dark:text-obsidian-500 uppercase tracking-wider mb-0.5">Pokok</p>
                                 <p class="text-[10px] font-bold text-gray-700 dark:text-obsidian-100">${this.rp(a.pokok)}</p>
                             </div>
-                            <div class="bg-white/60 dark:bg-obsidian-900/40 rounded-lg p-1.5">
-                                <p class="text-[8px] text-gray-400 dark:text-obsidian-500 mb-0.5">Bunga</p>
+                            <div class="bg-white/70 dark:bg-obsidian-900/50 rounded-xl p-1.5 border border-black/5 dark:border-white/5">
+                                <p class="text-[8px] text-gray-400 dark:text-obsidian-500 uppercase tracking-wider mb-0.5">Bunga</p>
                                 <p class="text-[10px] font-bold text-gray-700 dark:text-obsidian-100">${this.rp(a.bunga)}</p>
                             </div>
-                            <div class="bg-white/60 dark:bg-obsidian-900/40 rounded-lg p-1.5">
-                                <p class="text-[8px] text-gray-400 dark:text-obsidian-500 mb-0.5">Total</p>
-                                <p class="text-[10px] font-bold text-gray-800 dark:text-obsidian-100">${this.rp(a.total)}</p>
+                            <div class="bg-white/70 dark:bg-obsidian-900/50 rounded-xl p-1.5 border border-black/5 dark:border-white/5">
+                                <p class="text-[8px] text-gray-400 dark:text-obsidian-500 uppercase tracking-wider mb-0.5">Total</p>
+                                <p class="text-[10px] font-bold text-gray-900 dark:text-obsidian-100">${this.rp(a.total)}</p>
                             </div>
                         </div>
+                        ${actionHtml}
                     </div>`;
                 }).join('');
             });
@@ -2007,6 +2380,91 @@ const Portal = {
                     });
                 });
             }
+        }
+    },
+
+    async bayarAngsuranSukarela(pinjamanId, angsuranId, angsuranKe, totalBayar, saldoSukarela) {
+        const sisaEstimasi = saldoSukarela - totalBayar;
+        const confirm = await Swal.fire({
+            title: 'Bayar via Simpanan Sukarela?',
+            html: `
+                <div class="text-left space-y-3 text-xs">
+                    <div class="p-3 bg-gray-50 dark:bg-obsidian-800 rounded-xl space-y-1.5 border border-gray-100 dark:border-obsidian-700">
+                        <div class="flex justify-between text-gray-500 dark:text-obsidian-400">
+                            <span>Angsuran Ke:</span>
+                            <span class="font-bold text-gray-800 dark:text-obsidian-100">${angsuranKe}</span>
+                        </div>
+                        <div class="flex justify-between text-gray-500 dark:text-obsidian-400">
+                            <span>Total Tagihan:</span>
+                            <span class="font-bold text-rose-600 dark:text-rose-400">${this.rp(totalBayar)}</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl space-y-1.5 border border-emerald-100 dark:border-emerald-800/40">
+                        <div class="flex justify-between text-emerald-800 dark:text-emerald-300">
+                            <span>Saldo Sukarela Saat Ini:</span>
+                            <span class="font-bold">${this.rp(saldoSukarela)}</span>
+                        </div>
+                        <div class="flex justify-between text-emerald-800 dark:text-emerald-300 border-t border-emerald-200/50 dark:border-emerald-700/50 pt-1.5 font-bold">
+                            <span>Estimasi Saldo Akhir:</span>
+                            <span class="text-emerald-600 dark:text-emerald-400">${this.rp(sisaEstimasi)}</span>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-gray-400 dark:text-obsidian-500 text-center">
+                        <i class="bi bi-shield-check text-emerald-500"></i> Pengajuan pembayaran akan diteruskan ke Bendahara untuk diverifikasi & disetujui (ACC).
+                    </p>
+                </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-check-lg mr-1"></i> Ajukan Pembayaran',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#059669',
+            cancelButtonColor: '#6b7280',
+            customClass: {
+                popup: 'rounded-3xl dark:bg-obsidian-900 dark:text-obsidian-100',
+                confirmButton: 'rounded-xl font-bold text-xs py-3 px-4',
+                cancelButton: 'rounded-xl font-bold text-xs py-3 px-4'
+            }
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        Swal.fire({
+            title: 'Memproses...',
+            text: 'Mengirimkan pengajuan ke Bendahara...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        const res = await this.api('portal/bayar-angsuran-sukarela', {
+            method: 'POST',
+            body: { pinjaman_id: pinjamanId, angsuran_id: angsuranId }
+        });
+
+        if (res?.success) {
+            await Swal.fire({
+                icon: 'success',
+                title: 'Pengajuan Terkirim!',
+                text: res.message || 'Pengajuan pembayaran angsuran telah dikirim ke Bendahara.',
+                confirmButtonColor: '#059669',
+                customClass: { popup: 'rounded-3xl' }
+            });
+            // Reload data
+            if (this.currentTab === 'home') {
+                await this.loadDashboardData();
+            } else {
+                await this.loadPinjaman(document.getElementById('p-content-pinjaman'));
+                const card = document.querySelector(`.pin-row`);
+                if (card) card.click();
+            }
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Mengajukan',
+                text: res?.message || 'Terjadi kesalahan saat mengajukan pembayaran angsuran.',
+                confirmButtonColor: '#e11d48',
+                customClass: { popup: 'rounded-3xl' }
+            });
         }
     },
 

@@ -54,13 +54,14 @@ const KartuAngsuranPage = {
                 const r = await App.api(`pinjaman?search=${encodeURIComponent(q)}&per_page=10`);
                 const dd = document.getElementById('ka-dd');
                 if (r?.data?.length) {
-                    dd.innerHTML = r.data.map(p => {
+                    KartuAngsuranPage._pinjamanList = r.data;
+                    dd.innerHTML = r.data.map((p, idx) => {
                         const statusColor = p.status === 'lunas' ? 'text-emerald-600 bg-emerald-50'
                             : p.status === 'cair' ? 'text-blue-600 bg-blue-50'
                                 : 'text-amber-600 bg-amber-50';
                         return `
                         <div class="px-4 py-3 hover:bg-primary-50 cursor-pointer border-b border-gray-50 last:border-0"
-                             onclick="KartuAngsuranPage.selectPinjaman(${p.id},'${p.no_pinjaman}','${p.anggota_nama}','${p.jenis_pinjaman}')">
+                             onclick="KartuAngsuranPage.selectPinjamanByIndex(${idx})">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 bg-rose-100 rounded-lg flex items-center justify-center shrink-0">
                                     <i class="ri-hand-coin-line text-rose-600 text-sm"></i>
@@ -89,6 +90,13 @@ const KartuAngsuranPage = {
                 document.getElementById('ka-dd')?.classList.add('hidden');
             }
         });
+    },
+
+    selectPinjamanByIndex(idx) {
+        const p = this._pinjamanList?.[idx];
+        if (p) {
+            this.selectPinjaman(p.id, p.no_pinjaman, p.anggota_nama, p.jenis_pinjaman);
+        }
     },
 
     selectPinjaman(id, noPinjaman, nama, jenis) {

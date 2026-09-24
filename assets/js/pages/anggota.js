@@ -14,6 +14,7 @@ const AnggotaPage = {
         const status = document.getElementById('anggota-status')?.value || '';
         const res = await App.api(`anggota?page=${page}&search=${encodeURIComponent(search)}&status=${status}`);
         if (!res?.success) return;
+        this._list = res.data;
 
         const html = `
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
@@ -57,7 +58,7 @@ const AnggotaPage = {
                         <td class="px-4 py-3 text-center"><div class="flex justify-center gap-1">
                             <a href="#/anggota/${a.id}" class="p-1.5 hover:bg-blue-50 rounded-lg text-blue-500" title="Detail"><i class="ri-eye-line"></i></a>
                             ${App.hasPerm('anggota.edit') ? `<button onclick="AnggotaPage.form(${a.id})" class="p-1.5 hover:bg-amber-50 rounded-lg text-amber-500" title="Edit"><i class="ri-edit-line"></i></button>` : ''}
-                            ${App.hasPerm('anggota.delete') ? `<button onclick="AnggotaPage.del(${a.id},'${a.nama}')" class="p-1.5 hover:bg-red-50 rounded-lg text-red-400" title="Hapus"><i class="ri-delete-bin-line"></i></button>` : ''}
+                            ${App.hasPerm('anggota.delete') ? `<button onclick="AnggotaPage.del(${a.id})" class="p-1.5 hover:bg-red-50 rounded-lg text-red-400" title="Hapus"><i class="ri-delete-bin-line"></i></button>` : ''}
                         </div></td></tr>`).join('')}
                     ${res.data.length === 0 ? '<tr><td colspan="6" class="text-center py-8 text-gray-400">Tidak ada data</td></tr>' : ''}</tbody>
                 </table>
@@ -80,6 +81,7 @@ const AnggotaPage = {
         }
         
         const a = res.data;
+        this._currentAnggota = a;
         const totalSimpanan = (a.saldo_simpanan || []).reduce((sum, s) => sum + parseFloat(s.saldo || 0), 0);
         const totalPinjaman = (a.pinjaman_aktif || []).reduce((sum, p) => sum + parseFloat(p.sisa_pinjaman || 0), 0);
         
@@ -242,7 +244,7 @@ const AnggotaPage = {
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 ${(a.saldo_simpanan || []).map(s => `
-                                <div onclick="AnggotaPage.showMutasiSimpanan(${a.id}, ${s.id}, '${s.nama}')" class="group bg-slate-50 border border-slate-100 hover:border-emerald-200 p-6 rounded-[1.5rem] transition-all hover:shadow-lg cursor-pointer relative overflow-hidden">
+                                <div onclick="AnggotaPage.showMutasiSimpanan(${a.id}, ${s.id})" class="group bg-slate-50 border border-slate-100 hover:border-emerald-200 p-6 rounded-[1.5rem] transition-all hover:shadow-lg cursor-pointer relative overflow-hidden">
                                     <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform"></div>
                                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">${s.nama}</p>
                                     <p class="text-2xl font-black text-slate-900">${App.formatRupiah(s.saldo)}</p>
@@ -269,7 +271,7 @@ const AnggotaPage = {
                                 ${a.pinjaman_aktif.map(p => {
                                     const progress = Math.min(100, Math.round(((parseFloat(p.jumlah) - parseFloat(p.sisa_pinjaman)) / parseFloat(p.jumlah)) * 100));
                                     return `
-                                    <div onclick="AnggotaPage.showMutasiPinjaman(${p.id}, '${p.no_pinjaman}')" class="group bg-slate-50 border border-slate-100 hover:border-amber-200 p-6 rounded-[1.5rem] transition-all hover:shadow-lg cursor-pointer">
+                                    <div onclick="AnggotaPage.showMutasiPinjaman(${p.id})" class="group bg-slate-50 border border-slate-100 hover:border-amber-200 p-6 rounded-[1.5rem] transition-all hover:shadow-lg cursor-pointer">
                                         <div class="flex justify-between items-start mb-6">
                                             <div class="flex items-center gap-4">
                                                 <div class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center text-amber-500 group-hover:rotate-12 transition-transform">
@@ -384,6 +386,11 @@ const AnggotaPage = {
     },
 
     async showMutasiSimpanan(anggotaId, jenisId, nama) {
+        if (!nama && this._currentAnggota?.saldo_simpanan) {
+            const found = this._currentAnggota.saldo_simpanan.find(x => x.id == jenisId);
+            if (found) nama = found.nama;
+        }
+        nama = nama || 'Simpanan';
         App.openModal(`
             <div class="p-6">
                 <div class="flex items-center justify-between mb-6">
@@ -436,6 +443,11 @@ const AnggotaPage = {
     },
 
     async showMutasiPinjaman(pinjamanId, noPinjaman) {
+        if (!noPinjaman && this._currentAnggota?.pinjaman_aktif) {
+            const found = this._currentAnggota.pinjaman_aktif.find(x => x.id == pinjamanId);
+            if (found) noPinjaman = found.no_pinjaman;
+        }
+        noPinjaman = noPinjaman || 'Pinjaman';
         App.openModal(`
             <div class="p-6">
                 <div class="flex items-center justify-between mb-6">
@@ -569,7 +581,11 @@ const AnggotaPage = {
     },
 
     async del(id, nama) {
-        const ok = await App.confirm('Hapus Anggota', `Yakin ingin menghapus anggota "${nama}"?`);
+        if (!nama && this._list) {
+            const found = this._list.find(x => x.id == id);
+            if (found) nama = found.nama;
+        }
+        const ok = await App.confirm('Hapus Anggota', `Yakin ingin menghapus anggota "${nama || ''}"?`);
         if (!ok) return;
         const res = await App.api(`anggota/${id}`, { method: 'DELETE' });
         if (res?.success) { App.toast(res.message, 'success'); this.loadList(document.getElementById('app-content'), this.page); }

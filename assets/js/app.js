@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '2.1.9', // Fix mandatory savings query match on disbursement
+    version: '2.6.0', // Verifikasi Pengajuan Angsuran Sukarela, Billing Portal, & UI/Filter Refinements
     API_BASE: (() => {
         // Best way: find the root based on where this script is loaded from
         const script = document.currentScript || document.querySelector('script[src*="assets/js/app.js"]');
@@ -80,6 +80,10 @@ const App = {
             if (!e.target.closest('.row-dropdown-trigger')) {
                 document.querySelectorAll('.row-dropdown-menu').forEach(el => el.classList.add('hidden'));
             }
+            if (!e.target.closest('#notif-bell-wrapper')) {
+                const nd = document.getElementById('notif-dropdown');
+                if (nd && !nd.classList.contains('hidden')) nd.classList.add('hidden');
+            }
         });
 
         // 1. Load global settings first (publicly accessible now)
@@ -106,6 +110,7 @@ const App = {
             this.showLogin();
         }
         window.addEventListener('hashchange', () => this.handleRoute());
+        window.addEventListener('focus', () => this.checkNotifications());
 
         // Omni-Search Keyboard Shortcuts
         window.addEventListener('keydown', (e) => {
@@ -297,6 +302,7 @@ const App = {
     async logout() {
         const ok = await this.confirm('Logout', 'Yakin ingin keluar dari sistem?', 'warning');
         if (!ok) return;
+        if (this._notifInterval) clearInterval(this._notifInterval);
         await this.api('auth/logout', { method: 'POST' });
         this.user = null;
         this.showLogin();
@@ -331,6 +337,11 @@ const App = {
         this.renderMenu();
         if (!location.hash || location.hash === '#/') location.hash = '#/dashboard';
         else this.handleRoute();
+
+        // Check & poll notification pengajuan portal
+        this.checkNotifications();
+        if (this._notifInterval) clearInterval(this._notifInterval);
+        this._notifInterval = setInterval(() => this.checkNotifications(), 45000);
 
         // Auto-populate sidebar version badge from CHANGELOG.md
         await this._loadAppVersion();
@@ -543,11 +554,30 @@ const App = {
     },
 
     // ===== Modal =====
-    openModal(html) {
-        document.getElementById('modal-content').innerHTML = html;
+    openModal(html, size = 'max-w-2xl') {
+        const mc = document.getElementById('modal-content');
+        if (mc) {
+            mc.className = mc.className.replace(/max-w-[^\s]+/g, '').trim();
+            mc.classList.add(size);
+            if (size === 'max-w-6xl') mc.style.maxWidth = '1152px';
+            else if (size === 'max-w-5xl') mc.style.maxWidth = '1024px';
+            else if (size === 'max-w-4xl') mc.style.maxWidth = '896px';
+            else if (size === 'max-w-3xl') mc.style.maxWidth = '768px';
+            else mc.style.maxWidth = '';
+            mc.innerHTML = html;
+        }
         document.getElementById('modal-container').classList.remove('hidden');
     },
-    closeModal() { document.getElementById('modal-container').classList.add('hidden'); },
+    closeModal() {
+        const mc = document.getElementById('modal-content');
+        if (mc) {
+            mc.className = mc.className.replace(/max-w-[^\s]+/g, '').trim();
+            mc.classList.add('max-w-2xl');
+            mc.style.maxWidth = '';
+            mc.innerHTML = '';
+        }
+        document.getElementById('modal-container').classList.add('hidden');
+    },
 
     toggleSearch() {
         const modal = document.getElementById('omni-search-modal');
@@ -619,6 +649,98 @@ const App = {
         }
     },
 
+    // ===== Notifikasi Pengajuan Pembayaran Angsuran =====
+    toggleNotifDropdown(forceState) {
+        const dd = document.getElementById('notif-dropdown');
+        if (!dd) return;
+        if (forceState !== undefined) {
+            if (forceState) {
+                dd.classList.remove('hidden');
+                this.checkNotifications(true);
+            } else {
+                dd.classList.add('hidden');
+            }
+            return;
+        }
+        const isHidden = dd.classList.contains('hidden');
+        if (isHidden) {
+            dd.classList.remove('hidden');
+            this.checkNotifications(true);
+        } else {
+            dd.classList.add('hidden');
+        }
+    },
+
+    async checkNotifications(forceFetchList = false) {
+        if (!this.user) return;
+        try {
+            const countRes = await this.api('angsuran/pengajuan/count');
+            const count = (countRes && countRes.data && (countRes.data.pending_count !== undefined ? countRes.data.pending_count : countRes.data.count)) || 0;
+            const badge = document.getElementById('notif-badge-count');
+            const bellBtn = document.getElementById('notif-bell-btn');
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            if (bellBtn) {
+                if (count > 0) {
+                    bellBtn.classList.add('text-amber-500', 'bg-amber-50');
+                    bellBtn.classList.remove('text-gray-500');
+                } else {
+                    bellBtn.classList.remove('text-amber-500', 'bg-amber-50');
+                    bellBtn.classList.add('text-gray-500');
+                }
+            }
+
+            const dd = document.getElementById('notif-dropdown');
+            const listEl = document.getElementById('notif-dropdown-list');
+            if (listEl && dd && (!dd.classList.contains('hidden') || forceFetchList)) {
+                const listRes = await this.api('angsuran/pengajuan?status=pending');
+                const items = listRes?.data || [];
+                if (!items.length) {
+                    listEl.innerHTML = `
+                        <div class="p-6 text-center text-gray-400">
+                            <i class="ri-checkbox-circle-line text-2xl text-emerald-400 mb-1 block"></i>
+                            Tidak ada pengajuan angsuran pending
+                        </div>`;
+                } else {
+                    listEl.innerHTML = items.map(item => `
+                        <div class="p-3.5 hover:bg-gray-50/80 transition cursor-pointer" onclick="App.openPengajuanFromNotif(${item.id})">
+                            <div class="flex items-start justify-between gap-2">
+                                <span class="font-bold text-gray-800 text-xs truncate">${item.nama_anggota || 'Anggota'}</span>
+                                <span class="text-[10px] text-gray-400 whitespace-nowrap">${App.formatDate(item.tgl_pengajuan)}</span>
+                            </div>
+                            <div class="text-[11px] text-gray-500 mt-1 flex items-center justify-between">
+                                <span>Angsuran Ke-${item.angsuran_ke} (${item.no_pinjaman})</span>
+                                <span class="font-bold text-primary-600">${App.formatRupiah(item.total_bayar)}</span>
+                            </div>
+                            <div class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>
+                                Potong Simp. Sukarela: ${item.no_rekening || '-'}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        } catch (e) {
+            console.error('Error checking notifications:', e);
+        }
+    },
+
+    openPengajuanFromNotif(pengajuanId) {
+        this.toggleNotifDropdown(false);
+        location.hash = '#/angsuran';
+        setTimeout(() => {
+            if (window.AngsuranPage && typeof window.AngsuranPage.showAntreanPengajuan === 'function') {
+                window.AngsuranPage.showAntreanPengajuan(pengajuanId);
+            }
+        }, 350);
+    },
+
     // ===== Helpers =====
     formatRupiah(n) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0); },
 
@@ -629,6 +751,16 @@ const App = {
         const mm = String(dt.getMonth() + 1).padStart(2, '0');
         const yyyy = dt.getFullYear();
         return `${dd}-${mm}-${yyyy}`;
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     },
 
     renderPagination(pag, onPage) {
@@ -1346,7 +1478,7 @@ const App = {
                 <div class="divider"></div>
                 <table class="info-table">
                     <tr class="bold"><td>TOTAL BAYAR</td><td class="text-right">${this.formatRupiah(totalAmount)}</td></tr>
-                    <tr><td>Metode: ${trx.metode_pembayaran ? trx.metode_pembayaran.toUpperCase() : 'TUNAI'}</td><td></td></tr>
+                    <tr><td>Metode: ${trx.metode_pembayaran === 'sukarela' ? 'SIMPANAN SUKARELA' : (trx.metode_pembayaran ? trx.metode_pembayaran.toUpperCase() : 'TUNAI')}</td><td></td></tr>
                 </table>
                 <div class="divider"></div>
                 <div class="text-center footer">

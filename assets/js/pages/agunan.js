@@ -616,9 +616,10 @@ const AgunanPage = {
                     dd.classList.remove('hidden');
                     return;
                 }
-                dd.innerHTML = res.data.map(p => `
+                AgunanPage._pinjamanList = res.data;
+                dd.innerHTML = res.data.map((p, idx) => `
                 <div class="px-4 py-3 hover:bg-primary-50 cursor-pointer border-b border-gray-50 last:border-0 flex items-start gap-3"
-                    onclick="AgunanPage.selectPinjaman(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+                    onclick="AgunanPage.selectPinjamanByIndex(${idx})">
                     <i class="ri-file-text-line text-primary-400 mt-0.5 shrink-0"></i>
                     <div class="min-w-0">
                         <div class="font-mono text-xs font-bold text-primary-700">${p.no_pinjaman}</div>
@@ -637,6 +638,12 @@ const AgunanPage = {
                 document.removeEventListener('click', onOutside);
             }
         });
+    },
+
+    selectPinjamanByIndex(idx) {
+        if (this._pinjamanList && this._pinjamanList[idx]) {
+            this.selectPinjaman(this._pinjamanList[idx]);
+        }
     },
 
     selectPinjaman(p) {

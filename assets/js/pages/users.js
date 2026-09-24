@@ -9,6 +9,7 @@ const UsersPage = {
         const search = document.getElementById('usr-search')?.value || '';
         const res = await App.api(`users?page=${page}&search=${encodeURIComponent(search)}`);
         if (!res?.success) return;
+        this._users = res.data;
         const roles = await App.api('roles');
         container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -25,7 +26,7 @@ const UsersPage = {
                     <td class="px-4 py-3 text-gray-500 text-sm">${u.last_login ? App.formatDate(u.last_login) : '-'}</td>
                     <td class="px-4 py-3 text-center"><div class="flex justify-center gap-1">
                         ${App.hasPerm('user.edit') ? `<button onclick="UsersPage.form(${u.id})" class="p-1.5 hover:bg-amber-50 rounded-lg text-amber-500"><i class="ri-edit-line"></i></button>` : ''}
-                        ${App.hasPerm('user.delete') && u.id != 1 ? `<button onclick="UsersPage.del(${u.id},'${u.username}')" class="p-1.5 hover:bg-red-50 rounded-lg text-red-400"><i class="ri-delete-bin-line"></i></button>` : ''}
+                        ${App.hasPerm('user.delete') && u.id != 1 ? `<button onclick="UsersPage.del(${u.id})" class="p-1.5 hover:bg-red-50 rounded-lg text-red-400"><i class="ri-delete-bin-line"></i></button>` : ''}
                     </div></td></tr>`).join('')}</tbody></table></div></div>`;
         this._roles = roles?.data || [];
     },
@@ -49,7 +50,7 @@ const UsersPage = {
     },
     async loadForm(id) { const r = await App.api('users/' + id); if (!r?.success) return; const u = r.data; document.getElementById('uf-username').value = u.username; document.getElementById('uf-nama').value = u.nama_lengkap; document.getElementById('uf-email').value = u.email || ''; document.getElementById('uf-role').value = u.role_id; document.getElementById('uf-active').value = u.is_active; },
     async save() { const id = document.getElementById('uf-id').value; const body = { username: document.getElementById('uf-username').value, nama_lengkap: document.getElementById('uf-nama').value, email: document.getElementById('uf-email').value, role_id: document.getElementById('uf-role').value, is_active: document.getElementById('uf-active').value }; const pw = document.getElementById('uf-password').value; if (pw) body.password = pw; const r = await App.api(id ? `users/${id}` : 'users', { method: id ? 'PUT' : 'POST', body }); if (r?.success) { App.closeModal(); App.toast(r.message, 'success'); this.loadList(this.container); } else App.toast(r?.message || 'Gagal', 'error'); },
-    async del(id, name) { const ok = await App.confirm('Hapus User', `Yakin ingin menghapus user "${name}"?`); if (!ok) return; const r = await App.api(`users/${id}`, { method: 'DELETE' }); if (r?.success) { App.toast(r.message, 'success'); this.loadList(this.container); } else App.toast(r?.message || 'Gagal', 'error'); }
+    async del(id, name) { if (!name && this._users) { const found = this._users.find(x => x.id == id); if (found) name = found.username; } const ok = await App.confirm('Hapus User', `Yakin ingin menghapus user "${name || ''}"?`); if (!ok) return; const r = await App.api(`users/${id}`, { method: 'DELETE' }); if (r?.success) { App.toast(r.message, 'success'); this.loadList(this.container); } else App.toast(r?.message || 'Gagal', 'error'); }
 };
 window.UsersPage = UsersPage;
 export default UsersPage;

@@ -48,6 +48,7 @@ const LaporanMutasiAngsuranPage = {
                             <option value="">Semua Metode</option>
                             <option value="tunai">Tunai</option>
                             <option value="transfer">Transfer</option>
+                            <option value="sukarela">Simpanan Sukarela</option>
                         </select>
                     </div>
                     <div class="w-full sm:w-auto">
@@ -124,7 +125,10 @@ const LaporanMutasiAngsuranPage = {
                             </td>
                             <td class="px-4 py-4">
                                 <div class="text-xs text-gray-600">${r.no_pinjaman}</div>
-                                <div class="text-[10px] ${r.is_pelunasan ? 'text-emerald-600 font-bold' : 'text-gray-400'}">${r.is_pelunasan ? r.angsuran_ke : `Angsuran ke-${r.angsuran_ke}`}</div>
+                                <div class="text-[10px] ${r.is_pelunasan ? 'text-emerald-600 font-bold' : 'text-gray-400'} flex items-center gap-1.5 mt-0.5">
+                                    <span>${r.is_pelunasan ? r.angsuran_ke : `Angsuran ke-${r.angsuran_ke}`}</span>
+                                    ${r.metode_pembayaran === 'sukarela' ? '<span class="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 text-[9px] font-bold">💰 Sukarela</span>' : (r.metode_pembayaran === 'transfer' ? '<span class="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 text-[9px] font-bold">💳 Transfer</span>' : '<span class="text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200 text-[9px]">💵 Tunai</span>')}
+                                </div>
                             </td>
                             <td class="px-4 py-4 text-right text-xs">
                                 <div class="flex justify-between gap-4">

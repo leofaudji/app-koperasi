@@ -55,13 +55,21 @@ const MutasiPage = {
                 const r = await App.api('anggota?search=' + encodeURIComponent(search) + '&per_page=5');
                 const dd = document.getElementById('ms-anggota-dd');
                 if (r?.data?.length) {
-                    dd.innerHTML = r.data.map(a => `<div class="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm" onclick="MutasiPage.selectAnggota(${a.id},'${a.no_anggota}','${a.nama}')">${a.no_anggota} - ${a.nama}</div>`).join('');
+                    MutasiPage._anggotaList = r.data;
+                    dd.innerHTML = r.data.map((a, idx) => `<div class="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm" onclick="MutasiPage.selectAnggotaByIndex(${idx})">${a.no_anggota} - ${a.nama}</div>`).join('');
                     dd.classList.remove('hidden');
                 }
             }, 300);
         });
 
         if (anggotaId) { const a = await App.api('anggota/' + anggotaId); if (a?.data) { this.selectAnggota(a.data.id, a.data.no_anggota, a.data.nama); } }
+    },
+
+    selectAnggotaByIndex(idx) {
+        const a = this._anggotaList?.[idx];
+        if (a) {
+            this.selectAnggota(a.id, a.no_anggota, a.nama);
+        }
     },
 
     selectAnggota(id, no, nama) {

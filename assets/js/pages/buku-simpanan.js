@@ -91,9 +91,10 @@ const BukuSimpananPage = {
                 const r = await App.api(`rekening-simpanan?search=${encodeURIComponent(q)}&per_page=10`);
                 const dd = document.getElementById('bs-rek-dd');
                 if (r?.data?.length) {
-                    dd.innerHTML = r.data.map(rk => `
+                    BukuSimpananPage._rekeningList = r.data;
+                    dd.innerHTML = r.data.map((rk, idx) => `
                         <div class="px-4 py-3 hover:bg-primary-50 cursor-pointer border-b border-gray-50 last:border-0"
-                             onclick="BukuSimpananPage.selectRekening(${rk.id},'${rk.no_rekening}','${rk.anggota_nama}','${rk.jenis_simpanan_nama}')">
+                             onclick="BukuSimpananPage.selectRekeningByIndex(${idx})">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center shrink-0">
                                     <i class="ri-bank-card-line text-primary-600 text-sm"></i>
@@ -121,6 +122,13 @@ const BukuSimpananPage = {
                 document.getElementById('bs-rek-dd')?.classList.add('hidden');
             }
         });
+    },
+
+    selectRekeningByIndex(idx) {
+        const rk = this._rekeningList?.[idx];
+        if (rk) {
+            this.selectRekening(rk.id, rk.no_rekening, rk.anggota_nama, rk.jenis_simpanan_nama);
+        }
     },
 
     selectRekening(id, noRek, nama, jenis) {

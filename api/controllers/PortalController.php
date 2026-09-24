@@ -209,11 +209,46 @@ switch ($id) {
         $own = $db->fetch("SELECT id FROM pinjaman WHERE id = ? AND anggota_id = ?", [$pinjamanId, $anggotaId]);
         if (!$own)
             errorResponse('Akses ditolak', 403);
+
+        // Ambil info saldo simpanan sukarela anggota
+        $jenisSS = $db->fetch("SELECT id, nama FROM jenis_simpanan WHERE kode = 'SS' OR LOWER(nama) LIKE '%sukarela%' LIMIT 1");
+        $saldoSukarela = 0;
+        $rekeningSS = null;
+        if ($jenisSS) {
+            $rekeningSS = $db->fetch(
+                "SELECT id, no_rekening, saldo FROM rekening_simpanan WHERE anggota_id = ? AND jenis_simpanan_id = ? AND status = 'aktif' LIMIT 1",
+                [$anggotaId, $jenisSS['id']]
+            );
+            if ($rekeningSS) {
+                $saldoSukarela = (float) $rekeningSS['saldo'];
+            } else {
+                $sumSS = $db->fetch(
+                    "SELECT COALESCE(SUM(CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END), 0) as saldo
+                     FROM simpanan s
+                     JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                     WHERE s.anggota_id = ? AND s.jenis_simpanan_id = ?",
+                    [$anggotaId, $jenisSS['id']]
+                );
+                $saldoSukarela = (float) ($sumSS['saldo'] ?? 0);
+            }
+        }
+
         $angsuranList = $db->fetchAll(
-            "SELECT angsuran_ke, tgl_jatuh_tempo, tgl_bayar, pokok, bunga, denda, total, status
-             FROM angsuran WHERE pinjaman_id = ? ORDER BY angsuran_ke ASC",
+            "SELECT a.id, a.angsuran_ke, a.tgl_jatuh_tempo, a.tgl_bayar, a.pokok, a.bunga, a.denda, a.total, a.status,
+                    pa.status as status_pengajuan, pa.id as pengajuan_id, pa.no_pengajuan, pa.tgl_pengajuan, pa.alasan_penolakan
+             FROM angsuran a
+             LEFT JOIN pengajuan_angsuran pa ON pa.angsuran_id = a.id AND pa.status = 'pending'
+             WHERE a.pinjaman_id = ? ORDER BY a.angsuran_ke ASC",
             [$pinjamanId]
         );
+
+        foreach ($angsuranList as &$item) {
+            $item['saldo_sukarela'] = $saldoSukarela;
+            $item['has_sukarela'] = ($rekeningSS !== null || $saldoSukarela > 0);
+            $item['rekening_sukarela'] = $rekeningSS ? $rekeningSS['no_rekening'] : null;
+        }
+        unset($item);
+
         successResponse($angsuranList);
         break;
 
@@ -236,6 +271,65 @@ switch ($id) {
             [$today, $anggotaId, $today, $sevenDaysLater]
         );
         successResponse($upcoming);
+        break;
+
+    case 'tagihan-terdekat':
+        $anggotaId = portalAuthCheck();
+
+        // 1. Cari angsuran belum lunas terdekat (termasuk yang telah jatuh tempo/terlambat)
+        $tagihan = $db->fetch(
+            "SELECT a.id as angsuran_id, a.angsuran_ke, a.tgl_jatuh_tempo, 
+                    a.pokok, a.bunga, a.denda, a.total, a.status as status_angsuran,
+                    p.id as pinjaman_id, p.no_pinjaman, p.tenor, p.sisa_pinjaman,
+                    jp.nama as jenis_pinjaman,
+                    DATEDIFF(a.tgl_jatuh_tempo, CURDATE()) as hari_lagi
+             FROM angsuran a
+             JOIN pinjaman p ON a.pinjaman_id = p.id
+             JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+             WHERE p.anggota_id = ?
+               AND p.status = 'cair'
+               AND a.status NOT IN ('lunas')
+             ORDER BY a.tgl_jatuh_tempo ASC, a.id ASC
+             LIMIT 1",
+            [$anggotaId]
+        );
+
+        // 2. Data Simpanan Sukarela anggota untuk opsi autodebet / bayar langsung
+        $sukarela = $db->fetch(
+            "SELECT rs.id as rekening_id, rs.no_rekening, rs.saldo
+             FROM rekening_simpanan rs
+             JOIN jenis_simpanan js ON rs.jenis_simpanan_id = js.id
+             WHERE rs.anggota_id = ? 
+               AND rs.status = 'aktif'
+               AND (js.kode = 'SS' OR LOWER(js.nama) LIKE '%sukarela%')
+             ORDER BY rs.saldo DESC
+             LIMIT 1",
+            [$anggotaId]
+        );
+
+        $pendingPengajuan = null;
+        if ($tagihan) {
+            $pendingPengajuan = $db->fetch(
+                "SELECT id, no_pengajuan, status, tgl_pengajuan 
+                 FROM pengajuan_angsuran 
+                 WHERE angsuran_id = ? AND status = 'pending'
+                 LIMIT 1",
+                [$tagihan['angsuran_id']]
+            );
+        }
+
+        // Cek apakah anggota memiliki pinjaman berstatus cair sama sekali
+        $hasLoan = $db->fetch(
+            "SELECT COUNT(*) as cnt FROM pinjaman WHERE anggota_id = ? AND status = 'cair'",
+            [$anggotaId]
+        );
+
+        successResponse([
+            'has_loan' => (int)($hasLoan['cnt'] ?? 0) > 0,
+            'tagihan' => $tagihan ?: null,
+            'sukarela' => $sukarela ?: null,
+            'pending_pengajuan' => $pendingPengajuan ?: null
+        ]);
         break;
 
     case 'notifications':
@@ -303,6 +397,36 @@ switch ($id) {
                 'color' => 'text-emerald-500',
                 'bg' => 'bg-emerald-50',
                 'raw_date' => $s['created_at'] ?: ($s['tgl_transaksi'] . ' 00:00:00')
+            ];
+        }
+
+        // 3. Pengajuan Angsuran Sukarela Status
+        $recentPengajuan = $db->fetchAll(
+            "SELECT pa.id, pa.no_pengajuan, pa.angsuran_ke, pa.total_bayar, pa.status, pa.tgl_pengajuan, pa.tgl_approval, pa.alasan_penolakan, p.no_pinjaman
+             FROM pengajuan_angsuran pa
+             JOIN pinjaman p ON pa.pinjaman_id = p.id
+             WHERE pa.anggota_id = ? AND pa.tgl_pengajuan >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+             ORDER BY pa.id DESC",
+            [$anggotaId]
+        );
+
+        foreach ($recentPengajuan as $pa) {
+            $statusText = $pa['status'] === 'pending' ? 'Sedang Diverifikasi Bendahara' : ($pa['status'] === 'disetujui' ? 'Telah Disetujui & Lunas' : 'Ditolak: ' . ($pa['alasan_penolakan'] ?: '-'));
+            $color = $pa['status'] === 'pending' ? 'text-amber-500' : ($pa['status'] === 'disetujui' ? 'text-emerald-500' : 'text-rose-500');
+            $bg = $pa['status'] === 'pending' ? 'bg-amber-50' : ($pa['status'] === 'disetujui' ? 'bg-emerald-50' : 'bg-rose-50');
+            $icon = $pa['status'] === 'pending' ? 'bi-clock-history' : ($pa['status'] === 'disetujui' ? 'bi-check-circle-fill' : 'bi-x-circle-fill');
+
+            $notifications[] = [
+                'id' => 'pa_' . $pa['id'],
+                'type' => 'angsuran_sukarela',
+                'title' => 'Pengajuan Angsuran ke-' . $pa['angsuran_ke'],
+                'message' => $statusText,
+                'sub_message' => $pa['no_pinjaman'] . " (" . $pa['no_pengajuan'] . ") Rp " . number_format($pa['total_bayar'], 0, ',', '.'),
+                'date' => substr($pa['tgl_pengajuan'], 0, 10),
+                'icon' => $icon,
+                'color' => $color,
+                'bg' => $bg,
+                'raw_date' => $pa['tgl_approval'] ?: $pa['tgl_pengajuan']
             ];
         }
 
@@ -518,6 +642,124 @@ switch ($id) {
         $redis->delete("portal_notif_{$anggotaId}");
 
         successResponse(null, 'Pengajuan pinjaman berhasil dikirim!');
+        break;
+
+    case 'bayar-angsuran-sukarela':
+        if ($method !== 'POST') {
+            errorResponse('Method not allowed', 405);
+        }
+        $anggotaId = portalAuthCheck();
+        $input = json_decode(file_get_contents('php://input'), true) ?? [];
+        $pinjamanId = (int) ($input['pinjaman_id'] ?? 0);
+        $angsuranId = (int) ($input['angsuran_id'] ?? 0);
+
+        if (!$pinjamanId || !$angsuranId) {
+            errorResponse('Data pinjaman dan angsuran tidak lengkap', 400);
+        }
+
+        // Pastikan pinjaman milik anggota
+        $pinjaman = $db->fetch(
+            "SELECT p.id, p.no_pinjaman, p.status, p.sisa_pinjaman, a.nama as anggota_nama, a.no_anggota 
+             FROM pinjaman p 
+             JOIN anggota a ON p.anggota_id = a.id 
+             WHERE p.id = ? AND p.anggota_id = ?",
+            [$pinjamanId, $anggotaId]
+        );
+        if (!$pinjaman || $pinjaman['status'] !== 'cair') {
+            errorResponse('Pinjaman tidak valid atau belum dicairkan', 400);
+        }
+
+        // Ambil data angsuran
+        $angsuran = $db->fetch(
+            "SELECT id, angsuran_ke, tgl_jatuh_tempo, pokok, bunga, denda, total, status 
+             FROM angsuran 
+             WHERE id = ? AND pinjaman_id = ?",
+            [$angsuranId, $pinjamanId]
+        );
+        if (!$angsuran) {
+            errorResponse('Data angsuran tidak ditemukan', 404);
+        }
+        if ($angsuran['status'] === 'lunas') {
+            errorResponse('Angsuran ini sudah berstatus lunas', 400);
+        }
+
+        // Cek apakah sudah ada pengajuan pending untuk angsuran ini
+        $existing = $db->fetch(
+            "SELECT id, no_pengajuan FROM pengajuan_angsuran WHERE angsuran_id = ? AND status = 'pending'",
+            [$angsuranId]
+        );
+        if ($existing) {
+            errorResponse('Angsuran ini sudah diajukan sebelumnya dan sedang menunggu verifikasi Bendahara (' . $existing['no_pengajuan'] . ')', 400);
+        }
+
+        // Cek Saldo Simpanan Sukarela
+        $jenisSS = $db->fetch("SELECT id, akun_id, nama FROM jenis_simpanan WHERE kode = 'SS' OR LOWER(nama) LIKE '%sukarela%' LIMIT 1");
+        if (!$jenisSS) {
+            errorResponse('Jenis Simpanan Sukarela belum terdaftar di sistem', 400);
+        }
+
+        $rekSS = $db->fetch(
+            "SELECT id, no_rekening, saldo FROM rekening_simpanan WHERE anggota_id = ? AND jenis_simpanan_id = ? AND status = 'aktif' LIMIT 1",
+            [$anggotaId, $jenisSS['id']]
+        );
+
+        $saldoSukarela = 0;
+        if ($rekSS) {
+            $saldoSukarela = (float) $rekSS['saldo'];
+        } else {
+            $sumSS = $db->fetch(
+                "SELECT COALESCE(SUM(CASE WHEN kt.dk = 'D' THEN s.jumlah ELSE -s.jumlah END), 0) as saldo
+                 FROM simpanan s
+                 JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+                 WHERE s.anggota_id = ? AND s.jenis_simpanan_id = ?",
+                [$anggotaId, $jenisSS['id']]
+            );
+            $saldoSukarela = (float) ($sumSS['saldo'] ?? 0);
+        }
+
+        $totalBayar = (float) $angsuran['total'];
+        if ($saldoSukarela < $totalBayar) {
+            errorResponse(
+                'Saldo Simpanan Sukarela tidak mencukupi. Saldo saat ini: Rp ' . 
+                number_format($saldoSukarela, 0, ',', '.') . ', Total tagihan: Rp ' . 
+                number_format($totalBayar, 0, ',', '.')
+            );
+        }
+
+        // Generate No Pengajuan
+        $noPengajuan = generateNo('PA', 'pengajuan_angsuran', 'no_pengajuan');
+
+        $db->insert(
+            "INSERT INTO pengajuan_angsuran 
+             (no_pengajuan, pinjaman_id, angsuran_id, anggota_id, rekening_simpanan_id, angsuran_ke, pokok, bunga, denda, total_bayar, metode_pembayaran, status, catatan, tgl_pengajuan) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sukarela', 'pending', ?, NOW())",
+            [
+                $noPengajuan,
+                $pinjamanId,
+                $angsuranId,
+                $anggotaId,
+                $rekSS ? $rekSS['id'] : null,
+                $angsuran['angsuran_ke'],
+                $angsuran['pokok'],
+                $angsuran['bunga'],
+                $angsuran['denda'] ?? 0,
+                $totalBayar,
+                "Pengajuan bayar angsuran ke-{$angsuran['angsuran_ke']} via Simpanan Sukarela dari Mobile Portal"
+            ]
+        );
+
+        logPortalActivity("Mengajukan bayar angsuran ke-{$angsuran['angsuran_ke']} pinjaman {$pinjaman['no_pinjaman']} via Sukarela ({$noPengajuan})");
+
+        // Clear redis cache
+        $redis = RedisManager::getInstance();
+        $redis->delete("portal_loan_{$anggotaId}");
+        $redis->delete("portal_notif_{$anggotaId}");
+
+        successResponse([
+            'no_pengajuan' => $noPengajuan,
+            'angsuran_ke' => $angsuran['angsuran_ke'],
+            'total_bayar' => $totalBayar
+        ], 'Pengajuan pembayaran angsuran berhasil dikirim. Menunggu verifikasi Bendahara.');
         break;
 
     case 'laporan-genggaman':

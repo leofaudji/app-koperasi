@@ -55,7 +55,7 @@ const BukuBesarPage = {
                         </tr>
                     </thead>
                     <tbody>
-                        ${this.data.map(a => `<tr class="border-t border-gray-50 hover:bg-primary-50/30 cursor-pointer transition-colors" onclick="BukuBesarPage.detail(${a.id},'${a.nama}')">
+                        ${this.data.map(a => `<tr class="border-t border-gray-50 hover:bg-primary-50/30 cursor-pointer transition-colors" onclick="BukuBesarPage.detail(${a.id})">
                             <td class="px-4 py-3 font-mono text-xs font-bold text-primary-600">${a.kode}</td>
                             <td class="px-4 py-3 font-medium text-gray-800">${a.nama}</td>
                             <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${App.getAkunBadge(a.tipe)}">${a.tipe}</span></td>

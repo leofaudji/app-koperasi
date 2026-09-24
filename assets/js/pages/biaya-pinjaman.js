@@ -35,6 +35,7 @@ const BiayaPinjamanPage = {
                             <th class="px-4 py-3 text-center font-medium text-gray-500">Tipe</th>
                             <th class="px-4 py-3 text-right font-medium text-gray-500">Nilai</th>
                             <th class="px-4 py-3 text-center font-medium text-gray-500">Wajib</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-500">Akun Jurnal (COA)</th>
                             <th class="px-4 py-3 text-center font-medium text-gray-500">Status</th>
                             <th class="px-4 py-3 text-center font-medium text-gray-500">Aksi</th>
                         </tr>
@@ -55,6 +56,16 @@ const BiayaPinjamanPage = {
                             <td class="px-4 py-3 text-center">
                                 ${b.is_wajib ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700"><i class="ri-checkbox-circle-line mr-1"></i>Wajib</span>' : '<span class="text-gray-400 text-xs">Opsional</span>'}
                             </td>
+                            <td class="px-4 py-3">
+                                ${b.akun_kode ? `
+                                    <span class="font-mono text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold border border-emerald-200/50">[${b.akun_kode}]</span> 
+                                    <span class="text-xs text-gray-700 font-medium">${b.akun_nama}</span>
+                                ` : `
+                                    <span class="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60 font-medium">
+                                        ${b.id == 1 || (b.nama || '').toLowerCase().includes('provisi') ? '⚡ Otomatis (Provisi per Produk)' : '⚡ Default (409 - Lain-lain)'}
+                                    </span>
+                                `}
+                            </td>
                             <td class="px-4 py-3 text-center">
                                 <button onclick="BiayaPinjamanPage.toggle(${b.id})" class="text-xs px-2 py-1 rounded-lg ${b.is_active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}">
                                     ${b.is_active ? 'Aktif' : 'Nonaktif'}
@@ -67,7 +78,7 @@ const BiayaPinjamanPage = {
                                 </div>
                             </td>
                         </tr>`).join('')}
-                        ${!res.data.length ? '<tr><td colspan="7" class="text-center py-10 text-gray-400">Belum ada jenis biaya</td></tr>' : ''}
+                        ${!res.data.length ? '<tr><td colspan="8" class="text-center py-10 text-gray-400">Belum ada jenis biaya</td></tr>' : ''}
                     </tbody>
                 </table>
             </div>
@@ -81,6 +92,16 @@ const BiayaPinjamanPage = {
             if (!r?.success) { App.toast('Gagal memuat data', 'error'); return; }
             data = r.data;
         }
+
+        // Load akun untuk dropdown
+        if (!this._akun || !this._akun.length) {
+            const akunRes = await App.api('keuangan/akun');
+            this._akun = akunRes?.data || [];
+        }
+        const akunOpts = this._akun
+            .filter(a => a.tipe === 'pendapatan' || a.tipe === 'kewajiban')
+            .map(a => `<option value="${a.id}" ${data?.akun_id == a.id ? 'selected' : ''}>[${a.kode}] ${a.nama} (${a.tipe})</option>`)
+            .join('');
 
         App.openModal(`<div class="p-6">
             <h3 class="text-lg font-bold text-gray-800 mb-5"><i class="ri-coins-line text-amber-500 mr-2"></i>${data ? 'Edit' : 'Tambah'} Jenis Biaya</h3>
@@ -101,6 +122,14 @@ const BiayaPinjamanPage = {
                         <label class="block text-sm font-medium text-gray-600 mb-1" id="bb-nilai-lbl">Nilai (Rp) *</label>
                         <input type="number" id="bb-nilai" value="${data?.nilai || 0}" min="0" step="0.01" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
                     </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Akun Jurnal Kredit (COA)</label>
+                    <select id="bb-akun" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
+                        <option value="">-- Otomatis Sesuai Aturan Sistem --</option>
+                        ${akunOpts}
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">Akun pendapatan untuk kredit potongan biaya saat pencairan pinjaman. Jika dikosongkan untuk <b>Biaya Provisi</b>, sistem otomatis mengalokasikan ke akun provisi jenis pinjaman terkait (402/403/404/405).</p>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -137,6 +166,7 @@ const BiayaPinjamanPage = {
             nilai: document.getElementById('bb-nilai')?.value,
             is_wajib: document.getElementById('bb-wajib')?.value,
             urutan: document.getElementById('bb-urutan')?.value,
+            akun_id: document.getElementById('bb-akun')?.value || null,
         };
         if (!payload.nama) { App.toast('Nama biaya wajib diisi', 'warning'); return; }
 

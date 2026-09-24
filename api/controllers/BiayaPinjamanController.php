@@ -7,7 +7,7 @@ switch ($method) {
     case 'GET':
         checkPermission('pinjaman.setting');
         if ($id && is_numeric($id)) {
-            $data = $db->fetch("SELECT * FROM jenis_biaya_pinjaman WHERE id = ?", [$id]);
+            $data = $db->fetch("SELECT jbp.*, a.kode as akun_kode, a.nama as akun_nama FROM jenis_biaya_pinjaman jbp LEFT JOIN akun a ON jbp.akun_id = a.id WHERE jbp.id = ?", [$id]);
             if (!$data)
                 errorResponse('Jenis biaya tidak ditemukan', 404);
             successResponse($data);
@@ -17,8 +17,8 @@ switch ($method) {
         $jumlah = isset($params['jumlah']) ? (float) $params['jumlah'] : 0;
         $onlyActive = isset($params['active']) ? (int) $params['active'] : 1;
 
-        $where = $onlyActive ? "WHERE is_active = 1" : "WHERE 1=1";
-        $list = $db->fetchAll("SELECT * FROM jenis_biaya_pinjaman $where ORDER BY urutan, id");
+        $where = $onlyActive ? "WHERE jbp.is_active = 1" : "WHERE 1=1";
+        $list = $db->fetchAll("SELECT jbp.*, a.kode as akun_kode, a.nama as akun_nama FROM jenis_biaya_pinjaman jbp LEFT JOIN akun a ON jbp.akun_id = a.id $where ORDER BY jbp.urutan, jbp.id");
 
         // Kalkulasi nilai estimasi jika jumlah pinjaman diketahui
         foreach ($list as &$b) {

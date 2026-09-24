@@ -6,6 +6,128 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
 
 ---
 
+## [v2.6.0] - 2026-09-21
+
+### 🔔 Verifikasi Pengajuan Pembayaran Angsuran via Simpanan Sukarela
+- **Workflow Persetujuan Otomatis (Bendahara & Kasir)**:
+  - Anggota dapat mengajukan pembayaran angsuran mandiri melalui saldo Simpanan Sukarela dari Portal Anggota.
+  - **Notifikasi Real-time Bendahara**: Icon lonceng di header aplikasi utama menampilkan badge jumlah pengajuan pembayaran pending secara *live*. Dropdown notifikasi menampilkan daftar pengajuan beserta nominal, nama anggota, dan waktu pengajuan.
+  - **Modal Verifikasi Informatif & Presisi**:
+    - Menampilkan kartu identitas anggota & pinjaman, rincian komponen angsuran (Pokok, Bunga, Denda, Total Tagihan).
+    - Menampilkan saldo Simpanan Sukarela saat ini, nominal tagihan, dan proyeksi sisa saldo setelah dipotong.
+    - Validasi keamanan: Tombol "Setujui & Proses Pembayaran" otomatis terkunci dengan peringatan jika saldo anggota tidak mencukupi saat proses verifikasi berlangsung.
+  - **Otomatisasi Pembukuan & Mutasi**:
+    - Persetujuan (ACC) oleh Bendahara secara instan melunasi angsuran, mendebet saldo rekening simpanan sukarela anggota, mencatat mutasi penarikan simpanan, dan membukukan jurnal pemindahbukuan otomatis tanpa menyentuh kas fisik.
+    - Opsi "Tolak Pengajuan" dilengkapi kolom alasan penolakan yang langsung terkirim sebagai notifikasi ke portal anggota.
+
+### 💳 Optimalisasi Menu Pembayaran Angsuran (`#/angsuran`)
+- **Tabel Transaksi Pembayaran Angsuran**:
+  - Menampilkan riwayat transaksi pembayaran angsuran anggota yang dipilih sesuai filter yang aktif.
+  - **Filter Periode Terintegrasi**: Ditambahkan filter Tanggal Mulai dan Tanggal Selesai pada tabel riwayat pembayaran angsuran.
+  - **Penyempurnaan Tata Letak Filter**: Desain filter responsif yang rapi dengan tombol pencarian, reset filter, dan penataan kolom yang ergonomis.
+
+### 🛡️ Perbaikan Filter & Lookup Nama Anggota Berkarakter Petik Satu (`'`)
+- **Penanganan Escape Karakter Khusus**:
+  - Mengatasi kendala pemilihan nama anggota yang memiliki tanda petik satu (misal: *D'Angelo*, *Ma'ruf*, *Jum'at*) pada autocomplete / dropdown filter di menu Buku Simpanan, Mutasi Simpanan, Pembayaran Angsuran, Pinjaman, dan form terkait lainnya.
+  - Mencegah error JavaScript syntax saat rendering atribut event listener HTML.
+
+### 📱 Portal Anggota v1.7.0 (PWA)
+- **Widget Tagihan & Jadwal Angsuran Terdekat (Billing Card)**:
+  - Menggantikan tampilan widget estimasi SHU tahunan di beranda dengan kartu interaktif Tagihan Angsuran Terdekat yang belum lunas.
+  - Informasi lengkap: Angsuran ke-X dari tenor, jatuh tempo, nominal tagihan, rincian pokok/bunga/denda, dan badge status urgensi (Terlambat, Hari Ini, atau X Hari Lagi).
+  - **Tombol Cepat "Bayar via Simpanan Sukarela"**: Anggota dengan saldo mencukupi dapat langsung memproses autodebet tagihan dari halaman beranda.
+  - State dinamis: Menampilkan status *Menunggu ACC Bendahara*, kartu apresiasi hijau *"Semua Angsuran Lunas!"*, atau kartu promo *"Bebas Kewajiban Pinjaman"*.
+- **Pembaruan Cache Service Worker**:
+  - Peningkatan Service Worker ke `v77` (`koperasi-portal-v77`) untuk pembaharuan aset instan di sisi pengguna.
+
+---
+
+## [v2.5.1] - 2026-09-19
+
+### 💰 Metode Pembayaran Angsuran via Simpanan Sukarela
+- **Opsi Pembayaran Pemindahbukuan Internal (Overbooking)**:
+  - Menambahkan metode pembayaran `Simpanan Sukarela` pada menu **Pembayaran Angsuran** (`#/angsuran`).
+  - Menampilkan Saldo Simpanan Sukarela anggota secara *real-time* pada ringkasan pinjaman dan form pembayaran angsuran.
+  - Indikator kecukupan saldo interaktif: otomatis memvalidasi apakah saldo Simpanan Sukarela anggota mencukupi total tagihan (Pokok + Bunga + Denda). Jika kurang, tombol simpan otomatis dinonaktifkan dengan peringatan selisih defisit.
+- **Integrasi Akuntansi & Buku Tabungan**:
+  - **Potong Saldo Rekening Simpanan**: Saldo `rekening_simpanan` anggota otomatis terpotong saat pembayaran diproses.
+  - **Mutasi Buku Tabungan**: Mencatat transaksi penarikan di tabel `simpanan` dengan nomor referensi transaksi angsuran (`[AG:...]`).
+  - **Jurnal Otomatis Seimbang**: Membentuk pembukuan jurnal pemindahbukuan (Debet: Akun Simpanan Sukarela/206 vs Kredit: Piutang Pinjaman, Pendapatan Bunga, Pendapatan Denda) tanpa mempengaruhi kas fisik koperasi (*zero cash impact*).
+- **Dukungan Penuh Reversal (Pembatalan)**:
+  - Reversal angsuran yang dibayar via Simpanan Sukarela secara otomatis mengembalikan (*refund*) dana ke saldo Simpanan Sukarela anggota dan mencatat mutasi pengembalian.
+- **Pembaruan Laporan & Struk**:
+  - Filter metode `Simpanan Sukarela` pada daftar angsuran dan Laporan Mutasi Angsuran.
+  - Badge khusus berdesain elegan `💰 Sukarela` pada baris tabel data angsuran.
+  - Cetak struk kasir menampilkan metode pembayaran `SIMPANAN SUKARELA`.
+- **Database & Audit Integrity**:
+  - Migrasi skema database `db_migration_v2.1.7.php` memperbarui tipe kolom `metode_pembayaran` pada tabel `angsuran` dan `simpanan`.
+  - Rekonsiliasi audit mengenali transaksi pemotongan angsuran sukarela secara cerdas (*zero false positives* pada Audit Health Score).
+
+---
+
+## [v2.5.0] - 2026-09-16
+
+### 📊 Laporan Perubahan Ekuitas Multi-Tab (Standar SAK EP & RAT)
+- **Implementasi Sistem Multi-Tab Terpadu (3 Sudut Pandang Laporan)**:
+  - **Tab 1: Aliran Vertikal (Waterfall Bridge)**: Menyajikan alur mutasi modal mengalir bertingkat: *Saldo Awal per 1 Jan* $\rightarrow$ *(+) Penambahan Modal Sendiri* (Setoran Pokok, Wajib, Partisipatif, Cadangan, SHU Positif) $\rightarrow$ *(-) Pengurangan Modal* (Pengembalian Pokok/Wajib Anggota Keluar, Penyesuaian, Defisit) $\rightarrow$ *Saldo Akhir Modal per 31 Des*.
+  - **Tab 2: Komparatif Tahunan (Year-over-Year / YoY)**: Perbandingan posisi ekuitas modal antara *Tahun Berjalan vs Tahun Sebelumnya* lengkap dengan pertumbuhan nominal ($\pm\text{Rp}$), pertumbuhan persentase ($\pm\%$), dan status tren (*Naik ↗*, *Turun ↘*, *Stabil ➔*) berstandar audit akuntan publik (KAP).
+  - **Tab 3: Matriks SAK EP (8 Kolom Formal)**: Tabel matriks mutasi horizontal formal cross-tabulation untuk lampiran resmi buku pertanggungjawaban RAT.
+- **Rekonsiliasi Otomatis 100% Terhadap Neraca (Balance Guarantee)**:
+  - Total Modal Akhir hasil perhitungan diverifikasi matematis secara otomatis terhadap total pos Ekuitas pada Laporan Neraca per 31 Desember, dengan verifikasi selisih Rp 0,00 (`is_balanced: true`).
+- **Pita Ringkasan Eksekutif (Bento Ribbon) & Visualisasi**:
+  - 4 metrik utama (*Modal Awal*, *Penambahan*, *Pengurangan*, *Modal Akhir*), badge status *Rekonsiliasi Neraca*, serta bilah visualisasi distribusi porsi modal akhir.
+- **Ekspor Dokumen Resmi RAT**:
+  - **Cetak PDF Landscape (A4)** ber-kop surat resmi koperasi, tabel matriks bergaris presisi, catatan pengesahan SAK EP, dan blok 3 tanda tangan legal (*Pengawas*, *Ketua*, dan *Bendahara*).
+  - **Ekspor Microsoft Excel**: File CSV ber-encoding UTF-8 BOM (`\uFEFF`) komprehensif mencakup seksi Aliran Vertikal, Komparatif YoY, dan Matriks SAK EP.
+- **Penyederhanaan Label Menu**:
+  - Didaftarkan pada menu navigasi **LAPORAN $\rightarrow$ Keuangan $\rightarrow$ Perubahan Ekuitas** (`#/perubahan-ekuitas`).
+
+### 🏛️ Harmonisasi Regulasi Penilaian Kesehatan Koperasi (KKPKK Modern)
+- **Penyelarasan Rujukan Hukum Kontemporer**:
+  - Menyeragamkan rujukan hukum dari regulasi usang Permenkop 20/2008 ke regulasi terbaru: **Permenkop UKM No. 9 Tahun 2020 jo. Permenkop UKM No. 2 Tahun 2024 & Permenkop UKM No. 8 Tahun 2023**.
+  - Mengimplementasikan instrumen resmi **Kertas Kerja Pemeriksaan Kesehatan Koperasi (KKPKK)** dengan 4 Pilar Pengawasan Modern:
+    1. *Tata Kelola (Bobot 30%)*: Kelembagaan, legalitas NIK, akuntabilitas RAT/Tutup Buku, dan kepatuhan SAK EP (audit saldo 100% balance).
+    2. *Profil Risiko (Bobot 15%)*: Evaluasi risiko pembiayaan/NPL ($\le 5\%$), risiko likuiditas (Cash Ratio $\ge 10\%$), dan kecukupan cadangan risiko.
+    3. *Kinerja Keuangan (Bobot 40%)*: Rentabilitas aset (ROA), rentabilitas modal sendiri (ROE), efisiensi biaya (BOPO), dan kemandirian operasional.
+    4. *Permodalan (Bobot 15%)*: Rasio Kecukupan Modal (*CAR*) terhadap ATMR dan rasio modal sendiri terhadap total aset.
+- **Standardisasi Nomenklatur Predikat Resmi Kemenkop UKM**:
+  - Klasifikasi predikat: 🟢 **Sehat** $(\ge 80{,}00)$, 🔵 **Cukup Sehat** $(66{,}00 - <80{,}00)$, 🟡 **Dalam Pengawasan** $(51{,}00 - <66{,}00)$, dan 🔴 **Dalam Pengawasan Khusus** $(<51{,}00)$.
+- **Penyelarasan Modal Sendiri Koperasi**:
+  - Menghitung modal sendiri sesuai perundang-undangan dan SAK EP (mengakomodasi Simpanan Pokok dan Simpanan Wajib anggota sebagai bagian dari modal sendiri/ekuitas).
+- **Pembaruan UI & PDF**:
+  - Memperbarui antarmuka `kesehatan-koperasi.js`, menghilangkan duplikasi ikon, dan cetak dokumen resmi PDF ber-header KKPKK.
+
+### 🧭 Restrukturisasi & Optimalisasi Menu Navigasi
+- **Penyelarasan Alur Kerja Operasional Koperasi (Workflow-Driven)**:
+  - **Master Data**: Mengelompokkan pengaturan jenis pinjaman dan biaya pinjaman agar berdampingan, diikuti kode transaksi dan COA (*Chart of Account*).
+  - **Transaksi**: Menempatkan *Kas Masuk & Keluar* di urutan teratas untuk kasir/teller harian, disusul modul Simpanan, Pinjaman, dan Jurnal Keuangan back-office.
+  - **Laporan Keuangan**: Menyusun urutan logis laporan standar akuntansi: *Neraca* $\rightarrow$ *Laba Rugi* $\rightarrow$ *Pertumbuhan Laba Rugi* $\rightarrow$ *Laporan Arus Kas* $\rightarrow$ *Perubahan Ekuitas* $\rightarrow$ *Buku Besar* $\rightarrow$ *Audit Saldo* $\rightarrow$ *Kepatuhan Kemenkop* $\rightarrow$ *Tingkat Kesehatan*.
+  - **Sistem & Tata Kelola**: Memposisikan sub-menu *RAT & Akhir Tahun* di urutan teratas modul Sistem.
+
+### 🛡️ Integritas Data & Audit Saldo (100% Reconciled)
+- **Koreksi Rekonsiliasi Modul vs Buku Besar (GL)**:
+  - Menghapus transaksi reversal yatim dan memulihkan saldo rekening Simpanan Pokok REO SUHANAFI sehingga Simpanan Pokok seimbang 100% (Selisih Rp 0,00).
+  - Mengoreksi akun debet jurnal `TB2026080048` ke akun Kas (`100`) dan menyesuaikan `sisa_pinjaman` pinjaman 1888 ke Rp 1.500.000 sehingga Piutang Insidental seimbang 100% (Selisih Rp 0,00).
+  - Menyelaraskan saldo awal pembukaan Piutang Berjangka 1 (`104`) dan pecahan sen Simpanan Sukarela (`206`) serta Partisipatif (`214`) terhadap akun penyeimbang `3999` (Selisih Saldo Awal) dengan pembukuan jurnal tetap 100% *balance*.
+  - Mengalihkan referensi jurnal borongan `JRN2026070206` ke jurnal umum (`ref_tipe = 'umum'`) untuk mengeliminasi benturan selisih nominal Rp 660.000.
+- **Penguatan Logika Backend (Pencegahan Masa Depan)**:
+  - `AuditController.php`: Deteksi cerdas simpanan dari potongan pencairan pinjaman dan pelunasan angsuran via Top-up/Refinancing secara otomatis (*zero false positives*).
+  - `PinjamanController.php`: Konsistensi inisialisasi `sisa_pinjaman` berdasarkan pokok pinjaman murni (`jumlah`), serta penandaan metode pembayaran angsuran top-up sebagai `'topup'`.
+- **Script Pemulihan Mandiri (`repair_audit_discrepancies.php`)**:
+  - Menyediakan script perbaikan otomatis berbasis CLI yang aman (transaksional ACID dan mendukung opsi `--dry-run`).
+
+### 📈 Laporan Pertumbuhan Laba/Rugi (Bulanan & Tahunan)
+- **Mode MoM (Month-over-Month)**: Analisis kinerja 12 bulan dalam 1 tahun buku dengan perbandingan pertumbuhan nominal ($\pm\text{Rp}$) dan persentase ($\pm\%$) antar bulan.
+- **Mode YoY (Year-over-Year)**: Analisis tren multi-tahun dengan fleksibilitas filter rentang tahun.
+- **Smart Future-Month Handling**: Mencegah false negative dropout pada grafik maupun kalkulasi rata-rata untuk bulan yang belum berjalan.
+- **Visualisasi & Ekspor**: Diagram batang interaktif (Pendapatan, Beban, SHU), 5 kartu KPI, cetak PDF landscape, dan ekspor CSV UTF-8 BOM.
+
+### 💵 Laporan Arus Kas, Kepatuhan Kemenkop, & Kunci Periode Akuntansi
+- **Laporan Arus Kas (SAK EP)**: Laporan arus kas 3 pilar (Operasi, Investasi, Pendanaan) dengan rekonsiliasi kas riil ke neraca/buku besar (100% balance), filter tanggal fleksibel & preset, cetak PDF resmi, dan ekspor Excel (CSV).
+- **Dashboard Kepatuhan Kemenkop UKM**: Klasifikasi otomatis Kelompok Usaha Koperasi (KUK 1-4) sesuai Permenkop UKM No. 2/2024, evaluasi 7 rasio prudensial (BMPP, Likuiditas, Solvabilitas, NPL, Kemandirian Modal, ROE, ROA), serta matriks profil Online Data System (ODS).
+- **Kunci Periode Akuntansi (Period Locking)**: Fitur tutup buku berkala untuk mengunci pencatatan, pengeditan, atau pembatalan transaksi lampau di modul Jurnal, Pinjaman, Angsuran, dan Simpanan.
+
+
 ## [v2.1.9] - 2026-08-19
 
 ### 🐛 Diperbaiki & Dioptimalkan

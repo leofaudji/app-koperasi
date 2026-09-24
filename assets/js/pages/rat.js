@@ -46,7 +46,7 @@ const RATPage = {
                             <a href="#/rat/${r.id}" class="p-1.5 hover:bg-primary-50 rounded-lg text-primary-600" title="Kelola"><i class="ri-settings-4-line"></i></a>
                             ${App.hasPerm('rat.manage') ? `
                                 <button onclick="RATPage.form(${r.id})" class="p-1.5 hover:bg-amber-50 rounded-lg text-amber-500" title="Edit"><i class="ri-edit-line"></i></button>
-                                <button onclick="RATPage.del(${r.id},'${r.judul}')" class="p-1.5 hover:bg-red-50 rounded-lg text-red-500" title="Hapus"><i class="ri-delete-bin-line"></i></button>
+                                <button onclick="RATPage.del(${r.id},'${(r.judul || '').replace(/'/g, "\\'")}')" class="p-1.5 hover:bg-red-50 rounded-lg text-red-500" title="Hapus"><i class="ri-delete-bin-line"></i></button>
                             ` : ''}
                         </div></td></tr>`).join('')}
                     ${res.data.length === 0 ? '<tr><td colspan="5" class="text-center py-8 text-gray-400 font-medium">Belum ada sesi RAT yang dijadwalkan</td></tr>' : ''}</tbody>

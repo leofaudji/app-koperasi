@@ -10,6 +10,7 @@ const escHtml = str => String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&
 // ── Tab definitions ──────────────────────────────────────────
 const TABS = {
     umum: { label: 'Informasi Umum', icon: 'ri-information-line', color: 'blue' },
+    keuangan: { label: 'Akuntansi & Periode', icon: 'ri-scales-line', color: 'emerald' },
     pwa: { label: 'Portal (PWA)', icon: 'ri-smartphone-line', color: 'indigo' },
     tampilan: { label: 'Tampilan & Logo', icon: 'ri-palette-line', color: 'rose' },
     tema: { label: 'Tema', icon: 'ri-palette-2-line', color: 'purple' },
@@ -23,7 +24,16 @@ function fieldRow(key, cfg) {
     const isTextarea = ['alamat', 'pwa_description'].includes(key);
     let input;
 
-    if (isColor) {
+    if (key === 'accounting_locked_until') {
+        input = `
+        <div class="space-y-1.5">
+            <input type="date" id="s-${key}" value="${escHtml(val)}"
+                class="w-full sm:w-64 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/30 font-mono">
+            <p class="text-[11px] text-gray-500 leading-relaxed">
+                <i class="ri-lock-line text-amber-500 font-bold"></i> <strong>Kunci Transaksi s/d Tanggal Ini (Tutup Buku):</strong> Transaksi (simpanan, pinjaman, angsuran, kas, jurnal) yang bertanggal &le; tanggal ini akan dikunci otomatis. Kosongkan jika ingin membuka kunci seluruh periode.
+            </p>
+        </div>`;
+    } else if (isColor) {
         input = `
         <div class="flex items-center gap-3">
             <input type="color" id="s-${key}" value="${val}"

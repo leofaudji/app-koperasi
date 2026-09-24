@@ -497,7 +497,37 @@
                         </kbd>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-3">
+                    <!-- Notification Bell for Bendahara / Admin -->
+                    <div class="relative" id="notif-bell-wrapper">
+                        <button id="notif-bell-btn" onclick="App.toggleNotifDropdown()" 
+                            class="relative p-2.5 hover:bg-gray-100 text-gray-500 hover:text-gray-700 rounded-xl transition-all" 
+                            title="Notifikasi Pengajuan">
+                            <i class="ri-notification-3-line text-xl"></i>
+                            <span id="notif-badge-count" class="hidden absolute top-1.5 right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full px-1 flex items-center justify-center ring-2 ring-white animate-pulse">0</span>
+                        </button>
+                        <!-- Notification Dropdown Panel -->
+                        <div id="notif-dropdown" class="hidden absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-fadeIn">
+                            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/70">
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-sm">Notifikasi Pengajuan</h4>
+                                    <p class="text-[10px] text-gray-400">Pembayaran Angsuran Portal</p>
+                                </div>
+                                <button onclick="App.checkNotifications(true)" class="text-xs text-primary-600 hover:underline flex items-center gap-1 font-medium">
+                                    <i class="ri-refresh-line"></i> Segarkan
+                                </button>
+                            </div>
+                            <div id="notif-dropdown-list" class="max-h-80 overflow-y-auto divide-y divide-gray-50 text-xs">
+                                <div class="p-6 text-center text-gray-400">Memuat...</div>
+                            </div>
+                            <div class="p-2.5 bg-gray-50 border-t border-gray-100 text-center">
+                                <a href="#/angsuran" onclick="App.toggleNotifDropdown(false); if(window.AngsuranPage?.showAntreanPengajuan) window.AngsuranPage.showAntreanPengajuan();" class="text-xs font-bold text-primary-600 hover:text-primary-700">
+                                    Kelola Semua Pengajuan <i class="ri-arrow-right-line ml-0.5"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                     <span class="text-xs text-gray-400 hidden sm:block" id="current-date"></span>
                 </div>
             </header>

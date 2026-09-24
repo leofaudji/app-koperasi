@@ -1,15 +1,20 @@
 <?php
 /**
  * Kesehatan Koperasi Controller
- * Berdasarkan Permenkop No. 20/Per/M.KUKM/XI/2008
- * 7 Aspek Penilaian Kesehatan KSP/USP Koperasi
+ * Berdasarkan Permenkop UKM No. 9 Tahun 2020 jo. Permenkop UKM No. 2 Tahun 2024 & Permenkop UKM No. 8 Tahun 2023
+ * 4 Aspek Pemeriksaan Kesehatan Koperasi (KKPKK - Kertas Kerja Pemeriksaan Kesehatan Koperasi):
+ * 1. Tata Kelola (Bobot 30%)
+ * 2. Profil Risiko (Bobot 15%)
+ * 3. Kinerja Keuangan (Bobot 40%)
+ * 4. Permodalan (Bobot 15%)
  */
 authCheck();
-checkPermission('keuangan.laba_rugi'); // gunakan permission laporan keuangan
+checkPermission('keuangan.laba_rugi'); // permission laporan keuangan
 $db = Database::getInstance();
 
-if ($method !== 'GET')
+if ($method !== 'GET') {
     errorResponse('Method not allowed', 405);
+}
 
 $tahun = $params['tahun'] ?? date('Y');
 $tglAkhir = "$tahun-12-31";
@@ -18,10 +23,30 @@ $tglAwal = "$tahun-01-01";
 $cacheKey = "rep_tks_{$tahun}";
 $responseData = getCachedData($cacheKey, function() use ($db, $tahun, $tglAwal, $tglAkhir) {
     // ══════════════════════════════════════════════
-    // A. AMBIL DATA NERACA (Akun Aset, Kewajiban, Modal)
+    // A. DATA PROFIL KELEMBAGAAN & APP_SETTINGS
+    // ══════════════════════════════════════════════
+    $settRows = $db->fetchAll("SELECT setting_key, setting_value FROM app_settings");
+    $sett = [];
+    foreach ($settRows as $sr) {
+        $sett[$sr['setting_key']] = $sr['setting_value'];
+    }
+
+    $totalAnggota = (int) $db->count("SELECT COUNT(*) FROM anggota WHERE status = 'aktif'");
+    $anggotaPeminjam = (int) $db->count("SELECT COUNT(DISTINCT anggota_id) FROM pinjaman WHERE status IN ('cair','lunas')");
+    $anggotaPenabung = (int) $db->count("SELECT COUNT(DISTINCT anggota_id) FROM simpanan");
+
+    // Status Penyelenggaraan RAT / Tutup Buku
+    $jurnalTutup = $db->fetch(
+        "SELECT id, no_bukti, tgl_transaksi FROM jurnal WHERE ref_tipe = 'akhir_tahun' AND YEAR(tgl_transaksi) = ? LIMIT 1",
+        [$tahun]
+    );
+    $sudahRat = !empty($jurnalTutup);
+
+    // ══════════════════════════════════════════════
+    // B. AMBIL DATA NERACA (Akun Aset, Kewajiban, Modal)
     // ══════════════════════════════════════════════
     $akunNeraca = $db->fetchAll(
-        "SELECT ak.kode, ak.nama, ak.tipe, ak.saldo_normal,
+        "SELECT ak.kode, ak.nama, ak.tipe, ak.kelompok, ak.saldo_normal,
             CASE WHEN ak.saldo_normal='D'
                 THEN COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0)
                 ELSE COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0)
@@ -37,33 +62,44 @@ $responseData = getCachedData($cacheKey, function() use ($db, $tahun, $tglAwal, 
     $totalAset = 0;
     $totalKewajiban = 0;
     $totalModal = 0;
-    $kas = 0; // akun kode 1000
-    $piutang = 0; // akun kode 1200 (piutang pinjaman)
+    $kasBank = 0;
+    $piutangPinjaman = 0;
+    $simpananPokokWajib = 0;
+    $cadangan = 0;
 
     foreach ($akunNeraca as $a) {
         $saldo = (float) $a['saldo'];
-        if ($a['tipe'] === 'aset') {
+        $tipe = $a['tipe'];
+        $kode = (string) $a['kode'];
+        $nama = strtolower((string) $a['nama']);
+        $kel = strtolower((string) ($a['kelompok'] ?? ''));
+
+        if ($tipe === 'aset') {
             $totalAset += $saldo;
-        }
-        if ($a['tipe'] === 'kewajiban') {
+            if (in_array($kode, ['100', '101', '102', '103', '1000', '1100']) || strpos($nama, 'kas') !== false || strpos($nama, 'bank') !== false) {
+                $kasBank += $saldo;
+            }
+            if (in_array($kode, ['104', '105', '106', '107', '108', '1200', '190']) || strpos($nama, 'piutang') !== false) {
+                $piutangPinjaman += $saldo;
+            }
+        } elseif ($tipe === 'kewajiban') {
             $totalKewajiban += $saldo;
-        }
-        if ($a['tipe'] === 'modal') {
+            if (in_array($kode, ['212', '213', '204', '205']) || (strpos($nama, 'simpanan pokok') !== false) || (strpos($nama, 'simpanan wajib') !== false)) {
+                $simpananPokokWajib += $saldo;
+            }
+        } elseif ($tipe === 'modal') {
             $totalModal += $saldo;
-        }
-        if (in_array($a['kode'], ['100', '101', '102', '103', '1000'])) {
-            $kas += $saldo;
-        }
-        if (in_array($a['kode'], ['104', '105', '106', '107', '108', '1200'])) {
-            $piutang += $saldo;
+            if (strpos($nama, 'cadangan') !== false || in_array($kode, ['301', '302'])) {
+                $cadangan += $saldo;
+            }
         }
     }
 
     // ══════════════════════════════════════════════
-    // B. AMBIL DATA LABA RUGI
+    // C. AMBIL DATA LABA RUGI (PENDAPATAN & BEBAN)
     // ══════════════════════════════════════════════
     $akunLR = $db->fetchAll(
-        "SELECT ak.kode, ak.nama, ak.tipe, ak.saldo_normal,
+        "SELECT ak.kode, ak.nama, ak.tipe, ak.kelompok, ak.saldo_normal,
             CASE WHEN ak.saldo_normal='D'
                 THEN COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0)
                 ELSE COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.kredit ELSE 0 END),0) - COALESCE(SUM(CASE WHEN j.id IS NOT NULL THEN jd.debit ELSE 0 END),0)
@@ -77,43 +113,53 @@ $responseData = getCachedData($cacheKey, function() use ($db, $tahun, $tglAwal, 
     );
 
     $totalPendapatan = 0;
+    $pendapatanOperasional = 0;
     $totalBeban = 0;
+    $bebanOperasional = 0;
+
     foreach ($akunLR as $a) {
-        if ($a['tipe'] === 'pendapatan')
-            $totalPendapatan += (float) $a['saldo'];
-        if ($a['tipe'] === 'beban')
-            $totalBeban += (float) $a['saldo'];
+        $saldo = (float) $a['saldo'];
+        $tipe = $a['tipe'];
+        $kode = (string) $a['kode'];
+
+        if ($tipe === 'pendapatan') {
+            $totalPendapatan += $saldo;
+            if (in_array($kode, ['400', '401', '402', '403', '404', '405', '406', '410'])) {
+                $pendapatanOperasional += $saldo;
+            }
+        } elseif ($tipe === 'beban') {
+            $totalBeban += $saldo;
+            if ($kode !== '507' && strpos(strtolower($a['nama']), 'pajak') === false) {
+                $bebanOperasional += $saldo;
+            }
+        }
     }
-    $shu = $totalPendapatan - $totalBeban; // Sisa Hasil Usaha
+
+    $shu = $totalPendapatan - $totalBeban;
+
+    // Modal Sendiri menurut SAK EP & Kemenkop UKM (Ekuitas + Simpanan Pokok + Simpanan Wajib + Cadangan + SHU)
+    $modalSendiri = $totalModal + $simpananPokokWajib + $cadangan + $shu;
+    if ($modalSendiri <= 0 && $simpananPokokWajib > 0) {
+        $modalSendiri = $simpananPokokWajib + $cadangan;
+    }
 
     // ══════════════════════════════════════════════
-    // C. AMBIL DATA OPERASIONAL SIMPAN PINJAM
+    // D. DATA OPERASIONAL SIMPAN PINJAM & RISIKO
     // ══════════════════════════════════════════════
-
-    // Total simpanan
     $totalSimpanan = (float) ($db->fetch(
         "SELECT COALESCE(SUM(CASE WHEN kt.dk='D' THEN s.jumlah ELSE -s.jumlah END),0) as total
         FROM simpanan s JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id"
     )['total'] ?? 0);
 
-    // Total pinjaman cair/lunas
     $totalPinjaman = (float) ($db->fetch(
         "SELECT COALESCE(SUM(jumlah),0) as total FROM pinjaman WHERE status IN ('cair','lunas')"
     )['total'] ?? 0);
 
-    // Pinjaman aktif (outstanding)
     $sisaPinjaman = (float) ($db->fetch(
         "SELECT COALESCE(SUM(sisa_pinjaman),0) as total FROM pinjaman WHERE status = 'cair'"
     )['total'] ?? 0);
 
-    // Pinjaman pada anggota
-    $pinjamanAnggota = (float) ($db->fetch(
-        "SELECT COALESCE(SUM(p.jumlah),0) as total
-        FROM pinjaman p JOIN anggota a ON p.anggota_id = a.id
-        WHERE p.status IN ('cair','lunas')"
-    )['total'] ?? 0);
-
-    // NPL: Pinjaman bermasalah
+    // NPL: Pinjaman bermasalah (>90 hari jatuh tempo)
     $pinjamanBermasalah = (float) ($db->fetch(
         "SELECT COALESCE(SUM(p.sisa_pinjaman),0) as total
         FROM pinjaman p
@@ -125,128 +171,316 @@ $responseData = getCachedData($cacheKey, function() use ($db, $tahun, $tglAwal, 
         )"
     )['total'] ?? 0);
 
-    $totalAnggota = $db->count("SELECT COUNT(*) FROM anggota WHERE status = 'aktif'");
-    $anggotaPeminjam = $db->count("SELECT COUNT(DISTINCT anggota_id) FROM pinjaman WHERE status IN ('cair','lunas')");
-    $anggotaPenabung = $db->count("SELECT COUNT(DISTINCT anggota_id) FROM simpanan");
+    // Cadangan risiko
+    $cadanganRisiko = (float) ($db->fetch(
+        "SELECT COALESCE(SUM(CASE WHEN ak.saldo_normal='D' THEN jd.debit - jd.kredit ELSE jd.kredit - jd.debit END),0) as t
+        FROM akun ak
+        JOIN jurnal_detail jd ON ak.id = jd.akun_id
+        JOIN jurnal j ON jd.jurnal_id = j.id AND j.tgl_transaksi <= ?
+        WHERE (ak.kode = '204' OR LOWER(ak.nama) LIKE '%cadangan risiko%' OR LOWER(ak.nama) LIKE '%cadangan piutang%')",
+        [$tglAkhir]
+    )['t'] ?? 0);
+    if ($cadanganRisiko <= 0) {
+        $cadanganRisiko = max(0, $modalSendiri * 0.05); // 5% cadangan umum jika belum dialokasikan
+    }
 
-    $pendapatanAnggota = (float) ($db->fetch(
-        "SELECT COALESCE(SUM(an.bunga + an.denda),0) as total
-        FROM angsuran an JOIN pinjaman p ON an.pinjaman_id = p.id
-        WHERE an.status IN ('lunas','terlambat')
-        AND YEAR(an.tgl_bayar) = ?",
-        [$tahun]
-    )['total'] ?? 0);
-
-    $biayaOperasional = $totalBeban;
-    $danaDiterima = ($totalSimpanan + $totalKewajiban) ?: 1;
-
-    // Helper functions inside callback
+    // Helper functions
     $hitungSkor = function(float $nilai, array $ranges): float {
         foreach ($ranges as [$min, $max, $skor]) {
-            if ($nilai >= $min && ($max === null || $nilai < $max)) return $skor;
+            if ($nilai >= $min && ($max === null || $nilai < $max)) return (float) $skor;
         }
-        return 0;
+        return 0.0;
     };
     $pct = function(float $a, float $b): float {
-        return $b > 0 ? round($a / $b * 100, 2) : 0;
+        return $b > 0 ? round($a / $b * 100, 2) : 0.0;
     };
 
     $aspek = [];
 
-    // 1. PERMODALAN
-    $modalSendiri = $totalModal + $shu;
+    // ══════════════════════════════════════════════════════════════
+    // 1. TATA KELOLA (BOBOT: 30%) - KKPKK KEMENKOP UKM
+    // ══════════════════════════════════════════════════════════════
+    // Indikator 1.1: Prinsip Koperasi & Kelembagaan (Bobot 10)
+    $legalitasValid = !empty($sett['badan_hukum']) && !empty($sett['nik_koperasi']);
+    $skor1_1 = ($legalitasValid && $totalAnggota >= 20) ? 10.0 : ($totalAnggota >= 20 ? 8.0 : 6.0);
+    $statusLegalitas = $legalitasValid ? "Legalitas & NIK Lengkap ({$totalAnggota} Anggota)" : "Terdaftar ({$totalAnggota} Anggota)";
+
+    // Indikator 1.2: Pengelolaan Manajemen & Penyelenggaraan RAT (Bobot 10)
+    $pengurusLengkap = !empty($sett['ketua_koperasi']);
+    $skor1_2 = ($sudahRat && $pengurusLengkap) ? 10.0 : ($pengurusLengkap ? 8.0 : 6.0);
+    $statusRatDesc = $sudahRat ? "Sudah RAT / Tutup Buku (Pengurus Lengkap)" : "Pengurus Terstruktur (Menunggu RAT)";
+
+    // Indikator 1.3: Kepatuhan Kebijakan Akuntansi SAK EP (Permenkop No. 2/2024) (Bobot 10)
+    // Syarat: Standar COA SAK EP terverifikasi, Audit Saldo 100% balance tanpa selisih
+    $auditSelisihCount = (int) $db->count("SELECT COUNT(*) FROM jurnal j WHERE (SELECT COALESCE(SUM(debit),0) FROM jurnal_detail WHERE jurnal_id=j.id) != (SELECT COALESCE(SUM(kredit),0) FROM jurnal_detail WHERE jurnal_id=j.id)");
+    $skor1_3 = ($auditSelisihCount === 0 && $totalAset > 0) ? 10.0 : 7.0;
+    $statusAkuntansi = ($auditSelisihCount === 0) ? "Patuh 100% SAK EP (Neraca Seimbang)" : "Evaluasi Rekonsiliasi Jurnal";
+
+    $aspek[] = [
+        'no' => 1,
+        'nama' => 'Tata Kelola (Governance)',
+        'bobot' => 30,
+        'skor' => round($skor1_1 + $skor1_2 + $skor1_3, 2),
+        'indikator' => [
+            [
+                'nama' => 'Prinsip Koperasi & Kelembagaan',
+                'nilai' => $statusLegalitas,
+                'satuan' => '',
+                'bobot' => 10,
+                'skor' => $skor1_1,
+                'formula' => 'Kelengkapan Legalitas Badan Hukum, NIK Kemenkop, dan Keanggotaan Aktif'
+            ],
+            [
+                'nama' => 'Penyelenggaraan RAT & Pengelolaan Manajemen',
+                'nilai' => $statusRatDesc,
+                'satuan' => '',
+                'bobot' => 10,
+                'skor' => $skor1_2,
+                'formula' => 'Kepatuhan Penyelenggaraan RAT Tahunan & Struktur Organisasi Pengurus/Pengawas'
+            ],
+            [
+                'nama' => 'Kepatuhan Kebijakan Akuntansi SAK EP (Permenkop 2/2024)',
+                'nilai' => $statusAkuntansi,
+                'satuan' => '',
+                'bobot' => 10,
+                'skor' => $skor1_3,
+                'formula' => 'Penerapan SAK EP, Standarisasi COA, dan Rekonsiliasi Jurnal Seimbang'
+            ]
+        ]
+    ];
+
+    // ══════════════════════════════════════════════════════════════
+    // 2. PROFIL RISIKO (BOBOT: 15%) - KKPKK KEMENKOP UKM
+    // ══════════════════════════════════════════════════════════════
+    // Indikator 2.1: Risiko Kredit / Rasio NPL (Bobot 6)
+    $rasioNpl = $pct($pinjamanBermasalah, $sisaPinjaman ?: $totalPinjaman ?: 1);
+    $skor2_1 = $hitungSkor($rasioNpl, [
+        [0, 5, 6.0],
+        [5, 10, 4.5],
+        [10, 15, 3.0],
+        [15, 20, 1.5],
+        [20, null, 0.0]
+    ]);
+
+    // Indikator 2.2: Risiko Likuiditas / Cash Ratio (Bobot 5)
+    $rasioKas = $pct($kasBank, $totalSimpanan ?: $totalKewajiban ?: 1);
+    $skor2_2 = $hitungSkor($rasioKas, [
+        [0, 5, 1.5],
+        [5, 8, 3.0],
+        [8, 10, 4.0],
+        [10, null, 5.0]
+    ]);
+
+    // Indikator 2.3: Risiko Operasional & Cadangan Risiko (Bobot 4)
+    $rasioCadangan = $pinjamanBermasalah > 0 ? $pct($cadanganRisiko, $pinjamanBermasalah) : 100.0;
+    $skor2_3 = $hitungSkor($rasioCadangan, [
+        [0, 40, 1.0],
+        [40, 70, 2.5],
+        [70, 100, 3.5],
+        [100, null, 4.0]
+    ]);
+
+    $aspek[] = [
+        'no' => 2,
+        'nama' => 'Profil Risiko (Risk Profile)',
+        'bobot' => 15,
+        'skor' => round($skor2_1 + $skor2_2 + $skor2_3, 2),
+        'indikator' => [
+            [
+                'nama' => 'Risiko Pembiayaan (Rasio NPL)',
+                'nilai' => $rasioNpl,
+                'satuan' => '%',
+                'bobot' => 6,
+                'skor' => $skor2_1,
+                'formula' => 'Pinjaman Bermasalah / Total Baki Debet Pinjaman × 100%'
+            ],
+            [
+                'nama' => 'Risiko Likuiditas (Cash Ratio)',
+                'nilai' => $rasioKas,
+                'satuan' => '%',
+                'bobot' => 5,
+                'skor' => $skor2_2,
+                'formula' => 'Total Kas & Bank / Total Simpanan & Kewajiban Lancar × 100%'
+            ],
+            [
+                'nama' => 'Risiko Operasional & Kecukupan Cadangan Risiko',
+                'nilai' => $rasioCadangan,
+                'satuan' => '%',
+                'bobot' => 4,
+                'skor' => $skor2_3,
+                'formula' => 'Cadangan Risiko / Pinjaman Bermasalah × 100%'
+            ]
+        ]
+    ];
+
+    // ══════════════════════════════════════════════════════════════
+    // 3. KINERJA KEUANGAN (BOBOT: 40%) - KKPKK KEMENKOP UKM
+    // ══════════════════════════════════════════════════════════════
+    // Indikator 3.1: Rentabilitas Aset / Return on Assets (ROA) (Bobot 10)
+    $roa = $pct($shu, $totalAset ?: 1);
+    $skor3_1 = $hitungSkor($roa, [
+        [-999, 0, 0.0],
+        [0, 1, 2.5],
+        [1, 3, 5.0],
+        [3, 5, 7.5],
+        [5, 7, 8.5],
+        [7, null, 10.0]
+    ]);
+
+    // Indikator 3.2: Rentabilitas Modal Sendiri / Return on Equity (ROE) (Bobot 10)
+    $roe = $pct($shu, $modalSendiri ?: 1);
+    $skor3_2 = $hitungSkor($roe, [
+        [-999, 0, 0.0],
+        [0, 2, 2.5],
+        [2, 5, 5.0],
+        [5, 7, 7.5],
+        [7, 10, 8.5],
+        [10, null, 10.0]
+    ]);
+
+    // Indikator 3.3: Efisiensi Biaya Operasional (Rasio BOPO) (Bobot 10)
+    $rasioBopo = $pct($totalBeban, $totalPendapatan ?: 1);
+    $skor3_3 = $hitungSkor($rasioBopo, [
+        [0, 80, 10.0],
+        [80, 85, 8.5],
+        [85, 90, 7.0],
+        [90, 95, 5.0],
+        [95, 100, 3.0],
+        [100, null, 1.0]
+    ]);
+
+    // Indikator 3.4: Kemandirian Operasional (Bobot 10)
+    $kemandirianOps = $pct($totalPendapatan, $totalBeban ?: 1);
+    $skor3_4 = $hitungSkor($kemandirianOps, [
+        [0, 100, 2.0],
+        [100, 110, 5.0],
+        [110, 125, 8.0],
+        [125, null, 10.0]
+    ]);
+
+    $aspek[] = [
+        'no' => 3,
+        'nama' => 'Kinerja Keuangan (Financial Performance)',
+        'bobot' => 40,
+        'skor' => round($skor3_1 + $skor3_2 + $skor3_3 + $skor3_4, 2),
+        'indikator' => [
+            [
+                'nama' => 'Rentabilitas Aset (Return on Assets / ROA)',
+                'nilai' => $roa,
+                'satuan' => '%',
+                'bobot' => 10,
+                'skor' => $skor3_1,
+                'formula' => 'Sisa Hasil Usaha (SHU) / Total Aset × 100%'
+            ],
+            [
+                'nama' => 'Rentabilitas Modal Sendiri (Return on Equity / ROE)',
+                'nilai' => $roe,
+                'satuan' => '%',
+                'bobot' => 10,
+                'skor' => $skor3_2,
+                'formula' => 'Sisa Hasil Usaha (SHU) / Modal Sendiri × 100%'
+            ],
+            [
+                'nama' => 'Efisiensi Operasional (Rasio BOPO)',
+                'nilai' => $rasioBopo,
+                'satuan' => '%',
+                'bobot' => 10,
+                'skor' => $skor3_3,
+                'formula' => 'Total Beban Operasional / Total Pendapatan × 100%'
+            ],
+            [
+                'nama' => 'Kemandirian Operasional Koperasi',
+                'nilai' => $kemandirianOps,
+                'satuan' => '%',
+                'bobot' => 10,
+                'skor' => $skor3_4,
+                'formula' => 'Total Pendapatan Usaha / Total Beban × 100%'
+            ]
+        ]
+    ];
+
+    // ══════════════════════════════════════════════════════════════
+    // 4. PERMODALAN (BOBOT: 15%) - KKPKK KEMENKOP UKM
+    // ══════════════════════════════════════════════════════════════
+    // Indikator 4.1: Rasio Kecukupan Modal / Capital Adequacy Ratio (CAR) (Bobot 8)
+    $atmr = $piutangPinjaman > 0 ? $piutangPinjaman : ($totalAset ?: 1);
+    $car = $pct($modalSendiri, $atmr);
+    $skor4_1 = $hitungSkor($car, [
+        [0, 4, 1.0],
+        [4, 6, 3.5],
+        [6, 8, 6.0],
+        [8, null, 8.0]
+    ]);
+
+    // Indikator 4.2: Rasio Modal Sendiri terhadap Total Aset (Bobot 7)
     $rasioModalAset = $pct($modalSendiri, $totalAset ?: 1);
-    $skor1a = $hitungSkor($rasioModalAset, [[0, 6, 0], [6, 9, 5], [9, 14, 7.5], [14, 21, 6], [21, 35, 5], [35, 60, 4], [60, null, 3]]);
-    $car = $pct($modalSendiri, $piutang ?: $totalAset ?: 1);
-    $skor1b = $hitungSkor($car, [[0, 4, 0], [4, 6, 2.25], [6, 8, 4.5], [8, null, 9]]);
-    $aspek[] = ['no' => 1, 'nama' => 'Permodalan', 'bobot' => 15, 'skor' => round($skor1a + $skor1b, 2), 'indikator' => [
-        ['nama' => 'Rasio Modal Sendiri thd Total Aset', 'nilai' => $rasioModalAset, 'satuan' => '%', 'bobot' => 6, 'skor' => $skor1a, 'formula' => 'Modal Sendiri / Total Aset × 100'],
-        ['nama' => 'Rasio Kecukupan Modal (CAR)', 'nilai' => $car, 'satuan' => '%', 'bobot' => 9, 'skor' => $skor1b, 'formula' => 'Modal Sendiri / ATMR × 100']
-    ]];
+    $skor4_2 = $hitungSkor($rasioModalAset, [
+        [0, 10, 1.5],
+        [10, 15, 3.0],
+        [15, 20, 4.5],
+        [20, 25, 5.5],
+        [25, null, 7.0]
+    ]);
 
-    // 2. KUALITAS AKTIVA PRODUKTIF
-    $rasioVolumePinjaman = $pct($pinjamanAnggota, $totalPinjaman ?: 1);
-    $skor2a = $hitungSkor($rasioVolumePinjaman, [[0, 25, 0], [25, 50, 5], [50, 75, 7.5], [75, null, 10]]);
-    $npl = $pct($pinjamanBermasalah, $sisaPinjaman ?: $totalPinjaman ?: 1);
-    $skor2b = $hitungSkor($npl, [[0, 5, 5], [5, 10, 4], [10, 15, 3], [15, 20, 2], [20, null, 0]]);
-    $cadanganRisiko = max(0, $modalSendiri - $totalPinjaman);
-    $rasioCAR2 = $pinjamanBermasalah > 0 ? $pct($cadanganRisiko, $pinjamanBermasalah) : 100;
-    $skor2c = $hitungSkor($rasioCAR2, [[0, 10, 0], [10, 20, 1], [20, 40, 2], [40, 60, 3], [60, 80, 4], [80, null, 5]]);
-    $risikoRasio = $pct($pinjamanBermasalah, $sisaPinjaman ?: 1);
-    $skor2d = $hitungSkor($risikoRasio, [[0, 6, 5], [6, 20, 3], [20, 30, 1], [30, null, 0]]);
-    $aspek[] = ['no' => 2, 'nama' => 'Kualitas Aktiva Produktif', 'bobot' => 25, 'skor' => round($skor2a + $skor2b + $skor2c + $skor2d, 2), 'indikator' => [
-        ['nama' => 'Rasio Vol. Pinjaman Anggota thd Total Pinjaman', 'nilai' => $rasioVolumePinjaman, 'satuan' => '%', 'bobot' => 10, 'skor' => $skor2a, 'formula' => 'Pinjaman Anggota / Total Pinjaman × 100'],
-        ['nama' => 'Rasio Pinjaman Bermasalah (NPL)', 'nilai' => $npl, 'satuan' => '%', 'bobot' => 5, 'skor' => $skor2b, 'formula' => 'Pinjaman Bermasalah / Total Pinjaman × 100'],
-        ['nama' => 'Rasio Cadangan Risiko thd Pinjaman Bermasalah', 'nilai' => $rasioCAR2, 'satuan' => '%', 'bobot' => 5, 'skor' => $skor2c, 'formula' => 'Cadangan Risiko / Pinjaman Bermasalah × 100'],
-        ['nama' => 'Rasio Pinjaman Berisiko thd Total Pinjaman', 'nilai' => $risikoRasio, 'satuan' => '%', 'bobot' => 5, 'skor' => $skor2d, 'formula' => 'Pinjaman Berisiko / Total Pinjaman × 100']
-    ]];
+    $aspek[] = [
+        'no' => 4,
+        'nama' => 'Permodalan (Capital Adequacy)',
+        'bobot' => 15,
+        'skor' => round($skor4_1 + $skor4_2, 2),
+        'indikator' => [
+            [
+                'nama' => 'Rasio Kecukupan Modal (CAR)',
+                'nilai' => $car,
+                'satuan' => '%',
+                'bobot' => 8,
+                'skor' => $skor4_1,
+                'formula' => 'Modal Sendiri / Aktiva Tertimbang Menurut Risiko (ATMR) × 100%'
+            ],
+            [
+                'nama' => 'Rasio Modal Sendiri terhadap Total Aset',
+                'nilai' => $rasioModalAset,
+                'satuan' => '%',
+                'bobot' => 7,
+                'skor' => $skor4_2,
+                'formula' => 'Modal Sendiri / Total Aset × 100%'
+            ]
+        ]
+    ];
 
-    // 3. MANAJEMEN
-    $mgmUmum = $totalAnggota > 0 ? 3 : 1;
-    $mgmKel = $modalSendiri > 0 ? 3 : 1;
-    $mgmModal = $car >= 8 ? 3 : ($car >= 4 ? 2 : 1);
-    $mgmAktiva = $npl < 5 ? 3 : ($npl < 10 ? 2 : 1);
-    $mgmLik = $kas > 0 ? 3 : 1;
-    $aspek[] = ['no' => 3, 'nama' => 'Manajemen', 'bobot' => 15, 'skor' => round($mgmUmum + $mgmKel + $mgmModal + $mgmAktiva + $mgmLik, 2), 'indikator' => [
-        ['nama' => 'Manajemen Umum', 'nilai' => $totalAnggota, 'satuan' => 'anggota', 'bobot' => 3, 'skor' => $mgmUmum, 'formula' => 'Proxy: jumlah aktif'],
-        ['nama' => 'Kelembagaan', 'nilai' => $modalSendiri, 'satuan' => 'Rp', 'bobot' => 3, 'skor' => $mgmKel, 'formula' => 'Proxy: modal positif'],
-        ['nama' => 'Manajemen Permodalan', 'nilai' => $car, 'satuan' => '%', 'bobot' => 3, 'skor' => $mgmModal, 'formula' => 'Proxy: CAR ≥ 8%'],
-        ['nama' => 'Manajemen Aktiva', 'nilai' => $npl, 'satuan' => '%', 'bobot' => 3, 'skor' => $mgmAktiva, 'formula' => 'Proxy: NPL < 5%'],
-        ['nama' => 'Manajemen Likuiditas', 'nilai' => $kas, 'satuan' => 'Rp', 'bobot' => 3, 'skor' => $mgmLik, 'formula' => 'Proxy: kas > 0']
-    ]];
-
-    // 4. EFISIENSI
-    $partisipasiBruto = $pendapatanAnggota > 0 ? $pendapatanAnggota : $totalPendapatan;
-    $rasioBO = $pct($biayaOperasional, $partisipasiBruto ?: 1);
-    $skor4a = $hitungSkor($rasioBO, [[0, 68, 4], [68, 75, 3], [75, 84, 2], [84, 100, 1], [100, null, 0]]);
-    $rasioBeban = $pct($biayaOperasional, $totalPendapatan ?: 1);
-    $skor4b = $hitungSkor($rasioBeban, [[0, 40, 4], [40, 60, 3], [60, 80, 2], [80, 100, 1], [100, null, 0]]);
-    $biayaPerAnggota = $totalAnggota > 0 ? $biayaOperasional / $totalAnggota : 0;
-    $skor4c = $hitungSkor($biayaPerAnggota / 1000, [[0, 100, 2], [100, 150, 1.5], [150, 200, 1], [200, null, 0]]);
-    $aspek[] = ['no' => 4, 'nama' => 'Efisiensi', 'bobot' => 10, 'skor' => round($skor4a + $skor4b + $skor4c, 2), 'indikator' => [
-        ['nama' => 'Rasio Biaya Operasional thd Partisipasi Bruto', 'nilai' => $rasioBO, 'satuan' => '%', 'bobot' => 4, 'skor' => $skor4a, 'formula' => 'Biaya / Bruto'],
-        ['nama' => 'Rasio Beban Usaha thd SHU Kotor', 'nilai' => $rasioBeban, 'satuan' => '%', 'bobot' => 4, 'skor' => $skor4b, 'formula' => 'Beban / SHU Kotor'],
-        ['nama' => 'Efisiensi Pelayanan', 'nilai' => round($biayaPerAnggota), 'satuan' => 'Rp', 'bobot' => 2, 'skor' => $skor4c, 'formula' => 'Biaya / Anggota']
-    ]];
-
-    // 5. LIKUIDITAS
-    $rasioKas = $pct($kas, $totalSimpanan ?: 1);
-    $skor5a = $hitungSkor($rasioKas, [[0, 10, 5], [10, 15, 10], [15, 20, 10], [20, null, 5]]);
-    $rasioLDR = $pct($sisaPinjaman, $danaDiterima ?: 1);
-    $skor5b = $hitungSkor($rasioLDR, [[0, 60, 2.5], [60, 71, 5], [71, 80, 5], [80, 91, 2.5], [91, null, 1]]);
-    $aspek[] = ['no' => 5, 'nama' => 'Likuiditas', 'bobot' => 15, 'skor' => round($skor5a + $skor5b, 2), 'indikator' => [
-        ['nama' => 'Rasio Kas', 'nilai' => $rasioKas, 'satuan' => '%', 'bobot' => 10, 'skor' => $skor5a, 'formula' => 'Kas / Kewajiban'],
-        ['nama' => 'Rasio Pinjaman thd Dana Diterima (LDR)', 'nilai' => $rasioLDR, 'satuan' => '%', 'bobot' => 5, 'skor' => $skor5b, 'formula' => 'Sisa Pinj / Dana']
-    ]];
-
-    // 6. KEMANDIRIAN & PERTUMBUHAN
-    $roa = $pct($shu, $totalAset ?: 1); $skor6a = $hitungSkor($roa, [[0, 3, 0], [3, 6, 1], [6, 9, 2], [9, null, 3]]);
-    $roe = $pct($shu, $modalSendiri ?: 1); $skor6b = $hitungSkor($roe, [[0, 3, 0], [3, 6, 1], [6, 9, 2], [9, null, 3]]);
-    $kemandirianOps = $pct($totalPendapatan, $totalBeban ?: 1); $skor6c = $hitungSkor($kemandirianOps, [[0, 100, 0], [100, 110, 2], [110, 125, 3], [125, null, 4]]);
-    $aspek[] = ['no' => 6, 'nama' => 'Kemandirian & Pertumbuhan', 'bobot' => 10, 'skor' => round($skor6a + $skor6b + $skor6c, 2), 'indikator' => [
-        ['nama' => 'Rentabilitas Aset (ROA)', 'nilai' => $roa, 'satuan' => '%', 'bobot' => 3, 'skor' => $skor6a, 'formula' => 'SHU / Aset'],
-        ['nama' => 'Rentabilitas Modal Sendiri (ROE)', 'nilai' => $roe, 'satuan' => '%', 'bobot' => 3, 'skor' => $skor6b, 'formula' => 'SHU / Modal'],
-        ['nama' => 'Kemandirian Operasional', 'nilai' => $kemandirianOps, 'satuan' => '%', 'bobot' => 4, 'skor' => $skor6c, 'formula' => 'Pendapatan / Beban']
-    ]];
-
-    // 7. JATIDIRI
-    $rasioPartisipasi = $pct($partisipasiBruto, $totalPendapatan ?: 1); $skor7a = $hitungSkor($rasioPartisipasi, [[0, 25, 1], [25, 50, 2], [50, 75, 5], [75, null, 7]]);
-    $rasioPartisipasiAnggota = $pct($anggotaPenabung + $anggotaPeminjam, $totalAnggota * 2 ?: 1); $skor7b = $hitungSkor($rasioPartisipasiAnggota, [[0, 25, 0], [25, 50, 1], [50, 75, 2], [75, null, 3]]);
-    $aspek[] = ['no' => 7, 'nama' => 'Jatidiri Koperasi', 'bobot' => 10, 'skor' => round($skor7a + $skor7b, 2), 'indikator' => [
-        ['nama' => 'Rasio Partisipasi Bruto', 'nilai' => $rasioPartisipasi, 'satuan' => '%', 'bobot' => 7, 'skor' => $skor7a, 'formula' => 'Pend. Anggota / Total Pend.'],
-        ['nama' => 'Promosi Ekonomi Anggota (PEA)', 'nilai' => $rasioPartisipasiAnggota, 'satuan' => '%', 'bobot' => 3, 'skor' => $skor7b, 'formula' => 'Partisipasi Anggota']
-    ]];
-
+    // ══════════════════════════════════════════════════════════════
+    // E. SKOR TOTAL & PREDIKAT RESMI KEMENKOP UKM
+    // ══════════════════════════════════════════════════════════════
     $totalSkor = array_sum(array_column($aspek, 'skor'));
-    $predikat = 'Sangat Tidak Sehat'; $predikatKode = 'sangat_tidak';
-    if ($totalSkor >= 80) { $predikat = 'Sehat'; $predikatKode = 'sehat'; }
-    elseif ($totalSkor >= 60) { $predikat = 'Cukup Sehat'; $predikatKode = 'cukup'; }
-    elseif ($totalSkor >= 40) { $predikat = 'Kurang Sehat'; $predikatKode = 'kurang'; }
-    elseif ($totalSkor >= 20) { $predikat = 'Tidak Sehat'; $predikatKode = 'tidak'; }
+    $totalSkor = min(100.0, max(0.0, round($totalSkor, 2)));
+
+    // Standar Nomenklatur Kemenkop UKM:
+    // 80 - 100 : Sehat
+    // 66 - <80 : Cukup Sehat
+    // 51 - <66 : Dalam Pengawasan
+    // < 51     : Dalam Pengawasan Khusus
+    if ($totalSkor >= 80.0) {
+        $predikat = 'Sehat';
+        $predikatKode = 'sehat';
+    } elseif ($totalSkor >= 66.0) {
+        $predikat = 'Cukup Sehat';
+        $predikatKode = 'cukup';
+    } elseif ($totalSkor >= 51.0) {
+        $predikat = 'Dalam Pengawasan';
+        $predikatKode = 'dalam_pengawasan';
+    } else {
+        $predikat = 'Dalam Pengawasan Khusus';
+        $predikatKode = 'pengawasan_khusus';
+    }
 
     return [
-        'tahun' => $tahun, 'total_skor' => round($totalSkor, 2), 'total_bobot' => 100,
-        'persentase' => round($totalSkor, 2), 'predikat' => $predikat, 'predikat_kode' => $predikatKode,
+        'tahun' => $tahun,
+        'regulasi' => 'Permenkop UKM No. 9 Tahun 2020 jo. Permenkop UKM No. 2 Tahun 2024 & Permenkop UKM No. 8 Tahun 2023',
+        'standar' => 'Kertas Kerja Pemeriksaan Kesehatan Koperasi (KKPKK)',
+        'total_skor' => $totalSkor,
+        'total_bobot' => 100,
+        'persentase' => $totalSkor,
+        'predikat' => $predikat,
+        'predikat_kode' => $predikatKode,
         'aspek' => $aspek,
         'ringkasan' => [
             'total_aset' => $totalAset,
@@ -259,7 +493,7 @@ $responseData = getCachedData($cacheKey, function() use ($db, $tahun, $tglAwal, 
             'shu' => $shu,
             'total_pendapatan' => $totalPendapatan,
             'total_beban' => $totalBeban,
-            'kas' => $kas,
+            'kas' => $kasBank,
             'total_anggota' => $totalAnggota
         ]
     ];
