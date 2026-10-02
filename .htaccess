@@ -1,5 +1,9 @@
 RewriteEngine On
 
+# Block direct web access to internal documentation folder
+RewriteRule ^docs(/.*)?$ - [F,L]
+
+
 # 0. Force trailing slash for the main directory to ensure relative assets load correctly
 RewriteCond %{REQUEST_URI} !/$
 RewriteCond %{REQUEST_FILENAME} -d
