@@ -1,4 +1,4 @@
-const CACHE_NAME = 'koperasi-portal-v77';
+const CACHE_NAME = 'koperasi-portal-v78';
 const ASSETS = [
     './',
     'index.html',
@@ -37,14 +37,22 @@ self.addEventListener('fetch', e => {
 
     // API Requests: Network First, Fallback to Cache
     if (e.request.url.includes('/api/')) {
+        // Do not cache non-GET requests (e.g., POST login, PUT, DELETE)
+        if (e.request.method !== 'GET') {
+            e.respondWith(fetch(e.request));
+            return;
+        }
+
         e.respondWith(
             fetch(e.request)
                 .then(response => {
-                    // Update cache with latest API response
-                    const clonedResponse = response.clone();
-                    caches.open(CACHE_NAME).then(cache => {
-                        cache.put(e.request, clonedResponse);
-                    });
+                    // Only cache successful 200 responses (do not cache 401 or 500 errors)
+                    if (response.status === 200) {
+                        const clonedResponse = response.clone();
+                        caches.open(CACHE_NAME).then(cache => {
+                            cache.put(e.request, clonedResponse);
+                        });
+                    }
                     return response;
                 })
                 .catch(() => {

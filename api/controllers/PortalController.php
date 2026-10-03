@@ -309,13 +309,18 @@ switch ($id) {
 
         $pendingPengajuan = null;
         if ($tagihan) {
-            $pendingPengajuan = $db->fetch(
-                "SELECT id, no_pengajuan, status, tgl_pengajuan 
-                 FROM pengajuan_angsuran 
-                 WHERE angsuran_id = ? AND status = 'pending'
-                 LIMIT 1",
-                [$tagihan['angsuran_id']]
-            );
+            try {
+                $pendingPengajuan = $db->fetch(
+                    "SELECT id, no_pengajuan, status, tgl_pengajuan 
+                     FROM pengajuan_angsuran 
+                     WHERE angsuran_id = ? AND status = 'pending'
+                     LIMIT 1",
+                    [$tagihan['angsuran_id']]
+                );
+            } catch (Exception $e) {
+                // Table might not exist yet if db migration hasn't been run
+                $pendingPengajuan = null;
+            }
         }
 
         // Cek apakah anggota memiliki pinjaman berstatus cair sama sekali
@@ -401,33 +406,37 @@ switch ($id) {
         }
 
         // 3. Pengajuan Angsuran Sukarela Status
-        $recentPengajuan = $db->fetchAll(
-            "SELECT pa.id, pa.no_pengajuan, pa.angsuran_ke, pa.total_bayar, pa.status, pa.tgl_pengajuan, pa.tgl_approval, pa.alasan_penolakan, p.no_pinjaman
-             FROM pengajuan_angsuran pa
-             JOIN pinjaman p ON pa.pinjaman_id = p.id
-             WHERE pa.anggota_id = ? AND pa.tgl_pengajuan >= DATE_SUB(NOW(), INTERVAL 14 DAY)
-             ORDER BY pa.id DESC",
-            [$anggotaId]
-        );
+        try {
+            $recentPengajuan = $db->fetchAll(
+                "SELECT pa.id, pa.no_pengajuan, pa.angsuran_ke, pa.total_bayar, pa.status, pa.tgl_pengajuan, pa.tgl_approval, pa.alasan_penolakan, p.no_pinjaman
+                 FROM pengajuan_angsuran pa
+                 JOIN pinjaman p ON pa.pinjaman_id = p.id
+                 WHERE pa.anggota_id = ? AND pa.tgl_pengajuan >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+                 ORDER BY pa.id DESC",
+                [$anggotaId]
+            );
 
-        foreach ($recentPengajuan as $pa) {
-            $statusText = $pa['status'] === 'pending' ? 'Sedang Diverifikasi Bendahara' : ($pa['status'] === 'disetujui' ? 'Telah Disetujui & Lunas' : 'Ditolak: ' . ($pa['alasan_penolakan'] ?: '-'));
-            $color = $pa['status'] === 'pending' ? 'text-amber-500' : ($pa['status'] === 'disetujui' ? 'text-emerald-500' : 'text-rose-500');
-            $bg = $pa['status'] === 'pending' ? 'bg-amber-50' : ($pa['status'] === 'disetujui' ? 'bg-emerald-50' : 'bg-rose-50');
-            $icon = $pa['status'] === 'pending' ? 'bi-clock-history' : ($pa['status'] === 'disetujui' ? 'bi-check-circle-fill' : 'bi-x-circle-fill');
+            foreach ($recentPengajuan as $pa) {
+                $statusText = $pa['status'] === 'pending' ? 'Sedang Diverifikasi Bendahara' : ($pa['status'] === 'disetujui' ? 'Telah Disetujui & Lunas' : 'Ditolak: ' . ($pa['alasan_penolakan'] ?: '-'));
+                $color = $pa['status'] === 'pending' ? 'text-amber-500' : ($pa['status'] === 'disetujui' ? 'text-emerald-500' : 'text-rose-500');
+                $bg = $pa['status'] === 'pending' ? 'bg-amber-50' : ($pa['status'] === 'disetujui' ? 'bg-emerald-50' : 'bg-rose-50');
+                $icon = $pa['status'] === 'pending' ? 'bi-clock-history' : ($pa['status'] === 'disetujui' ? 'bi-check-circle-fill' : 'bi-x-circle-fill');
 
-            $notifications[] = [
-                'id' => 'pa_' . $pa['id'],
-                'type' => 'angsuran_sukarela',
-                'title' => 'Pengajuan Angsuran ke-' . $pa['angsuran_ke'],
-                'message' => $statusText,
-                'sub_message' => $pa['no_pinjaman'] . " (" . $pa['no_pengajuan'] . ") Rp " . number_format($pa['total_bayar'], 0, ',', '.'),
-                'date' => substr($pa['tgl_pengajuan'], 0, 10),
-                'icon' => $icon,
-                'color' => $color,
-                'bg' => $bg,
-                'raw_date' => $pa['tgl_approval'] ?: $pa['tgl_pengajuan']
-            ];
+                $notifications[] = [
+                    'id' => 'pa_' . $pa['id'],
+                    'type' => 'angsuran_sukarela',
+                    'title' => 'Pengajuan Angsuran ke-' . $pa['angsuran_ke'],
+                    'message' => $statusText,
+                    'sub_message' => $pa['no_pinjaman'] . " (" . $pa['no_pengajuan'] . ") Rp " . number_format($pa['total_bayar'], 0, ',', '.'),
+                    'date' => substr($pa['tgl_pengajuan'], 0, 10),
+                    'icon' => $icon,
+                    'color' => $color,
+                    'bg' => $bg,
+                    'raw_date' => $pa['tgl_approval'] ?: $pa['tgl_pengajuan']
+                ];
+            }
+        } catch (Exception $e) {
+            // Table might not exist yet if db migration hasn't been run
         }
 
         // Sort by date desc

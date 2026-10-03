@@ -63,9 +63,10 @@ const Portal = {
 
             const wasLoggedIn = localStorage.getItem('kop_was_logged_in') === 'true';
             
-            // Treat as unauthorized if 401 OR (success is false AND it's not a login attempt)
-            // We no longer treat empty arrays as expired because new members might have empty balances/loans.
-            const isUnauthorized = (r.status === 401) || (json && json.success === false && !isLoginRequest);
+            // Treat as unauthorized ONLY if 401 Unauthorized or response explicitly says session expired
+            // Do not treat server errors (500) or general business logic errors as session expired!
+            const isSessionExpiredMsg = json && json.success === false && typeof json.message === 'string' && json.message.toLowerCase().includes('sesi');
+            const isUnauthorized = (r.status === 401) || (isSessionExpiredMsg && !isLoginRequest);
 
             // Handle Unauthorized / Session Expired
             if (isUnauthorized && wasLoggedIn) {

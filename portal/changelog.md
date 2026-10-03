@@ -4,6 +4,11 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [1.7.1] - 2026-10-04
+### Fixed
+- **Session Expiry False-Positive**: Memperbaiki validasi sesi di `portal.js` agar error status 500 tidak disalahartikan sebagai sesi habis.
+- **Service Worker API Caching**: Memperbaiki `sw.js` agar hanya menyimpan response API berstatus 200 GET, mencegah error caching pada request POST login dan caching error 500/401.
+
 ## [1.7.0] - 2026-09-21
 ### Added
 - **Widget Tagihan & Jadwal Angsuran Terdekat (Billing Card)**:
