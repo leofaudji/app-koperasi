@@ -3672,20 +3672,26 @@ const Portal = {
         if (empty) empty.classList.add('hidden');
 
         grid.innerHTML = products.map(p => {
+            const pId = Number(p.id);
             const hemat = p.harga_umum - p.harga_anggota;
-            const inCart = this.tokoCart.find(c => c.id === p.id);
+            const inCart = this.tokoCart.find(c => Number(c.id) === pId);
             const qtyInCart = inCart ? inCart.qty : 0;
+            const isHabis = parseInt(p.stok) <= 0;
             const img = p.gambar || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300';
             return `
-            <div class="bg-white dark:bg-obsidian-900 rounded-2xl border border-gray-100 dark:border-obsidian-800 shadow-sm overflow-hidden flex flex-col justify-between transition-all hover:shadow-md">
+            <div class="bg-white dark:bg-obsidian-900 rounded-2xl border border-gray-100 dark:border-obsidian-800 shadow-sm overflow-hidden flex flex-col justify-between transition-all hover:shadow-md ${isHabis ? 'opacity-70' : ''}">
                 <div>
                     <div class="relative w-full h-32 bg-gray-100 dark:bg-obsidian-800 overflow-hidden">
                         <img src="${img}" alt="${p.nama_produk}" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=300';">
                         ${hemat > 0 ? `<span class="absolute top-2 left-2 bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-sm">Hemat ${this.rp(hemat)}</span>` : ''}
                         <span class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md text-white text-[8px] font-bold px-2 py-0.5 rounded-full">${p.satuan}</span>
+                        ${isHabis ? `<span class="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center text-white text-[11px] font-black uppercase tracking-wider">Stok Habis</span>` : ''}
                     </div>
                     <div class="p-3">
-                        <p class="text-[9px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider mb-0.5">${p.kategori}</p>
+                        <div class="flex items-center justify-between mb-0.5">
+                            <p class="text-[9px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">${p.kategori}</p>
+                            <span class="text-[9px] ${parseInt(p.stok) <= 5 ? 'text-rose-500 font-bold' : 'text-gray-400 dark:text-obsidian-400'}">Sisa ${p.stok}</span>
+                        </div>
                         <h4 class="text-xs font-bold text-gray-900 dark:text-obsidian-100 line-clamp-2 leading-tight">${p.nama_produk}</h4>
                         <div class="mt-2 flex items-baseline gap-1.5 flex-wrap">
                             <span class="text-xs font-black text-emerald-600 dark:text-emerald-400">${this.rp(p.harga_anggota)}</span>
@@ -3694,29 +3700,56 @@ const Portal = {
                     </div>
                 </div>
                 <div class="p-3 pt-0">
-                    ${qtyInCart > 0 ? `
+                    ${isHabis ? `
+                    <button disabled class="w-full py-2 bg-gray-100 dark:bg-obsidian-800 text-gray-400 text-[11px] font-bold rounded-xl cursor-not-allowed">
+                        Stok Habis
+                    </button>` : (qtyInCart > 0 ? `
                     <div class="flex items-center justify-between bg-amber-50 dark:bg-amber-900/30 rounded-xl p-1 border border-amber-200 dark:border-amber-800/50">
-                        <button onclick="Portal.changeCartQty(${p.id}, -1)" class="w-7 h-7 rounded-lg bg-white dark:bg-obsidian-800 text-amber-600 font-bold flex items-center justify-center shadow-sm active:scale-90 transition-all">-</button>
+                        <button onclick="Portal.changeCartQty(${pId}, -1)" class="w-7 h-7 rounded-lg bg-white dark:bg-obsidian-800 text-amber-600 font-bold flex items-center justify-center shadow-sm active:scale-90 transition-all">-</button>
                         <span class="text-xs font-black text-amber-700 dark:text-amber-300">${qtyInCart}</span>
-                        <button onclick="Portal.changeCartQty(${p.id}, 1)" class="w-7 h-7 rounded-lg bg-amber-500 text-white font-bold flex items-center justify-center shadow-sm active:scale-90 transition-all">+</button>
+                        <button onclick="Portal.changeCartQty(${pId}, 1)" class="w-7 h-7 rounded-lg bg-amber-500 text-white font-bold flex items-center justify-center shadow-sm active:scale-90 transition-all">+</button>
                     </div>` : `
-                    <button onclick="Portal.addToCart(${p.id})" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-xl shadow-sm shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+                    <button onclick="Portal.addToCart(${pId})" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-xl shadow-sm shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5">
                         <i class="bi bi-cart-plus"></i> Beli
-                    </button>`}
+                    </button>`)}
                 </div>
             </div>`;
         }).join('');
     },
 
     addToCart(productId) {
-        const prod = this.tokoProdukList.find(p => p.id === productId);
-        if (!prod) return;
-        const existing = this.tokoCart.find(c => c.id === productId);
+        const pId = Number(productId);
+        const prod = this.tokoProdukList.find(p => Number(p.id) === pId);
+        if (!prod) {
+            console.warn('Produk tidak ditemukan di daftar:', productId, this.tokoProdukList);
+            return;
+        }
+        if (parseInt(prod.stok) <= 0) {
+            Swal.fire({
+                title: 'Stok Kosong',
+                text: 'Maaf, stok produk ini sedang habis.',
+                icon: 'warning',
+                confirmButtonColor: '#f59e0b',
+                customClass: { popup: 'rounded-[2rem] dark:bg-obsidian-900' }
+            });
+            return;
+        }
+        const existing = this.tokoCart.find(c => Number(c.id) === pId);
         if (existing) {
+            if (existing.qty >= parseInt(prod.stok)) {
+                Swal.fire({
+                    title: 'Batas Stok',
+                    text: `Maksimal pembelian ${prod.stok} ${prod.satuan}.`,
+                    icon: 'warning',
+                    confirmButtonColor: '#f59e0b',
+                    customClass: { popup: 'rounded-[2rem] dark:bg-obsidian-900' }
+                });
+                return;
+            }
             existing.qty += 1;
         } else {
             this.tokoCart.push({
-                id: prod.id,
+                id: pId,
                 nama: prod.nama_produk,
                 harga: parseFloat(prod.harga_anggota),
                 qty: 1,
@@ -3730,11 +3763,23 @@ const Portal = {
     },
 
     changeCartQty(productId, delta) {
-        const item = this.tokoCart.find(c => c.id === productId);
+        const pId = Number(productId);
+        const item = this.tokoCart.find(c => Number(c.id) === pId);
         if (!item) return;
+        const prod = this.tokoProdukList.find(p => Number(p.id) === pId);
+        if (delta > 0 && prod && item.qty >= parseInt(prod.stok)) {
+            Swal.fire({
+                title: 'Batas Stok',
+                text: `Stok tersedia hanya ${prod.stok} ${prod.satuan}.`,
+                icon: 'warning',
+                confirmButtonColor: '#f59e0b',
+                customClass: { popup: 'rounded-[2rem] dark:bg-obsidian-900' }
+            });
+            return;
+        }
         item.qty += delta;
         if (item.qty <= 0) {
-            this.tokoCart = this.tokoCart.filter(c => c.id !== productId);
+            this.tokoCart = this.tokoCart.filter(c => Number(c.id) !== pId);
         }
         this.haptic('light');
         this.renderTokoCartBar();

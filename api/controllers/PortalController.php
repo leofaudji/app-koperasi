@@ -1029,6 +1029,15 @@ switch ($id) {
         $query .= " ORDER BY id ASC";
         $produk = $db->fetchAll($query, $p);
 
+        // Pastikan tipe data numerik ter-cast dengan benar di semua environment PHP/PDO
+        foreach ($produk as &$pr) {
+            $pr['id'] = (int) $pr['id'];
+            $pr['harga_umum'] = (float) $pr['harga_umum'];
+            $pr['harga_anggota'] = (float) $pr['harga_anggota'];
+            $pr['stok'] = (int) $pr['stok'];
+        }
+        unset($pr);
+
         // Ambil daftar kategori unik
         $kategoriList = $db->fetchAll("SELECT DISTINCT kategori FROM toko_produk WHERE is_active = 1 ORDER BY kategori ASC");
 

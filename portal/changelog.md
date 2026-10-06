@@ -4,6 +4,13 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [1.8.2] - 2026-10-06
+### Fixed & Improved
+- **Perbaikan Tombol Beli & Keranjang Toko Koperasi di Server Produksi**:
+    - Memperbaiki kegagalan perbandingan ID produk (`strict type comparison mismatch` antara string PDO database dan number JavaScript) yang menyebabkan tombol "Beli" tidak merespons di lingkungan server produksi.
+    - Menambahkan *type casting* integer/float secara eksplisit pada endpoint `/api/portal/retail-produk`.
+    - Menambahkan validasi dan notifikasi batas sisa stok serta indikator visual *"Stok Habis"*.
+
 ## [1.8.1] - 2026-10-04
 ### Fixed & Improved
 - **Sinkronisasi 100% Predikat & Skor Kesehatan Koperasi (KKPKK)**:
