@@ -1008,6 +1008,9 @@ const Portal = {
             this.renderBillingCard(rTagihan.data);
         }
 
+        // Muat Status Kesehatan & Transparansi Koperasi untuk banner
+        this.loadTransparansiBanner();
+
         // Update Dynamic Greeting (Home Tab)
         const greeting = this.getGreeting();
         const elGreetText = document.getElementById('h-greeting-text');
@@ -1518,6 +1521,7 @@ const Portal = {
         else if (name === 'rat') await this.loadRAT();
         else if (name === 'laporan') await this.loadLaporan();
         else if (name === 'profil') this.loadProfil();
+        else if (name === 'toko') await this.loadToko();
     },
 
     loadProfil() {
@@ -3198,6 +3202,769 @@ const Portal = {
         const randomTip = tips[Math.floor(Math.random() * tips.length)];
         const tipEl = document.getElementById('splash-tip');
         if (tipEl) tipEl.textContent = randomTip;
+    },
+
+    // ══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
+    // MODUL: TRANSPARANSI & KESEHATAN KOPERASI
+    // ══════════════════════════════════════════════════════════════
+    async loadTransparansiBanner() {
+        try {
+            const res = await this.api('portal/transparansi-kesehatan');
+            if (res?.success && res.data) {
+                this.kesehatanData = res.data;
+                this.updateTransparansiBanner(res.data);
+            }
+        } catch (e) {
+            console.warn('Gagal sinkronisasi banner kesehatan koperasi:', e);
+        }
+    },
+
+    updateTransparansiBanner(d) {
+        if (!d) return;
+        const badge = document.getElementById('banner-transparansi-badge');
+        const desc = document.getElementById('banner-transparansi-desc');
+        const icon = document.getElementById('banner-transparansi-icon');
+        const banner = document.getElementById('banner-transparansi');
+
+        if (badge) {
+            badge.className = `px-2 py-0.5 rounded-full ${d.badge_color || 'bg-emerald-400 text-gray-900'} text-[8px] font-black uppercase tracking-wider`;
+            badge.textContent = d.badge_label || (d.predikat ? d.predikat.toUpperCase() : 'SEHAT');
+        }
+        if (desc) {
+            desc.textContent = `Skor KKPKK: ${d.skor_akhir}/100 · Predikat: ${d.predikat}`;
+        }
+        if (icon && d.icon) {
+            icon.innerHTML = `<i class="bi ${d.icon}"></i>`;
+        }
+        if (banner && d.bg_gradient) {
+            banner.className = `cursor-pointer bg-gradient-to-r ${d.bg_gradient} rounded-2xl p-4 text-white shadow-lg flex items-center justify-between transition-all active:scale-[0.98]`;
+        }
+    },
+
+    async showTransparansiModal() {
+        this.haptic('light');
+        if (window.Swal) {
+            Swal.fire({
+                title: 'Memuat Transparansi...',
+                html: '<div class="flex justify-center py-4"><i class="bi bi-arrow-repeat animate-spin text-3xl text-teal-500"></i></div>',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                customClass: { popup: 'rounded-[2.5rem] dark:bg-obsidian-900 p-6' }
+            });
+        }
+
+        const res = await this.api('portal/transparansi-kesehatan');
+        if (window.Swal) Swal.close();
+
+        if (!res?.success || !res.data) {
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Memuat Data',
+                    text: 'Informasi kepatuhan belum dapat diakses saat ini.',
+                    confirmButtonColor: '#0d9488',
+                    customClass: { popup: 'rounded-[2.5rem] dark:bg-obsidian-900 p-6' }
+                });
+            }
+            return;
+        }
+
+        const d = res.data;
+        this.kesehatanData = d;
+        this.updateTransparansiBanner(d);
+
+        const pilarHtml = d.pilar.map(p => `
+            <div class="bg-gray-50 dark:bg-obsidian-800/50 p-3.5 rounded-2xl border border-gray-100 dark:border-obsidian-700/50 text-left">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold text-gray-800 dark:text-obsidian-100">${p.nama}</span>
+                    <span class="text-xs font-black text-teal-600 dark:text-teal-400">${p.skor} / ${p.bobot}</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-obsidian-700 h-2 rounded-full overflow-hidden mb-1">
+                    <div class="bg-gradient-to-r from-teal-500 to-emerald-500 h-full rounded-full" style="width: ${Math.min(100, (p.skor/p.bobot)*100)}%"></div>
+                </div>
+                <span class="text-[9px] text-gray-500 dark:text-obsidian-400 font-medium">${p.status}</span>
+            </div>
+        `).join('');
+
+        const nplFormatted = d.indikator_publik.rasio_npl <= 5 ? `${d.indikator_publik.rasio_npl}% (Sehat)` : `${d.indikator_publik.rasio_npl}% (Perlu Perhatian)`;
+
+        const publikHtml = `
+            <div class="grid grid-cols-2 gap-2 text-left pt-2">
+                <div class="bg-teal-50/60 dark:bg-teal-900/20 p-3 rounded-2xl border border-teal-100 dark:border-teal-800/40">
+                    <p class="text-[9px] text-teal-700 dark:text-teal-300 font-bold uppercase tracking-wider">Total Aset Publik</p>
+                    <p class="text-xs font-black text-teal-900 dark:text-teal-100 mt-0.5">${this.rp(d.indikator_publik.total_aset)}</p>
+                </div>
+                <div class="bg-blue-50/60 dark:bg-blue-900/20 p-3 rounded-2xl border border-blue-100 dark:border-blue-800/40">
+                    <p class="text-[9px] text-blue-700 dark:text-blue-300 font-bold uppercase tracking-wider">Modal Sendiri</p>
+                    <p class="text-xs font-black text-blue-900 dark:text-blue-100 mt-0.5">${this.rp(d.indikator_publik.modal_sendiri)}</p>
+                </div>
+                <div class="bg-emerald-50/60 dark:bg-emerald-900/20 p-3 rounded-2xl border border-emerald-100 dark:border-emerald-800/40">
+                    <p class="text-[9px] text-emerald-700 dark:text-emerald-300 font-bold uppercase tracking-wider">Anggota Aktif</p>
+                    <p class="text-xs font-black text-emerald-900 dark:text-emerald-100 mt-0.5">${d.indikator_publik.total_anggota} Orang</p>
+                </div>
+                <div class="bg-purple-50/60 dark:bg-purple-900/20 p-3 rounded-2xl border border-purple-100 dark:border-purple-800/40">
+                    <p class="text-[9px] text-purple-700 dark:text-purple-300 font-bold uppercase tracking-wider">Rasio NPL</p>
+                    <p class="text-xs font-black text-purple-900 dark:text-purple-100 mt-0.5">${nplFormatted}</p>
+                </div>
+            </div>
+        `;
+
+        Swal.fire({
+            title: '',
+            html: `
+                <div class="text-center pt-2">
+                    <div class="w-14 h-14 bg-gradient-to-tr ${d.bg_gradient || 'from-emerald-500 to-teal-600'} rounded-3xl flex items-center justify-center mx-auto mb-3 shadow-lg text-white text-2xl">
+                        <i class="bi ${d.icon || 'bi-shield-check'}"></i>
+                    </div>
+                    <h3 class="text-lg font-black text-gray-900 dark:text-obsidian-100 tracking-tight leading-tight">${d.nama_koperasi}</h3>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Badan Hukum: ${d.no_badan_hukum}</p>
+
+                    <!-- Health Score Hero Badge -->
+                    <div class="my-4 p-4 rounded-3xl bg-gradient-to-br ${d.bg_gradient || 'from-emerald-500 to-teal-700'} text-white shadow-xl text-center relative overflow-hidden">
+                        <span class="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[9px] font-black tracking-widest uppercase mb-1">
+                            PREDIKAT RESMI: ${d.predikat.toUpperCase()}
+                        </span>
+                        <h2 class="text-4xl font-black tracking-tight">${d.skor_akhir}<span class="text-lg font-medium opacity-80">/100</span></h2>
+                        <p class="text-[10px] text-white/90 mt-1">${d.regulasi}</p>
+                    </div>
+
+                    <div class="space-y-2 text-left mb-3">
+                        <p class="text-[11px] font-bold text-gray-700 dark:text-obsidian-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="bi bi-bar-chart-fill text-teal-500"></i> Evaluasi 4 Aspek Kemenkop
+                        </p>
+                        ${pilarHtml}
+                    </div>
+
+                    <div class="text-left">
+                        <p class="text-[11px] font-bold text-gray-700 dark:text-obsidian-300 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                            <i class="bi bi-pie-chart-fill text-indigo-500"></i> Indikator Keuangan Terbuka
+                        </p>
+                        ${publikHtml}
+                    </div>
+                </div>
+            `,
+            confirmButtonText: 'Tutup',
+            confirmButtonColor: '#0d9488',
+            customClass: {
+                popup: 'rounded-[2.5rem] p-6 max-w-[440px] dark:bg-obsidian-900',
+                confirmButton: 'rounded-xl w-full py-3 font-bold text-xs shadow-md'
+            }
+        });
+    },
+
+    // ══════════════════════════════════════════════════════════════
+    // MODUL: PUSAT BANTUAN & ASPIRASI PENGAWAS
+    // ══════════════════════════════════════════════════════════════
+    async showBantuanAspirasiModal() {
+        this.haptic('light');
+        if (window.Swal) {
+            Swal.fire({
+                title: 'Memuat Informasi...',
+                html: '<div class="flex justify-center py-4"><i class="bi bi-arrow-repeat animate-spin text-3xl text-rose-500"></i></div>',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                customClass: { popup: 'rounded-[2.5rem] dark:bg-obsidian-900 p-6' }
+            });
+        }
+
+        const res = await this.api('portal/bantuan-info');
+        if (window.Swal) Swal.close();
+
+        const info = res?.data || {
+            wa_admin: '6281234567890',
+            wa_pengawas: '6281987654321',
+            email: 'support@koperasi.id',
+            jam_operasional: 'Senin – Jumat 08.00 – 16.00 WIB',
+            faqs: []
+        };
+
+        const faqItems = (info.faqs || []).map((f, idx) => `
+            <details class="group bg-gray-50 dark:bg-obsidian-800/50 rounded-2xl p-3 border border-gray-100 dark:border-obsidian-700/50 text-left cursor-pointer">
+                <summary class="text-xs font-bold text-gray-800 dark:text-obsidian-200 list-none flex justify-between items-center">
+                    <span>${idx+1}. ${f.q}</span>
+                    <i class="bi bi-chevron-down text-gray-400 group-open:rotate-180 transition-transform text-[10px]"></i>
+                </summary>
+                <p class="text-[11px] text-gray-600 dark:text-obsidian-400 mt-2 leading-relaxed border-t border-gray-100 dark:border-obsidian-700/40 pt-2">${f.a}</p>
+            </details>
+        `).join('');
+
+        Swal.fire({
+            title: '',
+            html: `
+                <div class="text-center pt-2">
+                    <div class="w-14 h-14 bg-gradient-to-tr from-rose-500 to-pink-600 rounded-3xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-pink-500/30 text-white text-2xl">
+                        <i class="bi bi-headset"></i>
+                    </div>
+                    <h3 class="text-lg font-black text-gray-900 dark:text-obsidian-100 tracking-tight leading-tight">Pusat Bantuan & Aspirasi</h3>
+                    <p class="text-[10px] text-gray-400 mt-0.5">Layanan bantuan resmi pengurus dan pengawas koperasi</p>
+
+                    <!-- Action Cards -->
+                    <div class="grid grid-cols-2 gap-2 my-4">
+                        <a href="https://wa.me/${info.wa_admin}?text=Halo%20Admin%20Koperasi,%20saya%20anggota%20dengan%20No%20${this.member?.no_anggota || ''}" target="_blank" class="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/40 rounded-2xl text-left block active:scale-95 transition-all">
+                            <div class="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center text-sm mb-2 shadow-sm">
+                                <i class="bi bi-whatsapp"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-emerald-900 dark:text-emerald-100 leading-tight">Admin & Kasir</h4>
+                            <p class="text-[9px] text-emerald-600 dark:text-emerald-400 mt-0.5">Chat cepat WA</p>
+                        </a>
+                        <a href="https://wa.me/${info.wa_pengawas}?text=Halo%20Badan%20Pengawas%20Koperasi,%20saya%20anggota%20No%20${this.member?.no_anggota || ''}" target="_blank" class="p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200/60 dark:border-purple-800/40 rounded-2xl text-left block active:scale-95 transition-all">
+                            <div class="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center text-sm mb-2 shadow-sm">
+                                <i class="bi bi-shield-lock-fill"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-purple-900 dark:text-purple-100 leading-tight">Dewan Pengawas</h4>
+                            <p class="text-[9px] text-purple-600 dark:text-purple-400 mt-0.5">Kontak independen</p>
+                        </a>
+                    </div>
+
+                    <!-- Kirim Aspirasi Button -->
+                    <button onclick="Portal.openFormAspirasi()" class="w-full py-3 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white text-xs font-bold rounded-2xl shadow-md shadow-pink-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 mb-2.5">
+                        <i class="bi bi-envelope-paper-heart-fill"></i> Kirim Aspirasi / Pengaduan ke Pengawas
+                    </button>
+
+                    <!-- Riwayat Aspirasi Button -->
+                    <button onclick="Portal.openRiwayatAspirasi()" class="w-full py-2 bg-gray-100 dark:bg-obsidian-800 text-gray-700 dark:text-obsidian-300 text-xs font-semibold rounded-xl hover:bg-gray-200 transition-all mb-4 flex items-center justify-center gap-1.5">
+                        <i class="bi bi-clock-history"></i> Lihat Riwayat Aspirasi Saya
+                    </button>
+
+                    <!-- FAQ Accordion -->
+                    <div class="space-y-2 text-left">
+                        <p class="text-[11px] font-bold text-gray-700 dark:text-obsidian-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                            <i class="bi bi-question-circle-fill text-rose-500"></i> Pertanyaan Sering Diajukan (FAQ)
+                        </p>
+                        ${faqItems}
+                    </div>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCloseButton: true,
+            customClass: {
+                popup: 'rounded-[2.5rem] p-6 max-w-[440px] dark:bg-obsidian-900'
+            }
+        });
+    },
+
+    openFormAspirasi() {
+        this.haptic('light');
+        Swal.fire({
+            title: 'Kirim Aspirasi Pengawas',
+            html: `
+                <div class="space-y-3.5 text-left pt-2">
+                    <p class="text-xs text-gray-500 dark:text-obsidian-400">Pesan ini diteruskan langsung ke Badan Pengawas Koperasi untuk evaluasi tata kelola.</p>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-700 dark:text-obsidian-300 mb-1">Kategori</label>
+                        <select id="asp-kategori" class="w-full bg-gray-50 dark:bg-obsidian-800 border border-gray-200 dark:border-obsidian-700 rounded-xl px-3 py-2.5 text-xs text-gray-800 dark:text-obsidian-200 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                            <option value="usulan">💡 Usulan & Saran Kemajuan</option>
+                            <option value="pelayanan">🤝 Pelayanan Petugas & Kasir</option>
+                            <option value="keuangan">💰 Transparansi & Keuangan</option>
+                            <option value="pengawas">⚖️ Pengawasan Kebijakan Pengurus</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-700 dark:text-obsidian-300 mb-1">Judul / Subjek</label>
+                        <input type="text" id="asp-judul" placeholder="Contoh: Usul penambahan produk sembako..." class="w-full bg-gray-50 dark:bg-obsidian-800 border border-gray-200 dark:border-obsidian-700 rounded-xl px-3 py-2.5 text-xs text-gray-800 dark:text-obsidian-200 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-700 dark:text-obsidian-300 mb-1">Isi Pesan Aspirasi</label>
+                        <textarea id="asp-pesan" rows="4" placeholder="Tuliskan aspirasi, kritik konstruktif, atau pengaduan Anda secara rinci..." class="w-full bg-gray-50 dark:bg-obsidian-800 border border-gray-200 dark:border-obsidian-700 rounded-xl p-3 text-xs text-gray-800 dark:text-obsidian-200 focus:outline-none focus:ring-2 focus:ring-rose-500"></textarea>
+                    </div>
+                    <div class="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-obsidian-800 rounded-xl border border-gray-100 dark:border-obsidian-700">
+                        <input type="checkbox" id="asp-anonim" class="w-4 h-4 rounded text-rose-600 focus:ring-rose-500">
+                        <label for="asp-anonim" class="text-[11px] text-gray-700 dark:text-obsidian-300 font-medium cursor-pointer">
+                            Kirim sebagai <strong class="text-rose-600">Anonim</strong> (Nama saya dirahasiakan)
+                        </label>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Kirim Sekarang',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#94a3b8',
+            customClass: {
+                popup: 'rounded-[2.5rem] p-6 max-w-[420px] dark:bg-obsidian-900',
+                confirmButton: 'rounded-xl px-5 py-2.5 font-bold text-xs shadow-md',
+                cancelButton: 'rounded-xl px-5 py-2.5 font-bold text-xs'
+            },
+            preConfirm: () => {
+                const kategori = document.getElementById('asp-kategori').value;
+                const judul = document.getElementById('asp-judul').value.trim();
+                const pesan = document.getElementById('asp-pesan').value.trim();
+                const is_anonim = document.getElementById('asp-anonim').checked ? 1 : 0;
+
+                if (!judul || !pesan) {
+                    Swal.showValidationMessage('Judul dan isi aspirasi tidak boleh kosong');
+                    return false;
+                }
+                return { kategori, judul, pesan, is_anonim };
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Mengirim Aspirasi...',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading(),
+                    customClass: { popup: 'rounded-[2rem] dark:bg-obsidian-900' }
+                });
+
+                const res = await this.api('portal/aspirasi', {
+                    method: 'POST',
+                    body: result.value
+                });
+
+                if (res?.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Aspirasi Terkirim!',
+                        text: `Nomor Tiket Anda: ${res.data?.no_tiket || '-'}. Pesan Anda telah disampaikan ke Dewan Pengawas.`,
+                        confirmButtonColor: '#e11d48',
+                        customClass: { popup: 'rounded-[2rem] dark:bg-obsidian-900' }
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal Mengirim',
+                        text: res?.message || 'Terjadi kesalahan sistem.',
+                        confirmButtonColor: '#e11d48',
+                        customClass: { popup: 'rounded-[2rem]' }
+                    });
+                }
+            }
+        });
+    },
+
+    async openRiwayatAspirasi() {
+        this.haptic('light');
+        Swal.fire({
+            title: 'Memuat Riwayat...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading(),
+            customClass: { popup: 'rounded-[2rem] dark:bg-obsidian-900' }
+        });
+
+        const res = await this.api('portal/aspirasi');
+        Swal.close();
+
+        const list = res?.data || [];
+        if (list.length === 0) {
+            Swal.fire({
+                title: 'Riwayat Aspirasi',
+                html: '<div class="text-center py-6 text-gray-400"><i class="bi bi-inbox text-3xl block mb-2"></i>Anda belum pernah mengirim aspirasi/pengaduan.</div>',
+                confirmButtonText: 'Tutup',
+                confirmButtonColor: '#e11d48',
+                customClass: { popup: 'rounded-[2.5rem] p-6 max-w-[420px] dark:bg-obsidian-900' }
+            });
+            return;
+        }
+
+        const itemsHtml = list.map(item => {
+            const statusBadge = item.status === 'dijawab' 
+                ? '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700">Dijawab</span>'
+                : (item.status === 'ditinjau' 
+                    ? '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700">Ditinjau</span>'
+                    : '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-100 text-blue-700">Terkirim</span>');
+            return `
+            <div class="bg-gray-50 dark:bg-obsidian-800/60 p-3.5 rounded-2xl border border-gray-100 dark:border-obsidian-700 text-left">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] font-mono font-bold text-gray-500">${item.no_tiket}</span>
+                    ${statusBadge}
+                </div>
+                <h4 class="text-xs font-bold text-gray-900 dark:text-obsidian-100">${item.judul}</h4>
+                <p class="text-[11px] text-gray-600 dark:text-obsidian-300 mt-1 line-clamp-2">${item.pesan}</p>
+                ${item.tanggapan ? `
+                <div class="mt-2.5 p-2.5 bg-emerald-50/80 dark:bg-emerald-900/30 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                    <p class="text-[9px] font-bold text-emerald-800 dark:text-emerald-300 mb-0.5">Tanggapan Pengawas:</p>
+                    <p class="text-[10px] text-emerald-700 dark:text-emerald-200 leading-relaxed">${item.tanggapan}</p>
+                </div>` : ''}
+                <div class="flex items-center justify-between text-[9px] text-gray-400 mt-2">
+                    <span class="capitalize">Kategori: ${item.kategori}</span>
+                    <span>${this.fdate(item.created_at)}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        Swal.fire({
+            title: 'Riwayat Aspirasi',
+            html: `
+                <div class="max-h-[360px] overflow-y-auto space-y-2.5 custom-scrollbar pr-1 pt-1">
+                    ${itemsHtml}
+                </div>
+            `,
+            confirmButtonText: 'Tutup',
+            confirmButtonColor: '#e11d48',
+            customClass: { popup: 'rounded-[2.5rem] p-6 max-w-[440px] dark:bg-obsidian-900' }
+        });
+    },
+
+    // ══════════════════════════════════════════════════════════════
+    // MODUL: EKOSISTEM RETAIL & TOKO KOPERASI
+    // ══════════════════════════════════════════════════════════════
+    tokoCart: [],
+    tokoProdukList: [],
+    tokoActiveKategori: 'Semua',
+
+    async loadToko() {
+        this.renderTokoCartBar();
+        // Load Saldo Simpanan Sukarela
+        const rSaldo = await this.api('portal/saldo');
+        let saldoSukarela = 0;
+        if (rSaldo?.success && Array.isArray(rSaldo.data)) {
+            const ss = rSaldo.data.find(s => s.kode === 'SS' || (s.nama && s.nama.toLowerCase().includes('sukarela')));
+            if (ss) saldoSukarela = parseFloat(ss.saldo) || 0;
+        }
+        const elSaldo = document.getElementById('toko-saldo-sukarela');
+        if (elSaldo) elSaldo.textContent = this.rp(saldoSukarela);
+
+        // Fetch Produk & Order History
+        await this.fetchTokoProduk();
+        await this.loadTokoOrders();
+    },
+
+    async fetchTokoProduk() {
+        const res = await this.api('portal/retail-produk');
+        if (res?.success && res.data) {
+            this.tokoProdukList = res.data.produk || [];
+            this.renderTokoCategories(res.data.kategori || ['Semua']);
+            this.renderTokoProduk(this.tokoProdukList);
+        }
+    },
+
+    renderTokoCategories(categories) {
+        const el = document.getElementById('toko-category-pills');
+        if (!el) return;
+        el.innerHTML = categories.map(cat => {
+            const isActive = cat === this.tokoActiveKategori;
+            const cls = isActive 
+                ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/20 font-bold' 
+                : 'bg-white dark:bg-obsidian-900 text-gray-600 dark:text-obsidian-400 border border-gray-200 dark:border-obsidian-800 font-medium hover:bg-gray-50';
+            return `<button onclick="Portal.filterTokoKategori('${cat}')" class="px-3.5 py-1.5 rounded-xl text-xs whitespace-nowrap transition-all ${cls}">${cat}</button>`;
+        }).join('');
+    },
+
+    filterTokoKategori(cat) {
+        this.tokoActiveKategori = cat;
+        this.filterTokoProduk();
+    },
+
+    filterTokoProduk() {
+        const search = (document.getElementById('toko-search-input')?.value || '').toLowerCase().trim();
+        let filtered = this.tokoProdukList;
+        if (this.tokoActiveKategori && this.tokoActiveKategori !== 'Semua') {
+            filtered = filtered.filter(p => p.kategori === this.tokoActiveKategori);
+        }
+        if (search) {
+            filtered = filtered.filter(p => p.nama_produk.toLowerCase().includes(search) || (p.deskripsi && p.deskripsi.toLowerCase().includes(search)));
+        }
+        const allCats = ['Semua', ...new Set(this.tokoProdukList.map(p => p.kategori))];
+        this.renderTokoCategories(allCats);
+        this.renderTokoProduk(filtered);
+    },
+
+    renderTokoProduk(products) {
+        const grid = document.getElementById('toko-products-grid');
+        const empty = document.getElementById('toko-empty-state');
+        if (!grid) return;
+        if (!products || products.length === 0) {
+            grid.innerHTML = '';
+            if (empty) empty.classList.remove('hidden');
+            return;
+        }
+        if (empty) empty.classList.add('hidden');
+
+        grid.innerHTML = products.map(p => {
+            const hemat = p.harga_umum - p.harga_anggota;
+            const inCart = this.tokoCart.find(c => c.id === p.id);
+            const qtyInCart = inCart ? inCart.qty : 0;
+            const img = p.gambar || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300';
+            return `
+            <div class="bg-white dark:bg-obsidian-900 rounded-2xl border border-gray-100 dark:border-obsidian-800 shadow-sm overflow-hidden flex flex-col justify-between transition-all hover:shadow-md">
+                <div>
+                    <div class="relative w-full h-32 bg-gray-100 dark:bg-obsidian-800 overflow-hidden">
+                        <img src="${img}" alt="${p.nama_produk}" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1542838132-92c53300491e?w=300';">
+                        ${hemat > 0 ? `<span class="absolute top-2 left-2 bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-sm">Hemat ${this.rp(hemat)}</span>` : ''}
+                        <span class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md text-white text-[8px] font-bold px-2 py-0.5 rounded-full">${p.satuan}</span>
+                    </div>
+                    <div class="p-3">
+                        <p class="text-[9px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider mb-0.5">${p.kategori}</p>
+                        <h4 class="text-xs font-bold text-gray-900 dark:text-obsidian-100 line-clamp-2 leading-tight">${p.nama_produk}</h4>
+                        <div class="mt-2 flex items-baseline gap-1.5 flex-wrap">
+                            <span class="text-xs font-black text-emerald-600 dark:text-emerald-400">${this.rp(p.harga_anggota)}</span>
+                            ${p.harga_umum > p.harga_anggota ? `<span class="text-[10px] text-gray-400 line-through">${this.rp(p.harga_umum)}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="p-3 pt-0">
+                    ${qtyInCart > 0 ? `
+                    <div class="flex items-center justify-between bg-amber-50 dark:bg-amber-900/30 rounded-xl p-1 border border-amber-200 dark:border-amber-800/50">
+                        <button onclick="Portal.changeCartQty(${p.id}, -1)" class="w-7 h-7 rounded-lg bg-white dark:bg-obsidian-800 text-amber-600 font-bold flex items-center justify-center shadow-sm active:scale-90 transition-all">-</button>
+                        <span class="text-xs font-black text-amber-700 dark:text-amber-300">${qtyInCart}</span>
+                        <button onclick="Portal.changeCartQty(${p.id}, 1)" class="w-7 h-7 rounded-lg bg-amber-500 text-white font-bold flex items-center justify-center shadow-sm active:scale-90 transition-all">+</button>
+                    </div>` : `
+                    <button onclick="Portal.addToCart(${p.id})" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-xl shadow-sm shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+                        <i class="bi bi-cart-plus"></i> Beli
+                    </button>`}
+                </div>
+            </div>`;
+        }).join('');
+    },
+
+    addToCart(productId) {
+        const prod = this.tokoProdukList.find(p => p.id === productId);
+        if (!prod) return;
+        const existing = this.tokoCart.find(c => c.id === productId);
+        if (existing) {
+            existing.qty += 1;
+        } else {
+            this.tokoCart.push({
+                id: prod.id,
+                nama: prod.nama_produk,
+                harga: parseFloat(prod.harga_anggota),
+                qty: 1,
+                gambar: prod.gambar,
+                satuan: prod.satuan
+            });
+        }
+        this.haptic('medium');
+        this.renderTokoCartBar();
+        this.filterTokoProduk();
+    },
+
+    changeCartQty(productId, delta) {
+        const item = this.tokoCart.find(c => c.id === productId);
+        if (!item) return;
+        item.qty += delta;
+        if (item.qty <= 0) {
+            this.tokoCart = this.tokoCart.filter(c => c.id !== productId);
+        }
+        this.haptic('light');
+        this.renderTokoCartBar();
+        this.filterTokoProduk();
+    },
+
+    renderTokoCartBar() {
+        const bar = document.getElementById('toko-floating-cart');
+        const badge = document.getElementById('cart-badge');
+        const countEl = document.getElementById('floating-cart-count');
+        const totalEl = document.getElementById('floating-cart-total');
+
+        const totalQty = this.tokoCart.reduce((sum, item) => sum + item.qty, 0);
+        const totalPrice = this.tokoCart.reduce((sum, item) => sum + (item.harga * item.qty), 0);
+
+        if (badge) {
+            if (totalQty > 0) {
+                badge.textContent = totalQty;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        if (bar) {
+            if (totalQty > 0) {
+                bar.classList.remove('hidden', 'translate-y-32');
+                bar.classList.add('translate-y-0');
+                if (countEl) countEl.textContent = totalQty;
+                if (totalEl) totalEl.textContent = this.rp(totalPrice);
+            } else {
+                bar.classList.add('translate-y-32');
+                setTimeout(() => bar.classList.add('hidden'), 300);
+            }
+        }
+    },
+
+    setTokoTab(tabName) {
+        const katContent = document.getElementById('toko-content-katalog');
+        const pesContent = document.getElementById('toko-content-pesanan');
+        const btnKat = document.getElementById('btn-tab-katalog');
+        const btnPes = document.getElementById('btn-tab-pesanan');
+        const floatCart = document.getElementById('toko-floating-cart');
+
+        if (tabName === 'katalog') {
+            if (katContent) katContent.classList.remove('hidden');
+            if (pesContent) pesContent.classList.add('hidden');
+            if (btnKat) btnKat.className = "flex-1 py-2 rounded-xl text-xs font-bold text-gray-800 dark:text-obsidian-100 bg-white dark:bg-obsidian-800 shadow-sm transition-all flex items-center justify-center gap-1.5";
+            if (btnPes) btnPes.className = "flex-1 py-2 rounded-xl text-xs font-medium text-gray-500 dark:text-obsidian-400 hover:text-gray-800 transition-all flex items-center justify-center gap-1.5";
+            this.renderTokoCartBar();
+        } else {
+            if (katContent) katContent.classList.add('hidden');
+            if (pesContent) pesContent.classList.remove('hidden');
+            if (btnPes) btnPes.className = "flex-1 py-2 rounded-xl text-xs font-bold text-gray-800 dark:text-obsidian-100 bg-white dark:bg-obsidian-800 shadow-sm transition-all flex items-center justify-center gap-1.5";
+            if (btnKat) btnKat.className = "flex-1 py-2 rounded-xl text-xs font-medium text-gray-500 dark:text-obsidian-400 hover:text-gray-800 transition-all flex items-center justify-center gap-1.5";
+            if (floatCart) floatCart.classList.add('hidden');
+            this.loadTokoOrders();
+        }
+    },
+
+    openCartModal() {
+        this.haptic('light');
+        if (this.tokoCart.length === 0) {
+            Swal.fire({
+                title: 'Keranjang Kosong',
+                text: 'Silakan pilih produk terlebih dahulu.',
+                icon: 'info',
+                confirmButtonColor: '#f59e0b',
+                customClass: { popup: 'rounded-[2rem] dark:bg-obsidian-900 p-6' }
+            });
+            return;
+        }
+
+        const totalPrice = this.tokoCart.reduce((sum, item) => sum + (item.harga * item.qty), 0);
+        const cartItemsHtml = this.tokoCart.map(c => `
+            <div class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-obsidian-800/60 rounded-xl border border-gray-100 dark:border-obsidian-700/50">
+                <div>
+                    <h5 class="text-xs font-bold text-gray-900 dark:text-obsidian-100 leading-tight">${c.nama}</h5>
+                    <p class="text-[10px] text-gray-500 dark:text-obsidian-400">${this.rp(c.harga)} x ${c.qty} ${c.satuan}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs font-black text-amber-600 dark:text-amber-400">${this.rp(c.harga * c.qty)}</p>
+                </div>
+            </div>
+        `).join('');
+
+        Swal.fire({
+            title: 'Keranjang Belanja',
+            html: `
+                <div class="text-left space-y-3 pt-1">
+                    <div class="max-h-[200px] overflow-y-auto space-y-2 custom-scrollbar pr-1">
+                        ${cartItemsHtml}
+                    </div>
+                    <div class="pt-2 border-t border-gray-100 dark:border-obsidian-700 flex justify-between items-center">
+                        <span class="text-xs font-bold text-gray-700 dark:text-obsidian-300">Total Pembayaran:</span>
+                        <span class="text-base font-black text-amber-600 dark:text-amber-400">${this.rp(totalPrice)}</span>
+                    </div>
+                    <div class="pt-2">
+                        <label class="block text-[11px] font-bold text-gray-700 dark:text-obsidian-300 mb-1.5">Metode Pembayaran</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="p-3 bg-emerald-50/70 dark:bg-emerald-900/20 border-2 border-emerald-500 rounded-xl cursor-pointer block text-center">
+                                <input type="radio" name="cart_metode" value="sukarela" checked class="hidden">
+                                <i class="bi bi-wallet2 text-emerald-600 text-lg block mb-0.5"></i>
+                                <span class="text-[11px] font-bold text-emerald-800 dark:text-emerald-200 block">Potong Sukarela</span>
+                                <span class="text-[9px] text-emerald-600 dark:text-emerald-400 block">Langsung lunas</span>
+                            </label>
+                            <label class="p-3 bg-gray-50 dark:bg-obsidian-800 border-2 border-transparent hover:border-gray-300 rounded-xl cursor-pointer block text-center" onclick="this.classList.add('border-blue-500'); this.previousElementSibling.classList.remove('border-emerald-500');">
+                                <input type="radio" name="cart_metode" value="tunai_ambil" class="hidden">
+                                <i class="bi bi-cash-stack text-blue-600 text-lg block mb-0.5"></i>
+                                <span class="text-[11px] font-bold text-gray-800 dark:text-obsidian-200 block">Bayar Tunai</span>
+                                <span class="text-[9px] text-gray-500 dark:text-obsidian-400 block">Ambil di kasir</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-700 dark:text-obsidian-300 mb-1">Catatan Pesanan (Opsional)</label>
+                        <input type="text" id="cart-catatan" placeholder="Contoh: Ambil jam 14.00 di kasir..." class="w-full bg-gray-50 dark:bg-obsidian-800 border border-gray-200 dark:border-obsidian-700 rounded-xl px-3 py-2 text-xs text-gray-800 dark:text-obsidian-200 focus:outline-none">
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Konfirmasi Pesanan',
+            cancelButtonText: 'Kembali',
+            confirmButtonColor: '#f59e0b',
+            cancelButtonColor: '#94a3b8',
+            customClass: {
+                popup: 'rounded-[2.5rem] p-6 max-w-[420px] dark:bg-obsidian-900',
+                confirmButton: 'rounded-xl px-5 py-2.5 font-bold text-xs shadow-md',
+                cancelButton: 'rounded-xl px-5 py-2.5 font-bold text-xs'
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const metodeInput = document.querySelector('input[name="cart_metode"]:checked');
+                const metode = metodeInput ? metodeInput.value : 'sukarela';
+                const catatan = document.getElementById('cart-catatan')?.value || '';
+
+                Swal.fire({
+                    title: 'Memproses Pesanan...',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading(),
+                    customClass: { popup: 'rounded-[2rem] dark:bg-obsidian-900' }
+                });
+
+                const payload = {
+                    items: this.tokoCart.map(c => ({ produk_id: c.id, qty: c.qty })),
+                    metode_pembayaran: metode,
+                    catatan: catatan
+                };
+
+                const res = await this.api('portal/retail-order', {
+                    method: 'POST',
+                    body: payload
+                });
+
+                if (res?.success) {
+                    this.tokoCart = [];
+                    this.renderTokoCartBar();
+                    this.filterTokoProduk();
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Pesanan Berhasil!',
+                        text: `Nomor Pesanan: ${res.data?.no_pesanan || '-'}. Barang Anda siap disiapkan oleh petugas toko koperasi.`,
+                        confirmButtonColor: '#f59e0b',
+                        customClass: { popup: 'rounded-[2rem] dark:bg-obsidian-900' }
+                    }).then(() => {
+                        this.setTokoTab('pesanan');
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal Membuat Pesanan',
+                        text: res?.message || 'Terjadi kendala pada pesanan.',
+                        confirmButtonColor: '#f59e0b',
+                        customClass: { popup: 'rounded-[2rem]' }
+                    });
+                }
+            }
+        });
+    },
+
+    async loadTokoOrders() {
+        const listEl = document.getElementById('toko-orders-list');
+        const emptyEl = document.getElementById('toko-orders-empty');
+        if (!listEl) return;
+
+        const res = await this.api('portal/retail-orders');
+        const orders = res?.data || [];
+
+        if (orders.length === 0) {
+            listEl.innerHTML = '';
+            if (emptyEl) emptyEl.classList.remove('hidden');
+            return;
+        }
+        if (emptyEl) emptyEl.classList.add('hidden');
+
+        listEl.innerHTML = orders.map(ord => {
+            const badgeCls = ord.status === 'selesai' 
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                : (ord.status === 'siap_diambil'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    : (ord.status === 'diproses'
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                        : 'bg-gray-100 text-gray-700 dark:bg-obsidian-800 dark:text-obsidian-300'));
+            
+            const statusLabel = ord.status === 'siap_diambil' ? 'Siap Diambil' : ord.status.toUpperCase();
+            const itemsText = (ord.items || []).map(i => `${i.nama_produk} (${i.qty}x)`).join(', ');
+
+            return `
+            <div class="bg-white dark:bg-obsidian-900 p-4 rounded-2xl border border-gray-100 dark:border-obsidian-800 shadow-sm text-left">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[10px] font-mono font-bold text-gray-400">${ord.no_pesanan}</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${badgeCls}">${statusLabel}</span>
+                </div>
+                <p class="text-xs font-bold text-gray-800 dark:text-obsidian-100 line-clamp-1 mb-1">${itemsText || 'Pesanan Toko'}</p>
+                <div class="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-obsidian-800 text-[10px]">
+                    <span class="text-gray-400">${this.fdate(ord.tgl_pesanan)} • ${ord.metode_pembayaran === 'sukarela' ? 'Potong Sukarela' : 'Tunai Ambil'}</span>
+                    <span class="text-xs font-black text-amber-600 dark:text-amber-400">${this.rp(ord.total_nominal)}</span>
+                </div>
+            </div>`;
+        }).join('');
+    },
+
+    showKtaModal() {
+        this.haptic('light');
+        this.tab('profil');
+        setTimeout(() => {
+            const flipCard = document.querySelector('.flip-card');
+            if (flipCard) flipCard.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
     },
 };
 

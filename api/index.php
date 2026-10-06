@@ -21,6 +21,7 @@ require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/redis.php';
 require_once __DIR__ . '/config/finance_helpers.php';
+require_once __DIR__ . '/config/kesehatan_helper.php';
 require_once __DIR__ . '/middleware/auth.php';
 require_once __DIR__ . '/middleware/rbac.php';
 require_once __DIR__ . '/middleware/csrf.php';
@@ -425,6 +426,9 @@ try {
             break;
         case 'pengumuman':
             require_once $controllerPath . 'PengumumanController.php';
+            break;
+        case 'aspirasi':
+            require_once $controllerPath . 'AspirasiAdminController.php';
             break;
         case 'audit':
             require_once $controllerPath . 'AuditController.php';

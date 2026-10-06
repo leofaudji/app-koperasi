@@ -111,9 +111,23 @@ Sesuai Permenkop UKM No. 2 Tahun 2024, koperasi diklasifikasikan secara otomatis
 
 ---
 
-## 6. Spesifikasi Endpoint API Kesehatan & Kemenkop
+## 6. Sinkronisasi Engine Terpusat & Transparansi Publik Portal Anggota
+
+Untuk menjamin asas akuntabilitas dan konsistensi data antara internal pengurus dengan publik/anggota, sistem menerapkan arsitektur perhitungan tunggal (*Single Source of Truth*):
+- **Shared Engine Helper (`kesehatan_helper.php`)**:
+  - Seluruh algoritma evaluasi 4 pilar KKPKK (Tata Kelola 30%, Profil Risiko 15%, Kinerja Keuangan 40%, Permodalan 15%), batas ambang rasio prudensial, dan penentuan predikat resmi dipusatkan pada fungsi `getKesehatanKoperasiData($tahun)`.
+  - Baik modul Backoffice Admin ([KesehatanController.php](file:///d:/laragon/www/app-koperasi/api/controllers/KesehatanController.php)) maupun Portal Anggota PWA ([PortalController.php](file:///d:/laragon/www/app-koperasi/api/controllers/PortalController.php)) mengeksekusi helper yang sama persis.
+  - Menghilangkan potensi perbedaan nilai skor atau predikat antar-antarmuka (*Zero-Discrepancy Guarantee*).
+- **Penyajian Transparansi Publik bagi Anggota**:
+  - Anggota dapat melihat skor kesehatan koperasi secara terbuka di beranda portal (termasuk rasio NPL, kecukupan modal, aset likuid, dan kepatuhan pelaksanaan RAT).
+  - Menumbuhkan rasa memiliki (*sense of ownership*) dan kepercayaan tinggi anggota terhadap pengelolaan dana simpanan oleh pengurus koperasi.
+
+---
+
+## 7. Spesifikasi Endpoint API Kesehatan & Kemenkop
 
 | Method | Endpoint | Fungsi | Hak Akses |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/kesehatan` | Menghitung skor KKPKK 4 pilar & predikat resmi | `keuangan.laba_rugi` |
+| `GET` | `/api/kesehatan` | Menghitung skor KKPKK 4 pilar & predikat resmi backoffice | `keuangan.laba_rugi` |
 | `GET` | `/api/kemenkop` | Dashboard KUK 1-4, 7 rasio prudensial, profil ODS | `keuangan.laba_rugi` |
+| `GET` | `/api/portal/transparansi-kesehatan` | Data keterbukaan kesehatan koperasi untuk anggota | Anggota Login |

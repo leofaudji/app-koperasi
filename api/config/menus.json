@@ -312,6 +312,13 @@
                         "icon": "ri-heart-pulse-line",
                         "url": "#/kesehatan-koperasi",
                         "perm": "keuangan.laba_rugi"
+                    },
+                    {
+                        "id": 67,
+                        "nama": "Aspirasi & Pengawas",
+                        "icon": "ri-question-answer-line",
+                        "url": "#/laporan-aspirasi",
+                        "perm": "dashboard.view"
                     }
                 ]
             }

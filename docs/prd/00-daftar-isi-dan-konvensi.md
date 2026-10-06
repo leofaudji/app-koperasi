@@ -23,8 +23,8 @@
 | **07** | [`07-modul-akuntansi-dan-keuangan.md`](file:///d:/laragon/www/app-koperasi/docs/prd/07-modul-akuntansi-dan-keuangan.md) | Double-entry GL, Kas Masuk/Keluar, Neraca SAK EP, Laba Rugi, Arus Kas, Ekuitas, Kunci Buku | Accounting Lead |
 | **08** | [`08-modul-laporan-dan-analitik.md`](file:///d:/laragon/www/app-koperasi/docs/prd/08-modul-laporan-dan-analitik.md) | Laporan saldo, baki debet, kolektibilitas/NPL, mutasi, ekspor PDF Landscape & CSV UTF-8 | Reporting Dev |
 | **09** | [`09-modul-rat-dan-shu.md`](file:///d:/laragon/www/app-koperasi/docs/prd/09-modul-rat-dan-shu.md) | RAT kuorum, Doorprize wheel, distribusi SHU otomatis, tutup buku tahunan | Governance Dev |
-| **10** | [`10-portal-anggota-pwa.md`](file:///d:/laragon/www/app-koperasi/docs/prd/10-portal-anggota-pwa.md) | PWA Member Portal, Service Worker offline, Billing card, Autodebet SS & Notifikasi Lonceng | Mobile/PWA Dev |
-| **11** | [`11-kepatuhan-regulasi-dan-kesehatan-koperasi.md`](file:///d:/laragon/www/app-koperasi/docs/prd/11-kepatuhan-regulasi-dan-kesehatan-koperasi.md) | Kertas Kerja Pemeriksaan Kesehatan Koperasi (KKPKK 4 Pilar), 7 Rasio KUK 1-4 | Compliance Lead |
+| **10** | [`10-portal-anggota-pwa.md`](file:///d:/laragon/www/app-koperasi/docs/prd/10-portal-anggota-pwa.md) | PWA Member Portal, Service Worker offline, Billing card, Autodebet SS, Transparansi KKPKK, Aspirasi, & Toko | Mobile/PWA Dev |
+| **11** | [`11-kepatuhan-regulasi-dan-kesehatan-koperasi.md`](file:///d:/laragon/www/app-koperasi/docs/prd/11-kepatuhan-regulasi-dan-kesehatan-koperasi.md) | Kertas Kerja Pemeriksaan Kesehatan Koperasi (KKPKK 4 Pilar), 7 Rasio KUK 1-4, Shared Engine Helper | Compliance Lead |
 | **12** | [`12-keamanan-infrastruktur-dan-pemeliharaan.md`](file:///d:/laragon/www/app-koperasi/docs/prd/12-keamanan-infrastruktur-dan-pemeliharaan.md) | Redis caching, Backup/Restore .sql, CLI scripts, Database integrity repair | DevOps Lead |
 
 ---
@@ -44,6 +44,8 @@ Seluruh dokumen transaksi dan rekening dalam sistem menggunakan format nomor ter
 | **Pengajuan** | Pengajuan Bayar SS | `PA[YYYY][MM][XXXX]` | `^PA\d{8}$` | `PA2026090001` |
 | **Keuangan** | No. Bukti Jurnal | `JRN[YYYY][MM][XXXX]` | `^JRN\d{8}$` | `JRN2026090124` |
 | **Kas** | Kas Masuk / Keluar | `KM[YYYY][MM][XXXX]` / `KK[YYYY][MM][XXXX]` | `^K[MK]\d{8}$` | `KM2026080015` |
+| **Aspirasi** | Tiket Pengaduan / Aspirasi | `ASP-[YYMMDD]-[XXX]` | `^ASP-\d{6}-\d{3}$` | `ASP-261004-789` |
+| **Toko** | No. Pesanan Retail | `ORD-[YYMMDD]-[XXX]` | `^ORD-\d{6}-\d{3}$` | `ORD-261004-321` |
 | **RAT** | Sesi RAT | `RAT-[TAHUN]` | `^RAT-\d{4}$` | `RAT-2026` |
 
 ---

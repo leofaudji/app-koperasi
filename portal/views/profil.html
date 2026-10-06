@@ -204,20 +204,38 @@
             </div>
             <i class="bi bi-chevron-right text-gray-300 dark:text-obsidian-600 text-xs"></i>
         </button>
-        <button onclick="Swal.fire({
-                title: 'Pusat Bantuan',
-                html: '<div class=\'text-left space-y-3 dark:text-obsidian-300\'><p class=\'text-sm\'>Ada pertanyaan atau kendala? Hubungi tim support kami melalui:</p><div class=\'flex flex-col gap-2\'><a href=\'https://wa.me/6281234567890\' target=\'_blank\' class=\'flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-2xl border border-emerald-100 dark:border-emerald-800/50\'><i class=\'bi bi-whatsapp text-xl\'></i><div><p class=\'font-bold text-xs\'>WhatsApp Support</p><p class=\'text-[10px]\'>Respon cepat (08:00 - 17:00)</p></div></a><div class=\'flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-2xl border border-blue-100 dark:border-blue-800/50\'><i class=\'bi bi-envelope text-xl\'></i><div><p class=\'font-bold text-xs\'>Email Helpdesk</p><p class=\'text-[10px]\'>support@koperasi.id</p></div></div></div></div>',
-                showConfirmButton: false,
-                showCloseButton: true,
-                customClass: { popup: 'rounded-[2.5rem] p-8 dark:bg-obsidian-900 dark:text-obsidian-100' }
-            })"
+        <button onclick="Portal.showTransparansiModal()"
             class="px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-obsidian-800 active:bg-gray-100 dark:active:bg-obsidian-700 transition-colors border-b border-gray-50/50 dark:border-obsidian-800">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center"><i
-                        class="bi bi-chat-dots"></i></div>
+                <div class="w-8 h-8 rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 flex items-center justify-center"><i
+                        class="bi bi-award-fill"></i></div>
                 <div class="flex flex-col">
-                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Pusat Bantuan</span>
-                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Hubungi tim support & bantuan</span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Kesehatan & Kepatuhan</span>
+                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Nilai transparansi Permenkop No. 2/2024</span>
+                </div>
+            </div>
+            <i class="bi bi-chevron-right text-gray-300 dark:text-obsidian-600 text-xs"></i>
+        </button>
+        <button onclick="Portal.showBantuanAspirasiModal()"
+            class="px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-obsidian-800 active:bg-gray-100 dark:active:bg-obsidian-700 transition-colors border-b border-gray-50/50 dark:border-obsidian-800">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center"><i
+                        class="bi bi-chat-heart"></i></div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Pusat Bantuan & Aspirasi</span>
+                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Kontak Pengawas, FAQ & Pengaduan</span>
+                </div>
+            </div>
+            <i class="bi bi-chevron-right text-gray-300 dark:text-obsidian-600 text-xs"></i>
+        </button>
+        <button onclick="Portal.tab('toko')"
+            class="px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-obsidian-800 active:bg-gray-100 dark:active:bg-obsidian-700 transition-colors border-b border-gray-50/50 dark:border-obsidian-800">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center"><i
+                        class="bi bi-shop"></i></div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Toko Koperasi Retail</span>
+                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Katalog belanja & potong simpanan</span>
                 </div>
             </div>
             <i class="bi bi-chevron-right text-gray-300 dark:text-obsidian-600 text-xs"></i>

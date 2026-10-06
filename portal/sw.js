@@ -1,4 +1,4 @@
-const CACHE_NAME = 'koperasi-portal-v78';
+const CACHE_NAME = 'koperasi-portal-v80';
 const ASSETS = [
     './',
     'index.html',
@@ -11,6 +11,7 @@ const ASSETS = [
     'views/profil.html',
     'views/pengajuan_pinjaman.html',
     'views/laporan.html',
+    'views/toko.html',
     'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css'
 ];
 

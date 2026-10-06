@@ -837,6 +837,330 @@ switch ($id) {
         successResponse($response);
         break;
 
+    case 'transparansi-kesehatan':
+        portalAuthCheck();
+        $tahun = date('Y');
+
+        require_once __DIR__ . '/../config/kesehatan_helper.php';
+        $kesehatan = getKesehatanKoperasiData($tahun);
+
+        $settRows = $db->fetchAll("SELECT setting_key, setting_value FROM app_settings");
+        $sett = [];
+        foreach ($settRows as $sr) {
+            $sett[$sr['setting_key']] = $sr['setting_value'];
+        }
+
+        $predikat = $kesehatan['predikat'];
+        $predikatKode = $kesehatan['predikat_kode'];
+        $totalSkor = $kesehatan['total_skor'];
+
+        // Klasifikasi style badge & theme berdasarkan predikat resmi
+        $badgeClass = 'bg-emerald-500 text-white';
+        $badgeLabel = '🟢 SEHAT';
+        $bgGradient = 'from-emerald-600 via-teal-600 to-cyan-700';
+        $badgeColor = 'bg-emerald-400 text-gray-900';
+        $icon = 'bi-shield-check';
+
+        if ($predikatKode === 'cukup') {
+            $badgeClass = 'bg-blue-500 text-white';
+            $badgeLabel = '🔵 CUKUP SEHAT';
+            $bgGradient = 'from-blue-600 via-indigo-600 to-cyan-700';
+            $badgeColor = 'bg-blue-400 text-gray-900';
+            $icon = 'bi-shield-check';
+        } elseif ($predikatKode === 'dalam_pengawasan') {
+            $badgeClass = 'bg-amber-500 text-white';
+            $badgeLabel = '🟡 DALAM PENGAWASAN';
+            $bgGradient = 'from-amber-600 via-orange-600 to-yellow-700';
+            $badgeColor = 'bg-amber-400 text-gray-900';
+            $icon = 'bi-exclamation-triangle';
+        } elseif ($predikatKode === 'pengawasan_khusus') {
+            $badgeClass = 'bg-rose-500 text-white';
+            $badgeLabel = '🔴 PENGAWASAN KHUSUS';
+            $bgGradient = 'from-rose-600 via-red-600 to-pink-700';
+            $badgeColor = 'bg-rose-400 text-white';
+            $icon = 'bi-shield-exclamation';
+        }
+
+        // Format 4 Pilar sesuai output KKPKK
+        $pilar = [];
+        foreach ($kesehatan['aspek'] as $asp) {
+            $statusDesc = '';
+            if ($asp['no'] === 1) $statusDesc = $asp['skor'] >= 25 ? 'Tata Kelola Sangat Baik' : 'Tata Kelola Cukup';
+            elseif ($asp['no'] === 2) $statusDesc = $asp['skor'] >= 12 ? 'Risiko Rendah (Sehat)' : 'Perlu Pengawasan Risiko';
+            elseif ($asp['no'] === 3) $statusDesc = $asp['skor'] >= 30 ? 'Likuid & Efisien' : 'Evaluasi Efisiensi & Biaya';
+            elseif ($asp['no'] === 4) $statusDesc = $asp['skor'] >= 12 ? 'Modal Mandiri Kuat' : 'Kecukupan Modal Terpantau';
+
+            $pilar[] = [
+                'no' => $asp['no'],
+                'nama' => $asp['nama'],
+                'bobot' => $asp['bobot'],
+                'skor' => $asp['skor'],
+                'status' => $statusDesc,
+                'indikator' => $asp['indikator'] ?? []
+            ];
+        }
+
+        $r = $kesehatan['ringkasan'];
+        $nplRatio = $r['sisa_pinjaman'] > 0 ? round(($r['npl_nominal'] / $r['sisa_pinjaman']) * 100, 2) : 0;
+
+        $result = [
+            'tahun' => $tahun,
+            'nama_koperasi' => $sett['app_name'] ?? 'Koperasi Simpan Pinjam',
+            'no_badan_hukum' => $sett['badan_hukum'] ?? ($sett['no_badan_hukum'] ?? 'AHU-001248.AH.01.26.TAHUN 2024'),
+            'nik_kemenkop' => $sett['nik_koperasi'] ?? ($sett['nik_kemenkop'] ?? '3204051002340001'),
+            'kelompok_usaha' => 'KUK 2 (Koperasi Usaha Kecil)',
+            'predikat' => $predikat,
+            'predikat_kode' => $predikatKode,
+            'badge_class' => $badgeClass,
+            'badge_label' => $badgeLabel,
+            'badge_color' => $badgeColor,
+            'bg_gradient' => $bgGradient,
+            'icon' => $icon,
+            'skor_akhir' => $totalSkor,
+            'regulasi' => $kesehatan['regulasi'],
+            'pilar' => $pilar,
+            'indikator_publik' => [
+                'total_anggota' => $r['total_anggota'],
+                'total_aset' => $r['total_aset'],
+                'modal_sendiri' => $r['modal_sendiri'],
+                'total_simpanan' => $r['total_simpanan'],
+                'total_pinjaman' => $r['total_pinjaman'],
+                'sisa_pinjaman' => $r['sisa_pinjaman'],
+                'rasio_npl' => $nplRatio,
+                'status_rat' => $kesehatan['aspek'][0]['indikator'][1]['nilai'] ?? 'Tertib Diselenggarakan'
+            ]
+        ];
+
+        successResponse($result);
+        break;
+
+    case 'bantuan-info':
+        portalAuthCheck();
+        $settRows = $db->fetchAll("SELECT setting_key, setting_value FROM app_settings");
+        $sett = [];
+        foreach ($settRows as $sr) {
+            $sett[$sr['setting_key']] = $sr['setting_value'];
+        }
+
+        $info = [
+            'nama_koperasi' => $sett['app_name'] ?? 'Koperasi Simpan Pinjam',
+            'alamat' => $sett['address'] ?? 'Kantor Pusat Koperasi, Jl. Koperasi No. 1',
+            'wa_admin' => $sett['wa_admin'] ?? '6281234567890',
+            'wa_pengawas' => $sett['wa_pengawas'] ?? '6281987654321',
+            'email' => $sett['email'] ?? 'support@koperasi.id',
+            'jam_operasional' => 'Senin – Jumat: 08.00 – 16.00 WIB | Sabtu: 08.00 – 12.00 WIB',
+            'faqs' => [
+                [
+                    'q' => 'Bagaimana cara mengajukan pinjaman lewat portal?',
+                    'a' => 'Buka tab Pinjaman atau Menu Cepat "Pinjam", lalu pilih "Ajukan Pinjaman Online". Isi plafon, tenor, keperluan, dan unggah foto dokumen jaminan. Pengajuan akan segera diproses oleh Bagian Kredit.'
+                ],
+                [
+                    'q' => 'Apakah bisa membayar angsuran menggunakan saldo Simpanan Sukarela?',
+                    'a' => 'Ya, sangat mudah! Jika Anda memiliki saldo di Simpanan Sukarela, tombol "Bayar via Sukarela" akan aktif pada kartu Tagihan Terdekat di Beranda atau di tab Pinjaman. Pembayaran diproses autodebet setelah disetujui Bendahara.'
+                ],
+                [
+                    'q' => 'Kapan Sisa Hasil Usaha (SHU) dibagikan?',
+                    'a' => 'SHU dibagikan setahun sekali setelah disahkannya Laporan Pertanggungjawaban (LPJ) Pengurus pada Rapat Anggota Tahunan (RAT). Besaran SHU dihitung berdasarkan simpanan pokok/wajib dan keaktifan jasa transaksi Anda.'
+                ],
+                [
+                    'q' => 'Bagaimana jika saya ingin menarik saldo Simpanan Sukarela?',
+                    'a' => 'Penarikan Simpanan Sukarela dapat dilakukan di kantor kas koperasi atau melalui pengajuan penarikan resmi dengan konfirmasi ke kasir/bendahara.'
+                ],
+                [
+                    'q' => 'Apa peran Badan Pengawas Koperasi?',
+                    'a' => 'Badan Pengawas bertugas mengawasi pelaksanaan kebijakan dan pengelolaan koperasi secara independen demi melindungi hak anggota. Anda dapat mengirimkan saran, kritik, atau pengaduan secara langsung ke Pengawas melalui menu Aspirasi Pengawas.'
+                ]
+            ]
+        ];
+
+        successResponse($info);
+        break;
+
+    case 'aspirasi':
+        $anggotaId = portalAuthCheck();
+        if ($method === 'GET') {
+            $list = $db->fetchAll(
+                "SELECT id, no_tiket, kategori, judul, pesan, is_anonim, status, tanggapan, tgl_tanggapan, created_at 
+                 FROM portal_aspirasi 
+                 WHERE anggota_id = ? 
+                 ORDER BY id DESC",
+                [$anggotaId]
+            );
+            successResponse($list);
+        } elseif ($method === 'POST') {
+            $kategori = trim($params['kategori'] ?? 'usulan');
+            $judul = trim($params['judul'] ?? '');
+            $pesan = trim($params['pesan'] ?? '');
+            $isAnonim = !empty($params['is_anonim']) ? 1 : 0;
+
+            if (empty($judul) || empty($pesan)) {
+                errorResponse('Judul dan isi aspirasi/pengaduan wajib diisi.');
+            }
+
+            $user = $db->fetch("SELECT nama FROM anggota WHERE id = ?", [$anggotaId]);
+            $namaPengirim = $isAnonim ? 'Anggota (Anonim)' : ($user['nama'] ?? 'Anggota');
+
+            $noTiket = 'ASP-' . date('ymd') . '-' . str_pad((string)rand(100, 999), 3, '0', STR_PAD_LEFT);
+
+            $db->execute(
+                "INSERT INTO portal_aspirasi (no_tiket, anggota_id, nama_pengirim, kategori, judul, pesan, is_anonim, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'terkirim')",
+                [$noTiket, $anggotaId, $namaPengirim, $kategori, $judul, $pesan, $isAnonim]
+            );
+
+            logPortalActivity("Kirim Aspirasi Pengawas ($noTiket)");
+            successResponse(['no_tiket' => $noTiket], 'Aspirasi Anda berhasil dikirim ke Dewan Pengawas.');
+        } else {
+            errorResponse('Method not allowed', 405);
+        }
+        break;
+
+    case 'retail-produk':
+        portalAuthCheck();
+        $kategori = $params['kategori'] ?? '';
+        $query = "SELECT id, kode_produk, nama_produk, kategori, deskripsi, harga_umum, harga_anggota, stok, satuan, gambar 
+                  FROM toko_produk 
+                  WHERE is_active = 1";
+        $p = [];
+        if (!empty($kategori) && $kategori !== 'Semua') {
+            $query .= " AND kategori = ?";
+            $p[] = $kategori;
+        }
+        $query .= " ORDER BY id ASC";
+        $produk = $db->fetchAll($query, $p);
+
+        // Ambil daftar kategori unik
+        $kategoriList = $db->fetchAll("SELECT DISTINCT kategori FROM toko_produk WHERE is_active = 1 ORDER BY kategori ASC");
+
+        successResponse([
+            'kategori' => array_merge(['Semua'], array_column($kategoriList, 'kategori')),
+            'produk' => $produk
+        ]);
+        break;
+
+    case 'retail-order':
+        $anggotaId = portalAuthCheck();
+        if ($method !== 'POST') {
+            errorResponse('Method not allowed', 405);
+        }
+
+        $items = $params['items'] ?? [];
+        $metode = $params['metode_pembayaran'] ?? 'sukarela';
+        $catatan = trim($params['catatan'] ?? '');
+
+        if (empty($items) || !is_array($items)) {
+            errorResponse('Keranjang belanja kosong.');
+        }
+
+        // Validasi produk dan hitung total
+        $totalNominal = 0;
+        $orderItems = [];
+        foreach ($items as $it) {
+            $prodId = (int) ($it['produk_id'] ?? 0);
+            $qty = (int) ($it['qty'] ?? 0);
+            if ($prodId <= 0 || $qty <= 0) continue;
+
+            $prod = $db->fetch("SELECT * FROM toko_produk WHERE id = ? AND is_active = 1", [$prodId]);
+            if (!$prod) {
+                errorResponse("Produk ID $prodId tidak ditemukan atau tidak aktif.");
+            }
+            if ($prod['stok'] < $qty) {
+                errorResponse("Stok untuk produk '{$prod['nama_produk']}' tidak mencukupi (Tersisa {$prod['stok']}).");
+            }
+
+            $subtotal = $prod['harga_anggota'] * $qty;
+            $totalNominal += $subtotal;
+            $orderItems[] = [
+                'produk_id' => $prod['id'],
+                'nama_produk' => $prod['nama_produk'],
+                'harga_satuan' => $prod['harga_anggota'],
+                'qty' => $qty,
+                'subtotal' => $subtotal
+            ];
+        }
+
+        if (empty($orderItems)) {
+            errorResponse('Item pesanan tidak valid.');
+        }
+
+        $rekSukarelaId = null;
+        if ($metode === 'sukarela') {
+            // Cek saldo Simpanan Sukarela anggota
+            $sukarela = $db->fetch(
+                "SELECT rs.id, rs.saldo 
+                 FROM rekening_simpanan rs 
+                 JOIN jenis_simpanan js ON rs.jenis_simpanan_id = js.id 
+                 WHERE rs.anggota_id = ? AND rs.status = 'aktif' AND (js.kode = 'SS' OR LOWER(js.nama) LIKE '%sukarela%') 
+                 ORDER BY rs.saldo DESC LIMIT 1",
+                [$anggotaId]
+            );
+
+            if (!$sukarela || $sukarela['saldo'] < $totalNominal) {
+                $saldoAda = $sukarela ? number_format($sukarela['saldo'], 0, ',', '.') : '0';
+                $kurang = number_format($totalNominal, 0, ',', '.');
+                errorResponse("Saldo Simpanan Sukarela Anda (Rp $saldoAda) tidak mencukupi total belanja Rp $kurang.");
+            }
+            $rekSukarelaId = $sukarela['id'];
+        }
+
+        $db->beginTransaction();
+        try {
+            $noPesanan = 'ORD-' . date('ymd') . '-' . str_pad((string)rand(100, 999), 3, '0', STR_PAD_LEFT);
+            $pesananId = $db->insert(
+                "INSERT INTO toko_pesanan (no_pesanan, anggota_id, total_nominal, metode_pembayaran, rekening_simpanan_id, status, catatan) 
+                 VALUES (?, ?, ?, ?, ?, 'pending', ?)",
+                [$noPesanan, $anggotaId, $totalNominal, $metode, $rekSukarelaId, $catatan]
+            );
+
+            foreach ($orderItems as $oi) {
+                $db->execute(
+                    "INSERT INTO toko_pesanan_detail (pesanan_id, produk_id, nama_produk, harga_satuan, qty, subtotal) 
+                     VALUES (?, ?, ?, ?, ?, ?)",
+                    [$pesananId, $oi['produk_id'], $oi['nama_produk'], $oi['harga_satuan'], $oi['qty'], $oi['subtotal']]
+                );
+
+                // Potong stok
+                $db->execute("UPDATE toko_produk SET stok = stok - ? WHERE id = ?", [$oi['qty'], $oi['produk_id']]);
+            }
+
+            // Jika potong sukarela, update saldo
+            if ($metode === 'sukarela' && $rekSukarelaId) {
+                $db->execute("UPDATE rekening_simpanan SET saldo = saldo - ? WHERE id = ?", [$totalNominal, $rekSukarelaId]);
+            }
+
+            $db->commit();
+            logPortalActivity("Belanja Toko Retail ($noPesanan)");
+            successResponse(['no_pesanan' => $noPesanan, 'total' => $totalNominal], 'Pesanan Anda berhasil dibuat dan siap diproses!');
+        } catch (Exception $e) {
+            $db->rollBack();
+            errorResponse('Gagal membuat pesanan: ' . $e->getMessage(), 500);
+        }
+        break;
+
+    case 'retail-orders':
+        $anggotaId = portalAuthCheck();
+        $orders = $db->fetchAll(
+            "SELECT id, no_pesanan, total_nominal, metode_pembayaran, status, catatan, tgl_pesanan 
+             FROM toko_pesanan 
+             WHERE anggota_id = ? 
+             ORDER BY id DESC",
+            [$anggotaId]
+        );
+
+        foreach ($orders as &$ord) {
+            $ord['items'] = $db->fetchAll(
+                "SELECT nama_produk, harga_satuan, qty, subtotal 
+                 FROM toko_pesanan_detail 
+                 WHERE pesanan_id = ?",
+                [$ord['id']]
+            );
+        }
+        unset($ord);
+
+        successResponse($orders);
+        break;
+
     default:
         errorResponse('Portal route tidak ditemukan', 404);
 }
+

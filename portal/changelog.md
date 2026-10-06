@@ -4,6 +4,31 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [1.8.1] - 2026-10-04
+### Fixed & Improved
+- **Sinkronisasi 100% Predikat & Skor Kesehatan Koperasi (KKPKK)**:
+    - Menyatukan engine perhitungan kesehatan koperasi antara **Role Admin** ([KesehatanController.php](file:///d:/laragon/www/app-koperasi/api/controllers/KesehatanController.php)) dan **Portal Anggota** ([PortalController.php](file:///d:/laragon/www/app-koperasi/api/controllers/PortalController.php)) melalui shared helper [kesehatan_helper.php](file:///d:/laragon/www/app-koperasi/api/config/kesehatan_helper.php).
+    - Memastikan nilai skor akhir (0-100), 4 aspek KKPKK (Tata Kelola 30%, Profil Risiko 15%, Kinerja 40%, Permodalan 15%), dan predikat resmi Kemenkop UKM (*Sehat*, *Cukup Sehat*, *Dalam Pengawasan*, atau *Dalam Pengawasan Khusus*) tampil persis sama secara real-time.
+    - Banner transparansi pada Beranda kini dinamis menyesuaikan warna, ikon, dan label predikat resmi koperasi.
+
+## [1.8.0] - 2026-10-04
+### Added
+- **Dashboard Transparansi & Kepatuhan Kemenkop UKM**:
+    - Evaluasi 4 pilar kesehatan resmi sesuai Permenkop UKM No. 2 Tahun 2024 (Tata Kelola, Profil Risiko, Kinerja Keuangan, dan Permodalan).
+    - Indikator keterbukaan publik (Total Aset, Modal Sendiri, Kas Likuid, Pertumbuhan Anggota, Rasio NPL, dan NIK Koperasi).
+    - Banner transparansi interaktif pada halaman Beranda dengan badge skor kesehatan resmi.
+- **Pusat Bantuan, Aspirasi & Kontak Pengawas**:
+    - Akses langsung kontak pengurus/kasir & Dewan Pengawas independen via WhatsApp.
+    - FAQ interaktif menjawab pertanyaan umum seputar simpanan, pinjaman, autodebet sukarela, dan SHU.
+    - Formulir Surat Aspirasi & Pengaduan ke Dewan Pengawas dengan opsi identitas atau proteksi anonimitas anggota.
+    - Riwayat pelacakan tiket aspirasi anggota.
+- **Ekosistem Retail / Toko Koperasi**:
+    - Katalog belanja online produk kebutuhan pokok & binaan koperasi dengan harga khusus anggota.
+    - Fitur keranjang belanja (Floating Cart Bar) dan filter kategori produk.
+    - Pembayaran fleksibel: Autodebet saldo Simpanan Sukarela atau bayar tunai saat ambil di kantor (Pick-up/COD).
+    - Riwayat pesanan belanja real-time.
+- **Menu Cepat 8 Layanan (Home & Profil)**: Integrasi akses cepat ke KTA Digital, Toko, Kepatuhan, dan Aspirasi.
+
 ## [1.7.1] - 2026-10-04
 ### Fixed
 - **Session Expiry False-Positive**: Memperbaiki validasi sesi di `portal.js` agar error status 500 tidak disalahartikan sebagai sesi habis.

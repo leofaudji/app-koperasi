@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '2.6.0', // Verifikasi Pengajuan Angsuran Sukarela, Billing Portal, & UI/Filter Refinements
+    version: '2.7.0', // Modul Laporan Aspirasi Pengawas, Ekosistem Retail, & Sinkronisasi Kesehatan KKPKK
     API_BASE: (() => {
         // Best way: find the root based on where this script is loaded from
         const script = document.currentScript || document.querySelector('script[src*="assets/js/app.js"]');
