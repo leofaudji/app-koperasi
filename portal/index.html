@@ -15,12 +15,19 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="icon" type="image/png" href="../assets/images/favicon.png">
     <title>Portal Anggota - Koperasi</title>
+    <!-- Preconnect & Google Fonts Plus Jakarta Sans 300-900 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="assets/js/tailwind.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                    },
                     colors: {
                         obsidian: {
                             50: '#f8fafc',
@@ -48,16 +55,21 @@
             document.documentElement.classList.add('dark');
         }
     </script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        html {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: "cv11" 1, "tnum" 1;
+        }
 
         body {
             background-color: #f1f5f9;
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: "cv11" 1, "tnum" 1;
             -webkit-tap-highlight-color: transparent;
             /* Native App Feel: Disable selection and callouts */
             user-select: none;
@@ -877,6 +889,103 @@
             <div id="tab-content-laporan" class="tab-content hidden"></div>
             <div id="tab-content-rat" class="tab-content hidden"></div>
             <div id="tab-content-toko" class="tab-content hidden"></div>
+
+            <!-- Modal Bukti Transaksi Resmi (Digital Receipt Slip) -->
+            <div id="modal-bukti-transaksi" class="modal-sheet-wrapper fixed inset-0 z-[80] flex flex-col">
+                <div class="modal-sheet-overlay absolute inset-0 bg-black/50 backdrop-blur-xs"
+                    onclick="Portal.closeModal('modal-bukti-transaksi')"></div>
+                <div class="flex-1 pointer-events-none"></div>
+                <div
+                    class="modal-sheet-panel bg-white dark:bg-obsidian-900 rounded-t-[2.5rem] max-h-[92vh] flex flex-col max-w-[480px] mx-auto w-full shadow-2xl relative transition-all duration-300">
+                    <!-- Drag Indicator -->
+                    <div class="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1.5 bg-gray-200 dark:bg-obsidian-800 rounded-full z-10"></div>
+
+                    <!-- Header Slip -->
+                    <div class="px-6 pt-7 pb-4 border-b border-gray-100 dark:border-obsidian-800 flex items-center justify-between sticky top-0 bg-white dark:bg-obsidian-900 rounded-t-[2.5rem] z-10">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-base">
+                                <i class="bi bi-receipt"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-black text-gray-900 dark:text-obsidian-100 text-sm tracking-tight">Bukti Transaksi Digital</h3>
+                                <p class="text-[9px] text-gray-400 dark:text-obsidian-400 font-bold uppercase tracking-wider" id="receipt-kop-name">KOSMIK Sandya Raharja</p>
+                            </div>
+                        </div>
+                        <button onclick="Portal.closeModal('modal-bukti-transaksi')"
+                            class="w-8 h-8 rounded-full bg-gray-100 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 dark:text-obsidian-400 hover:text-gray-600 dark:hover:text-obsidian-200">
+                            <i class="bi bi-x-lg text-xs"></i>
+                        </button>
+                    </div>
+
+                    <!-- Body Slip (Printable Voucher Area) -->
+                    <div class="p-6 overflow-y-auto space-y-4" id="receipt-printable-area">
+                        <!-- Card Slip with perforated paper effect -->
+                        <div class="bg-slate-50 dark:bg-obsidian-950 rounded-2xl p-5 border border-slate-200/80 dark:border-obsidian-800 relative">
+                            <!-- Status & Nominal -->
+                            <div class="text-center pb-4 border-b border-dashed border-gray-200 dark:border-obsidian-800">
+                                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 mb-2" id="receipt-status-badge">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                    <span id="receipt-status-text">TERBUKUKAN & SAH</span>
+                                </div>
+                                <p class="text-[10px] text-gray-400 dark:text-obsidian-400 font-bold uppercase tracking-wider" id="receipt-kategori">Simpanan Sukarela</p>
+                                <h2 class="text-2xl font-black text-gray-900 dark:text-obsidian-100 mt-0.5 tracking-tight" id="receipt-nominal">Rp 0</h2>
+                            </div>
+
+                            <!-- Details list -->
+                            <div class="py-4 space-y-2.5 text-xs border-b border-dashed border-gray-200 dark:border-obsidian-800">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400 dark:text-obsidian-500 text-[11px]">No. Referensi:</span>
+                                    <span class="font-mono font-bold text-gray-800 dark:text-obsidian-200" id="receipt-ref">TRX-00000000</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400 dark:text-obsidian-500 text-[11px]">Waktu Transaksi:</span>
+                                    <span class="font-medium text-gray-800 dark:text-obsidian-200" id="receipt-waktu">-</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400 dark:text-obsidian-500 text-[11px]">Nama Anggota:</span>
+                                    <span class="font-bold text-gray-800 dark:text-obsidian-200" id="receipt-nama">-</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-400 dark:text-obsidian-500 text-[11px]">Nomor Anggota:</span>
+                                    <span class="font-mono font-bold text-gray-800 dark:text-obsidian-200" id="receipt-no-anggota">-</span>
+                                </div>
+                                <div class="flex justify-between items-start">
+                                    <span class="text-gray-400 dark:text-obsidian-500 text-[11px]">Uraian:</span>
+                                    <span class="font-medium text-gray-800 dark:text-obsidian-200 text-right max-w-[200px]" id="receipt-deskripsi">-</span>
+                                </div>
+                            </div>
+
+                            <!-- Official Institutional Stamp / Verifikasi Digital -->
+                            <div class="pt-4 flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-xs">
+                                        <i class="bi bi-patch-check-fill"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-[9px] font-bold text-gray-700 dark:text-obsidian-200 leading-tight">Terverifikasi Sistem Koperasi</p>
+                                        <p class="text-[8px] text-gray-400 dark:text-obsidian-500 leading-tight">Badan Hukum AHU-0004128.AH.01.26</p>
+                                    </div>
+                                </div>
+                                <span class="text-[9px] font-mono text-gray-400 dark:text-obsidian-500">RESMI</span>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="grid grid-cols-2 gap-3 pt-2">
+                            <button onclick="Portal.shareReceiptWA()"
+                                class="py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition-all text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm">
+                                <i class="bi bi-whatsapp text-sm"></i>
+                                <span>Kirim via WA</span>
+                            </button>
+                            <button onclick="Portal.printReceipt()"
+                                class="py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm">
+                                <i class="bi bi-printer text-sm"></i>
+                                <span>Cetak Slip</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Bottom Nav -->
             <div

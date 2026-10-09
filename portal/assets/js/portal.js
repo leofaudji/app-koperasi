@@ -30,6 +30,308 @@ const Portal = {
     idleTimer: null,
     IDLE_TIMEOUT: 5 * 60 * 1000, // 5 Minutes
     currentData: { type: null, header: {}, items: [] },
+    appSettings: {},
+    recentActivities: [],
+    activeReceiptData: null,
+    viewCache: {},
+    dataCache: {},
+    loadedScripts: {},
+
+    getAvatarUrl(name) {
+        if (this.member && this.member.foto && this.member.foto.trim() !== '') {
+            const f = this.member.foto.trim();
+            if (f.startsWith('http://') || f.startsWith('https://') || f.startsWith('data:image/')) {
+                return f;
+            }
+            return '../' + f.replace(/^\/+/, '');
+        }
+
+        const cleanName = (name || this.member?.nama || 'A').trim();
+        const parts = cleanName.split(/\s+/).filter(Boolean);
+        let initials = 'A';
+        if (parts.length >= 2) {
+            initials = (parts[0][0] + parts[1][0]).toUpperCase();
+        } else if (parts.length === 1 && parts[0].length > 0) {
+            initials = parts[0].substring(0, 2).toUpperCase();
+        }
+
+        const palettes = [
+            { bg1: '#3b82f6', bg2: '#1d4ed8', fg: '#ffffff' },
+            { bg1: '#0ea5e9', bg2: '#0369a1', fg: '#ffffff' },
+            { bg1: '#10b981', bg2: '#047857', fg: '#ffffff' },
+            { bg1: '#6366f1', bg2: '#4338ca', fg: '#ffffff' },
+            { bg1: '#f59e0b', bg2: '#d97706', fg: '#ffffff' },
+            { bg1: '#ec4899', bg2: '#be185d', fg: '#ffffff' },
+            { bg1: '#14b8a6', bg2: '#0f766e', fg: '#ffffff' }
+        ];
+        const hash = cleanName.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+        const p = palettes[hash % palettes.length];
+
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs><linearGradient id="g_${hash}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${p.bg1}" /><stop offset="100%" stop-color="${p.bg2}" /></linearGradient></defs><rect width="100" height="100" rx="28" fill="url(#g_${hash})" /><text x="50" y="55" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="38" font-weight="700" fill="${p.fg}" text-anchor="middle" dominant-baseline="middle" letter-spacing="1">${initials}</text></svg>`;
+
+        return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    },
+
+    getOperationalStatus() {
+        const now = new Date();
+        const day = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        const hour = now.getHours();
+        const min = now.getMinutes();
+        const timeVal = hour * 60 + min;
+
+        const wa = this.appSettings?.wa_admin || this.appSettings?.telepon || '628123456789';
+        const cleanWa = wa.replace(/[^0-9]/g, '').replace(/^0/, '62');
+        const waText = encodeURIComponent(`Halo Pengurus ${this.pwaName || 'Koperasi'}, saya ${this.member?.nama || 'Anggota'} (${this.member?.no_anggota || ''}) ingin berkonsultasi mengenai layanan kas/transaksi.`);
+        const waLink = `https://wa.me/${cleanWa}?text=${waText}`;
+
+        if (day === 0) {
+            return {
+                isOpen: false,
+                label: '⚪ Layanan Kas Libur (Buka Senin 08.00 WIB)',
+                color: 'text-gray-500 dark:text-obsidian-400',
+                dotClass: 'bg-gray-400',
+                isPulsing: false,
+                waLink
+            };
+        } else if (day === 6) {
+            const openTime = 8 * 60;
+            const closeTime = 12 * 60;
+            const isOpen = timeVal >= openTime && timeVal < closeTime;
+            return {
+                isOpen,
+                label: isOpen ? '🟢 Layanan Kas Buka (Sabtu 08.00 - 12.00)' : '⚪ Layanan Kas Tutup (Buka Senin 08.00)',
+                color: isOpen ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-obsidian-400',
+                dotClass: isOpen ? 'bg-emerald-500' : 'bg-gray-400',
+                isPulsing: isOpen,
+                waLink
+            };
+        } else {
+            const openTime = 8 * 60;
+            const closeTime = 15 * 60;
+            const isOpen = timeVal >= openTime && timeVal < closeTime;
+            return {
+                isOpen,
+                label: isOpen ? '🟢 Layanan Kas Buka (08.00 - 15.00 WIB)' : (timeVal < openTime ? '⚪ Layanan Kas Buka Pk 08.00 WIB' : '⚪ Kantor Kas Tutup (Buka Besok 08.00)'),
+                color: isOpen ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-obsidian-400',
+                dotClass: isOpen ? 'bg-emerald-500' : 'bg-gray-400',
+                isPulsing: isOpen,
+                waLink
+            };
+        }
+    },
+
+    updateOperationalBar() {
+        const bar = document.getElementById('h-operational-bar');
+        if (!bar) return;
+        const status = this.getOperationalStatus();
+        const textEl = document.getElementById('h-op-text');
+        const waBtn = document.getElementById('h-op-wa-btn');
+        const indicatorEl = document.getElementById('h-op-indicator');
+
+        if (textEl) {
+            textEl.textContent = status.label;
+            textEl.className = `font-bold truncate ${status.color}`;
+        }
+        if (indicatorEl) {
+            indicatorEl.innerHTML = status.isPulsing
+                ? `<span class="animate-ping absolute inline-flex h-full w-full rounded-full ${status.dotClass} opacity-75"></span>
+                   <span class="relative inline-flex rounded-full h-2.5 w-2.5 ${status.dotClass}"></span>`
+                : `<span class="relative inline-flex rounded-full h-2.5 w-2.5 ${status.dotClass}"></span>`;
+        }
+        if (waBtn) {
+            waBtn.href = status.waLink;
+        }
+    },
+
+    currentMutasiList: [],
+
+    showReceipt(item) {
+        if (!item) return;
+        this.activeReceiptData = item;
+
+        const kopName = this.pwaName || this.appSettings?.app_name || 'KOSMIK Sandya Raharja';
+        const elKop = document.getElementById('receipt-kop-name');
+        if (elKop) elKop.textContent = kopName;
+
+        const elKategori = document.getElementById('receipt-kategori');
+        if (elKategori) elKategori.textContent = item.judul || (item.kategori ? item.kategori.toUpperCase() : 'TRANSAKSI');
+
+        const elNominal = document.getElementById('receipt-nominal');
+        const nominal = parseFloat(item.nominal || 0);
+        const prefix = item.dk === 'D' ? '+' : '-';
+        if (elNominal) elNominal.textContent = `${prefix}${this.rp(nominal)}`;
+
+        const elRef = document.getElementById('receipt-ref');
+        if (elRef) elRef.textContent = item.kode || `TRX-${Date.now().toString().slice(-8)}`;
+
+        const elWaktu = document.getElementById('receipt-waktu');
+        const trxDate = item.tanggal || item.created_at || new Date().toISOString();
+        if (elWaktu) elWaktu.textContent = this.fdate(trxDate) + ' WIB';
+
+        const elNama = document.getElementById('receipt-nama');
+        if (elNama) elNama.textContent = this.member?.nama || '-';
+
+        const elNoAnggota = document.getElementById('receipt-no-anggota');
+        if (elNoAnggota) elNoAnggota.textContent = this.member?.no_anggota || '-';
+
+        const elDeskripsi = document.getElementById('receipt-deskripsi');
+        if (elDeskripsi) elDeskripsi.textContent = item.deskripsi || '-';
+
+        const badgeStatus = document.getElementById('receipt-status-text');
+        if (badgeStatus) {
+            badgeStatus.textContent = (item.status === 'sukses' || item.status === 'lunas' || item.status === 'selesai')
+                ? 'TERBUKUKAN & SAH'
+                : (item.status ? item.status.toUpperCase() : 'TERCATAT');
+        }
+
+        this.openModal('modal-bukti-transaksi');
+    },
+
+    openReceiptModal(index) {
+        const item = this.recentActivities ? this.recentActivities[index] : null;
+        if (!item) return;
+        this.showReceipt(item);
+    },
+
+    openReceiptQuickModal() {
+        if (this.recentActivities && this.recentActivities.length > 0) {
+            this.openReceiptModal(0);
+        } else {
+            // Sample official initial membership registration slip
+            const sample = {
+                kategori: 'simpanan',
+                kode: `TRX-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}0001`,
+                tanggal: new Date().toISOString(),
+                judul: 'Simpanan Pokok Anggota',
+                deskripsi: 'Setoran Awal Keanggotaan Koperasi Resmi',
+                dk: 'D',
+                nominal: 100000,
+                status: 'sukses'
+            };
+            this.showReceipt(sample);
+        }
+    },
+
+    openReceiptFromSimpananIndex(index) {
+        const item = this.currentMutasiList ? this.currentMutasiList[index] : null;
+        if (!item) return;
+        const mapped = {
+            kategori: 'simpanan',
+            kode: item.no_transaksi || item.kode || `SMP-${Date.now().toString().slice(-8)}`,
+            tanggal: item.tgl_transaksi || item.created_at || new Date().toISOString(),
+            judul: item.nama_transaksi || 'Mutasi Simpanan',
+            deskripsi: `${item.nama_transaksi || 'Simpanan'} • Saldo: ${this.rp(item.saldo_sesudah || item.jumlah)}`,
+            dk: item.dk || 'D',
+            nominal: item.jumlah,
+            status: 'sukses'
+        };
+        this.showReceipt(mapped);
+    },
+
+    openReceiptFromAngsuran(item, noPinjaman = '', jenisPinjaman = '') {
+        if (!item) return;
+        const mapped = {
+            kategori: 'pinjaman',
+            kode: `${noPinjaman || 'PIN'}-ANG${item.angsuran_ke || '1'}`,
+            tanggal: item.tgl_bayar || item.tgl_jatuh_tempo || new Date().toISOString(),
+            judul: `Angsuran Ke-${item.angsuran_ke || 1} ${jenisPinjaman}`,
+            deskripsi: `Pokok: ${this.rp(item.pokok || 0)} • Bunga/Jasa: ${this.rp(item.bunga || 0)}`,
+            dk: 'K',
+            nominal: item.total || (parseFloat(item.pokok || 0) + parseFloat(item.bunga || 0)),
+            status: item.status === 'lunas' ? 'sukses' : item.status
+        };
+        this.showReceipt(mapped);
+    },
+
+    currentAngsuranList: [],
+    currentPinjamanInfo: null,
+
+    openReceiptFromAngsuranIndex(index) {
+        const a = this.currentAngsuranList ? this.currentAngsuranList[index] : null;
+        if (!a) return;
+        const noPinjaman = this.currentPinjamanInfo?.no_pinjaman || 'PIN';
+        const jenisPinjaman = this.currentPinjamanInfo?.jenis_pinjaman || 'Pinjaman';
+        this.openReceiptFromAngsuran(a, noPinjaman, jenisPinjaman);
+    },
+
+    shareReceiptWA() {
+        const item = this.activeReceiptData;
+        if (!item) return;
+
+        const kopName = this.pwaName || this.appSettings?.app_name || 'Koperasi';
+        const nominal = parseFloat(item.nominal || 0);
+        const prefix = item.dk === 'D' ? '+' : '-';
+        const ref = item.kode || `TRX-${Date.now().toString().slice(-8)}`;
+        const tgl = this.fdate(item.tanggal || item.created_at || new Date().toISOString());
+
+        const text = `*BUKTI TRANSAKSI DIGITAL RESMI*
+*${kopName.toUpperCase()}*
+---------------------------------------
+No. Ref : ${ref}
+Waktu   : ${tgl} WIB
+Anggota : ${this.member?.nama || '-'} (${this.member?.no_anggota || '-'})
+---------------------------------------
+Jenis   : ${item.judul || item.kategori}
+Jumlah  : ${prefix}${this.rp(nominal)}
+Status  : ${item.status ? item.status.toUpperCase() : 'SUKSES'} (SAH)
+Uraian  : ${item.deskripsi || '-'}
+---------------------------------------
+_Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Koperasi._`;
+
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, '_blank');
+    },
+
+    printReceipt() {
+        const printContent = document.getElementById('receipt-printable-area');
+        if (!printContent) return;
+
+        const kopName = this.pwaName || this.appSettings?.app_name || 'KOSMIK Sandya Raharja';
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            window.print();
+            return;
+        }
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Slip Transaksi - ${kopName}</title>
+                <style>
+                    body { font-family: 'Courier New', monospace; font-size: 13px; max-width: 380px; margin: 20px auto; padding: 15px; border: 1px solid #ccc; }
+                    .center { text-align: center; }
+                    .line { border-bottom: 1px dashed #000; margin: 10px 0; }
+                    .row { display: flex; justify-content: space-between; margin: 4px 0; }
+                    .bold { font-weight: bold; }
+                    .title { font-size: 16px; font-weight: bold; }
+                    @media print {
+                        body { border: none; margin: 0; padding: 10px; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="center title">${kopName}</div>
+                <div class="center">BUKTI TRANSAKSI DIGITAL</div>
+                <div class="line"></div>
+                <div class="row"><span>No. Ref:</span><span class="bold">${document.getElementById('receipt-ref')?.textContent || '-'}</span></div>
+                <div class="row"><span>Waktu:</span><span>${document.getElementById('receipt-waktu')?.textContent || '-'}</span></div>
+                <div class="row"><span>Anggota:</span><span>${document.getElementById('receipt-nama')?.textContent || '-'}</span></div>
+                <div class="row"><span>No. Anggota:</span><span>${document.getElementById('receipt-no-anggota')?.textContent || '-'}</span></div>
+                <div class="line"></div>
+                <div class="row"><span>Uraian:</span><span>${document.getElementById('receipt-kategori')?.textContent || '-'}</span></div>
+                <div class="row"><span class="bold">Jumlah:</span><span class="bold title">${document.getElementById('receipt-nominal')?.textContent || 'Rp 0'}</span></div>
+                <div class="row"><span>Status:</span><span class="bold">${document.getElementById('receipt-status-text')?.textContent || 'SAH'}</span></div>
+                <div class="line"></div>
+                <div class="center" style="font-size: 11px;">Validasi Digital &bull; Disahkan Sistem Koperasi</div>
+                <script>
+                    window.onload = function() { window.print(); setTimeout(() => window.close(), 500); };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    },
+
     getFirstName(name) {
         if (!name) return 'Anggota';
         let cleanName = name.trim();
@@ -122,63 +424,71 @@ const Portal = {
     
     sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); },
 
+    loadScript(src) {
+        if (this.loadedScripts[src] || document.querySelector(`script[src="${src}"]`)) {
+            this.loadedScripts[src] = true;
+            return Promise.resolve(true);
+        }
+        return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.async = true;
+            s.onload = () => {
+                this.loadedScripts[src] = true;
+                resolve(true);
+            };
+            s.onerror = () => reject(new Error(`Gagal mengunduh pustaka: ${src}`));
+            document.head.appendChild(s);
+        });
+    },
+
+    preloadViews() {
+        const tabs = ['home', 'simpanan', 'pinjaman', 'profil', 'rat', 'toko', 'laporan', 'pengajuan_pinjaman'];
+        const schedule = window.requestIdleCallback || ((cb) => setTimeout(cb, 800));
+        schedule(() => {
+            tabs.forEach(async (t) => {
+                if (!this.viewCache[t]) {
+                    try {
+                        const res = await fetch(`${this.PORTAL_BASE}views/${t}.html?v=${this.VERSION}`);
+                        if (res.ok) {
+                            this.viewCache[t] = await res.text();
+                        }
+                    } catch (e) {}
+                }
+            });
+        });
+    },
+
     async init() {
         this.initSplashTheme(); // Set dynamic background & tips
         this.initTheme(); // Load dark/light mode from storage
 
         const splashText = document.getElementById('splash-loader-text');
         
-        // 1. Version Check & Update
+        // 1. Instant Service Worker Registration & Fast Version Check
         if ('serviceWorker' in navigator) {
             try {
-                if (splashText) splashText.textContent = 'Checking for updates...';
-                await this.sleep(1000); // Visual delay
-                
-                const vRes = await fetch('version.json', { cache: 'no-store' });
-                const vData = await vRes.json();
-                const lastSwVersion = localStorage.getItem('portal_sw_version');
-                
-                // Register service worker first
                 const registration = await navigator.serviceWorker.register('sw.js');
                 
-                if (vData.sw_version !== lastSwVersion) {
-                    if (splashText) {
-                        splashText.textContent = `New version available (v${vData.version})`;
-                        await this.sleep(800);
-                        splashText.textContent = 'Downloading updates...';
-                        splashText.classList.remove('text-white/40');
-                        splashText.classList.add('text-white', 'font-bold');
-                    }
-                    
-                    // Trigger manual update check
-                    try { await registration.update(); } catch(e) { console.warn(e); }
-                    
-                    // Wait for the update to complete if there is an installation in progress
-                    if (registration.installing || registration.waiting) {
-                        await this.waitForUpdate(registration);
-                    }
-                    
-                    // Always update local storage so we don't prompt again for this version
-                    localStorage.setItem('portal_sw_version', vData.sw_version);
-                    
-                    if (splashText) {
-                        splashText.textContent = 'Updates installed successfully';
-                    }
-                    await this.sleep(800);
-                    
-                    // Reload to immediately load the new assets from the updated service worker
-                    window.location.reload();
-                    return; // Stop initialization and wait for reload
-                } else {
-                    localStorage.setItem('portal_sw_version', vData.sw_version);
-                    if (splashText) {
-                        splashText.textContent = `System up to date (v${vData.version})`;
-                        splashText.classList.remove('animate-pulse');
-                    }
-                    await this.sleep(1000);
-                }
+                // Cek update di latar belakang tanpa menahan pengguna
+                fetch('version.json', { cache: 'no-store' })
+                    .then(res => res.json())
+                    .then(async (vData) => {
+                        const lastSwVersion = localStorage.getItem('portal_sw_version');
+                        if (vData?.sw_version && vData.sw_version !== lastSwVersion) {
+                            localStorage.setItem('portal_sw_version', vData.sw_version);
+                            try { await registration.update(); } catch(e) {}
+                            if (registration.installing || registration.waiting) {
+                                await this.waitForUpdate(registration);
+                            }
+                            window.location.reload();
+                        } else if (vData?.sw_version) {
+                            localStorage.setItem('portal_sw_version', vData.sw_version);
+                        }
+                    })
+                    .catch(e => console.warn('Pengecekan versi latar belakang:', e));
             } catch (e) {
-                console.warn('Update check failed, proceeding anyway:', e);
+                console.warn('Service worker registration failed:', e);
             }
         }
 
@@ -186,38 +496,30 @@ const Portal = {
         this.initIdleMonitor();
         this.initVisibilityCheck();
 
-        if (splashText) {
-            splashText.textContent = 'Initializing System...';
-            splashText.classList.add('text-white/40', 'animate-pulse');
-        }
-
         document.getElementById('p-login-form').addEventListener('submit', e => { e.preventDefault(); this.login(); });
         const r = await this.api('portal/me');
         if (r?.data?.csrf_token) this.csrfToken = r.data.csrf_token;
+
+        const hideSplash = () => {
+            const splash = document.getElementById('initial-splash');
+            if (splash) {
+                splash.classList.add('fade-out');
+                document.body.classList.remove('overflow-hidden');
+                setTimeout(() => splash.remove(), 350);
+            }
+        };
 
         if (r?.success) {
             localStorage.setItem('kop_was_logged_in', 'true');
             this.member = r.data.anggota;
             this.pwaName = r.data.pwa_name || '';
             this.logoUrl = r.data.logo_url || '';
-            // Prepare app while splash is still showing
+            this.appSettings = r.data.settings || {};
             await this.showApp();
-
-            // Smooth exit of initial splash
-            setTimeout(() => {
-                const splash = document.getElementById('initial-splash');
-                splash.classList.add('fade-out');
-                document.body.classList.remove('overflow-hidden');
-                setTimeout(() => splash.remove(), 800);
-            }, 1200);
+            hideSplash();
+            this.preloadViews();
         } else {
-            // Not logged in, show login after splash
-            setTimeout(() => {
-                const splash = document.getElementById('initial-splash');
-                splash.classList.add('fade-out');
-                document.body.classList.remove('overflow-hidden');
-                setTimeout(() => splash.remove(), 800);
-            }, 1200);
+            hideSplash();
         }
     },
 
@@ -268,6 +570,7 @@ const Portal = {
             this.member = r.data.anggota || r.data;
             this.pwaName = r.data.pwa_name || '';
             this.logoUrl = r.data.logo_url || '';
+            this.appSettings = r.data.settings || {};
             if (r.data.csrf_token) this.csrfToken = r.data.csrf_token;
             this.showSplash();
         }
@@ -299,8 +602,9 @@ const Portal = {
             splash.classList.add('opacity-0', 'scale-110');
             this.showApp();
             this.tab('home');
-            setTimeout(() => splash.remove(), 700);
-        }, 2200);
+            this.preloadViews();
+            setTimeout(() => splash.remove(), 350);
+        }, 750);
     },
 
     async logout() {
@@ -507,6 +811,15 @@ const Portal = {
             <div id="reader" class="rounded-2xl overflow-hidden border-2 border-primary-100 bg-gray-50 shadow-inner" style="width: 100%;"></div>
             <button onclick="Swal.close(); Portal.stopScanner();" class="mt-6 w-full py-3 bg-gray-100 text-gray-500 rounded-2xl font-bold text-sm uppercase">Batal</button>
         </div>`;
+
+        if (typeof Html5Qrcode === 'undefined') {
+            try {
+                await this.loadScript('https://unpkg.com/html5-qrcode');
+            } catch (err) {
+                Swal.fire('Error', 'Gagal memuat pustaka scanner QR: ' + err.message, 'error');
+                return;
+            }
+        }
 
         Swal.fire({
             html: html,
@@ -736,189 +1049,10 @@ const Portal = {
         if (elNo) elNo.textContent = this.member.no_anggota;
         if (elTgl) elTgl.textContent = 'Bersama Sejak ' + (this.member.tgl_gabung ? new Date(this.member.tgl_gabung).getFullYear() : '2026');
         if (elImg) {
-            const initials = this.getFirstName(this.member.nama); // Use our helper just for avatar initials
-            elImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=ffffff&color=2563eb&size=100`;
+            elImg.src = this.getAvatarUrl(this.member.nama);
         }
 
         this.tab('home');
-    },
-
-    renderBillingCard(data) {
-        const container = document.getElementById('h-billing-container');
-        if (!container) return;
-
-        if (!data) {
-            container.innerHTML = '';
-            return;
-        }
-
-        const tagihan = data.tagihan;
-        const sukarela = data.sukarela;
-        const pendingPengajuan = data.pending_pengajuan;
-        const hasLoan = data.has_loan;
-
-        if (tagihan) {
-            const hariLagi = parseInt(tagihan.hari_lagi || 0);
-            const isOverdue = hariLagi < 0;
-            const isToday = hariLagi === 0;
-
-            let urgencyBadgeClass = 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800';
-            let urgencyLabel = `${hariLagi} Hari Lagi`;
-            if (isOverdue) {
-                urgencyBadgeClass = 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800 animate-pulse';
-                urgencyLabel = `Terlambat ${Math.abs(hariLagi)} Hari`;
-            } else if (isToday) {
-                urgencyBadgeClass = 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800 animate-pulse';
-                urgencyLabel = 'Jatuh Tempo Hari Ini';
-            }
-
-            const totalBayar = parseFloat(tagihan.total || 0);
-            const saldoSukarela = sukarela ? parseFloat(sukarela.saldo || 0) : 0;
-            const cukupSaldo = saldoSukarela >= totalBayar;
-
-            container.innerHTML = `
-                <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-obsidian-800 relative overflow-hidden transition-colors duration-300">
-                    <div class="absolute top-0 right-0 p-4 opacity-5 pointer-events-none text-gray-900 dark:text-white">
-                        <i class="bi bi-receipt text-6xl"></i>
-                    </div>
-                    
-                    <!-- Header -->
-                    <div class="flex items-center justify-between mb-3 relative z-10">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-10 h-10 rounded-2xl ${isOverdue ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'} flex items-center justify-center text-lg shadow-xs">
-                                <i class="bi ${isOverdue ? 'bi-exclamation-triangle-fill' : 'bi-calendar-check-fill'}"></i>
-                            </div>
-                            <div>
-                                <h3 class="text-sm font-black text-gray-800 dark:text-obsidian-100 uppercase tracking-wider">Tagihan Terdekat</h3>
-                                <p class="text-[10px] text-gray-400 dark:text-obsidian-500 font-bold uppercase tracking-wider">${tagihan.jenis_pinjaman} · ${tagihan.no_pinjaman}</p>
-                            </div>
-                        </div>
-                        <span class="text-[10px] font-black uppercase px-2.5 py-1 rounded-full ${urgencyBadgeClass}">
-                            ${urgencyLabel}
-                        </span>
-                    </div>
-
-                    <!-- Nominal Box -->
-                    <div class="p-4 bg-slate-50/80 dark:bg-obsidian-800/60 rounded-2xl border border-slate-100 dark:border-obsidian-700/60 mb-4 relative z-10">
-                        <div class="flex items-baseline justify-between">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-obsidian-400">Nominal Tagihan</span>
-                            <span class="text-xs font-semibold text-slate-600 dark:text-obsidian-300">
-                                Angsuran Ke-<b>${tagihan.angsuran_ke}</b> / ${tagihan.tenor}
-                            </span>
-                        </div>
-                        <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-obsidian-50 mt-1">
-                            ${this.rp(tagihan.total)}
-                        </div>
-                        <div class="text-[10px] text-slate-500 dark:text-obsidian-400 mt-1 flex items-center gap-1">
-                            <i class="bi bi-clock-history"></i> Jatuh Tempo: <b class="text-slate-700 dark:text-obsidian-200">${this.fdate(tagihan.tgl_jatuh_tempo)}</b>
-                        </div>
-
-                        <!-- Rincian Tagihan -->
-                        <div class="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-slate-200/60 dark:border-obsidian-700/60 text-[10px]">
-                            <div class="flex justify-between text-slate-500 dark:text-obsidian-400">
-                                <span>Pokok:</span>
-                                <span class="font-bold text-slate-700 dark:text-obsidian-200">${this.rp(tagihan.pokok)}</span>
-                            </div>
-                            <div class="flex justify-between text-slate-500 dark:text-obsidian-400">
-                                <span>Jasa/Bunga:</span>
-                                <span class="font-bold text-slate-700 dark:text-obsidian-200">${this.rp(tagihan.bunga)}</span>
-                            </div>
-                            ${parseFloat(tagihan.denda) > 0 ? `
-                                <div class="flex justify-between col-span-2 text-rose-600 dark:text-rose-400 font-semibold pt-1 border-t border-slate-200/40">
-                                    <span>Denda Keterlambatan:</span>
-                                    <span>${this.rp(tagihan.denda)}</span>
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-
-                    <!-- Payment Action Area -->
-                    <div class="relative z-10">
-                        ${pendingPengajuan ? `
-                            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-2xl flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-2 text-xs text-amber-800 dark:text-amber-200">
-                                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0"></span>
-                                    <div>
-                                        <div class="font-bold">Pengajuan Menunggu ACC</div>
-                                        <div class="text-[10px] text-amber-600 dark:text-amber-400 font-mono">${pendingPengajuan.no_pengajuan}</div>
-                                    </div>
-                                </div>
-                                <button onclick="Portal.tab('pinjaman')" class="px-3 py-1.5 bg-amber-200/80 dark:bg-amber-800/60 text-amber-900 dark:text-amber-100 rounded-xl text-[11px] font-bold transition">
-                                    Lihat Status
-                                </button>
-                            </div>
-                        ` : (sukarela && cukupSaldo ? `
-                            <div class="space-y-2">
-                                <button onclick="Portal.bayarAngsuranSukarela(${tagihan.pinjaman_id}, ${tagihan.angsuran_id}, ${tagihan.angsuran_ke}, ${tagihan.total}, ${sukarela.saldo})" 
-                                    class="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-98 transition">
-                                    <i class="bi bi-wallet2 text-sm"></i>
-                                    <span>Bayar via Simpanan Sukarela</span>
-                                </button>
-                                <div class="flex items-center justify-between px-1 text-[10px] text-slate-400 dark:text-obsidian-400">
-                                    <span>Saldo Sukarela: <b class="text-emerald-600 dark:text-emerald-400">${this.rp(sukarela.saldo)}</b></span>
-                                    <span class="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><i class="bi bi-check-circle-fill"></i> Saldo Cukup</span>
-                                </div>
-                            </div>
-                        ` : (sukarela ? `
-                            <div class="p-3 bg-slate-50 dark:bg-obsidian-800 rounded-2xl border border-slate-200/80 dark:border-obsidian-700 flex items-center justify-between gap-2">
-                                <div class="text-xs">
-                                    <div class="text-gray-500 dark:text-obsidian-400 text-[10px]">Saldo Sukarela: <b>${this.rp(sukarela.saldo)}</b></div>
-                                    <div class="text-rose-600 dark:text-rose-400 font-semibold text-[10px]">Kurang ${this.rp(tagihan.total - sukarela.saldo)}</div>
-                                </div>
-                                <button onclick="Portal.tab('pinjaman')" class="px-3 py-1.5 bg-gray-200 dark:bg-obsidian-700 hover:bg-gray-300 text-gray-800 dark:text-obsidian-100 rounded-xl text-xs font-bold transition">
-                                    Rincian Pinjaman
-                                </button>
-                            </div>
-                        ` : `
-                            <button onclick="Portal.tab('pinjaman')" class="w-full py-2.5 px-4 bg-gray-100 dark:bg-obsidian-800 hover:bg-gray-200 text-gray-800 dark:text-obsidian-100 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition">
-                                <span>Lihat Rincian Pinjaman</span>
-                                <i class="bi bi-arrow-right"></i>
-                            </button>
-                        `))}
-                    </div>
-                </div>
-            `;
-        } else if (hasLoan) {
-            container.innerHTML = `
-                <div class="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent dark:from-emerald-900/30 dark:via-emerald-900/10 rounded-3xl p-5 border border-emerald-200/60 dark:border-emerald-800/50 shadow-xs relative overflow-hidden transition-all">
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-2xl shrink-0">
-                            <i class="bi bi-patch-check-fill"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h4 class="text-sm font-bold text-emerald-900 dark:text-emerald-100">Semua Angsuran Lunas</h4>
-                            <p class="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5">Tidak ada tagihan tertunggak. Terima kasih atas ketepatan pembayaran Anda!</p>
-                        </div>
-                    </div>
-                    <div class="mt-3 pt-3 border-t border-emerald-200/50 dark:border-emerald-800/50 flex justify-between items-center text-xs">
-                        <span class="text-[10px] text-emerald-700/80 dark:text-emerald-400/80">Kolektibilitas: <b>Lancar</b></span>
-                        <button onclick="Portal.tab('pinjaman')" class="text-xs font-bold text-emerald-800 dark:text-emerald-200 hover:underline flex items-center gap-1">
-                            <span>Riwayat Pinjaman</span> <i class="bi bi-chevron-right text-[10px]"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        } else {
-            container.innerHTML = `
-                <div class="bg-gradient-to-br from-indigo-500/10 via-primary-500/5 to-transparent dark:from-indigo-900/30 dark:via-indigo-900/10 rounded-3xl p-5 border border-indigo-200/60 dark:border-indigo-800/50 shadow-xs relative overflow-hidden transition-all">
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-2xl shrink-0">
-                            <i class="bi bi-shield-heart-fill"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h4 class="text-sm font-bold text-gray-900 dark:text-obsidian-100">Bebas Kewajiban Pinjaman</h4>
-                            <p class="text-[11px] text-gray-500 dark:text-obsidian-400 mt-0.5">Saat ini Anda tidak memiliki pinjaman aktif di koperasi.</p>
-                        </div>
-                    </div>
-                    <div class="mt-3.5 pt-3 border-t border-indigo-100 dark:border-indigo-800/50 flex items-center justify-between">
-                        <span class="text-[10px] text-gray-400 dark:text-obsidian-400 font-medium">Butuh dana usaha / darurat?</span>
-                        <button onclick="Portal.tab('pinjaman')" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 active:scale-95">
-                            <span>Simulasi Pinjaman</span> <i class="bi bi-arrow-right text-xs"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
     },
 
     initTheme() {
@@ -989,27 +1123,52 @@ const Portal = {
         // Set avatar with generated initial
         const img = document.getElementById('h-avatar');
         if (img) {
-            const initials = this.getFirstName(displayName);
-            img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=0D8ABC&color=fff&size=100`;
+            img.src = this.getAvatarUrl(displayName);
         }
 
-        // Parallel fetching logic for dashboard
-        const [rSaldo, rPinjaman, rUpcoming, rNotif, rTagihan, rPengumuman] = await Promise.all([
-            this.api('portal/saldo'),
-            this.api('portal/pinjaman'),
-            this.api('portal/angsuran-upcoming'),
-            this.api('portal/notifications'),
-            this.api('portal/tagihan-terdekat'),
-            this.api('portal/pengumuman')
-        ]);
+        // Consolidated single-batch fetching logic for dashboard (with fallback)
+        let rSaldo, rPinjaman, rUpcoming, rNotif, rTagihan, rPengumuman, rRatWidget, rAktivitas;
+        const summary = await this.api('portal/dashboard-summary');
+        if (summary?.success && summary.data) {
+            const d = summary.data;
+            rSaldo = { success: true, data: d.saldo };
+            rPinjaman = { success: true, data: d.pinjaman };
+            rUpcoming = { success: true, data: d.upcoming };
+            rNotif = { success: true, data: d.notifications };
+            rTagihan = { success: true, data: d.tagihan };
+            rPengumuman = { success: true, data: d.pengumuman };
+            rRatWidget = { success: true, data: d.rat_widget };
+            rAktivitas = { success: true, data: d.aktivitas };
+        } else {
+            [rSaldo, rPinjaman, rUpcoming, rNotif, rTagihan, rPengumuman, rRatWidget, rAktivitas] = await Promise.all([
+                this.api('portal/saldo'),
+                this.api('portal/pinjaman'),
+                this.api('portal/angsuran-upcoming'),
+                this.api('portal/notifications'),
+                this.api('portal/tagihan-terdekat'),
+                this.api('portal/pengumuman'),
+                this.api('portal/rat-widget'),
+                this.api('portal/aktivitas-terbaru')
+            ]);
+        }
+        this.dataCache['dashboard'] = true;
+
+        /* Update Widget Musim RAT */
+        this.renderRatWidget(rRatWidget?.success ? rRatWidget.data : null);
 
         /* Update Billing Card Widget */
         if (rTagihan?.success) {
             this.renderBillingCard(rTagihan.data);
         }
 
+        /* Update Feed Aktivitas Terbaru */
+        this.renderRecentActivities(rAktivitas?.success ? rAktivitas.data : []);
+
         // Muat Status Kesehatan & Transparansi Koperasi untuk banner
         this.loadTransparansiBanner();
+
+        // Update Operational Cash Counter Status Bar
+        this.updateOperationalBar();
 
         // Update Dynamic Greeting (Home Tab)
         const greeting = this.getGreeting();
@@ -1230,142 +1389,246 @@ const Portal = {
         // KASUS 1: Ada tagihan angsuran terdekat belum lunas
         if (tagihan) {
             const hariLagi = parseInt(tagihan.hari_lagi || 0);
+            const isOverdue = hariLagi < 0;
+            const isToday = hariLagi === 0;
             const totalNominal = parseFloat(tagihan.total || 0);
             const saldoSukarela = sukarela ? parseFloat(sukarela.saldo || 0) : 0;
             const isSaldoCukup = saldoSukarela >= totalNominal;
 
-            // Status Badge Urgensi
-            let badgeClass = '';
-            let badgeIcon = '';
-            let badgeText = '';
+            // Perhitungan Tenor & Progress Pelunasan
+            const tenorTotal = parseInt(tagihan.tenor || 1);
+            const angsuranKe = parseInt(tagihan.angsuran_ke || 1);
+            const sisaBulan = Math.max(0, tenorTotal - angsuranKe);
+            const persenTenor = Math.min(100, Math.max(0, Math.round((angsuranKe / tenorTotal) * 100)));
 
-            if (hariLagi < 0) {
-                const terlambat = Math.abs(hariLagi);
-                badgeClass = 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800';
-                badgeIcon = 'bi-exclamation-triangle-fill';
-                badgeText = `Terlambat ${terlambat} Hari`;
-            } else if (hariLagi === 0) {
-                badgeClass = 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 animate-pulse';
-                badgeIcon = 'bi-alarm-fill';
-                badgeText = 'Jatuh Tempo Hari Ini!';
-            } else if (hariLagi <= 3) {
-                badgeClass = 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800';
-                badgeIcon = 'bi-hourglass-split';
-                badgeText = `${hariLagi} Hari Lagi`;
-            } else {
-                badgeClass = 'bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800';
-                badgeIcon = 'bi-calendar-event';
-                badgeText = `${hariLagi} Hari Lagi`;
-            }
-
-            // Rincian Pokok, Bunga, Denda
+            // Rincian Pokok, Bunga, Denda, Sisa Pinjaman
             const pokok = parseFloat(tagihan.pokok || 0);
             const bunga = parseFloat(tagihan.bunga || 0);
             const denda = parseFloat(tagihan.denda || 0);
+            const sisaPinjaman = parseFloat(tagihan.sisa_pinjaman || 0);
 
-            // Action section: Pending pengajuan vs Tombol Bayar vs Info Saldo
+            // Badge Urgensi Jatuh Tempo
+            let urgencyClass = 'bg-indigo-50 text-indigo-700 border-indigo-200/80 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800';
+            let urgencyIcon = 'bi-calendar-event';
+            let urgencyText = `${hariLagi} Hari Lagi`;
+            if (isOverdue) {
+                const terlambat = Math.abs(hariLagi);
+                urgencyClass = 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 animate-pulse';
+                urgencyIcon = 'bi-exclamation-triangle-fill';
+                urgencyText = `Terlambat ${terlambat} Hari`;
+            } else if (isToday) {
+                urgencyClass = 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 animate-pulse';
+                urgencyIcon = 'bi-alarm-fill';
+                urgencyText = 'Jatuh Tempo Hari Ini';
+            } else if (hariLagi <= 3) {
+                urgencyClass = 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800';
+                urgencyIcon = 'bi-hourglass-split';
+                urgencyText = `${hariLagi} Hari Lagi`;
+            }
+
+            // Status Kolektibilitas Standar Perbankan / Kemenkop UKM
+            const kolStatus = isOverdue
+                ? { label: 'KOL 2 • Perhatian Khusus', badge: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40', dot: 'bg-rose-500' }
+                : { label: 'KOL 1 • Lancar', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/40', dot: 'bg-emerald-500' };
+
+            // Bagian Aksi / Pembayaran (Pending Pengajuan vs Saldo Cukup vs Saldo Kurang vs Kasir)
             let actionHtml = '';
             if (pending_pengajuan) {
                 actionHtml = `
                 <div class="mt-4 p-3.5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2.5">
+                    <div class="flex items-center gap-2.5 min-w-0">
                         <span class="relative flex h-3 w-3 shrink-0">
                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                             <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
                         </span>
-                        <div>
-                            <p class="text-xs font-bold text-amber-900 dark:text-amber-200">Menunggu ACC Bendahara</p>
-                            <p class="text-[10px] text-amber-700 dark:text-amber-400">Pengajuan ${pending_pengajuan.no_pengajuan || ''} sedang diproses</p>
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold text-amber-900 dark:text-amber-200">Verifikasi Pembayaran Berjalan</p>
+                            <p class="text-[10px] text-amber-700 dark:text-amber-400 truncate">Pengajuan #${pending_pengajuan.no_pengajuan || ''} sedang ditinjau Bendahara</p>
                         </div>
                     </div>
-                    <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-200/60 dark:bg-amber-800/50 text-amber-800 dark:text-amber-300">
-                        Pending
-                    </span>
-                </div>`;
-            } else if (isSaldoCukup) {
-                actionHtml = `
-                <div class="mt-4 pt-4 border-t border-gray-100 dark:border-obsidian-800 space-y-2">
-                    <button onclick="Portal.bayarAngsuranSukarela('${tagihan.pinjaman_id}', '${tagihan.angsuran_id}', ${tagihan.angsuran_ke}, ${totalNominal}, ${saldoSukarela})"
-                        class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                        <i class="bi bi-wallet2 text-sm"></i>
-                        <span>Bayar via Simpanan Sukarela</span>
+                    <button onclick="Portal.tab('pinjaman')" class="px-3 py-1.5 rounded-xl bg-amber-200/80 dark:bg-amber-800/60 text-amber-900 dark:text-amber-100 text-[11px] font-bold hover:bg-amber-300 transition shrink-0">
+                        Cek Status
                     </button>
-                    <div class="flex items-center justify-between px-1 text-[11px] text-gray-500 dark:text-obsidian-400">
-                        <span>Saldo Sukarela: <strong class="text-emerald-600 dark:text-emerald-400">${this.rp(saldoSukarela)}</strong></span>
-                        <span class="text-gray-400 dark:text-obsidian-500">Autodebet</span>
+                </div>`;
+            } else if (sukarela && isSaldoCukup) {
+                const sisaSaldo = saldoSukarela - totalNominal;
+                actionHtml = `
+                <div class="mt-4 space-y-2.5">
+                    <!-- Kartu Autodebet Saldo Cukup -->
+                    <div class="p-3 rounded-2xl bg-gradient-to-r from-emerald-50/90 to-teal-50/70 dark:from-emerald-950/40 dark:to-teal-950/30 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 text-sm">
+                                <i class="bi bi-wallet-check"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-[10px] text-gray-500 dark:text-obsidian-400">Saldo Sukarela:</span>
+                                    <strong class="text-xs text-gray-800 dark:text-obsidian-100">${this.rp(saldoSukarela)}</strong>
+                                </div>
+                                <p class="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium truncate">
+                                    <i class="bi bi-check-circle-fill"></i> Tersisa ${this.rp(sisaSaldo)} setelah autodebet
+                                </p>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 shrink-0">
+                            Saldo Cukup
+                        </span>
+                    </div>
+
+                    <!-- Tombol Eksekusi Bayar 1-Click -->
+                    <button onclick="Portal.bayarAngsuranSukarela('${tagihan.pinjaman_id}', '${tagihan.angsuran_id}', ${angsuranKe}, ${totalNominal}, ${saldoSukarela})"
+                        class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs shadow-md shadow-emerald-600/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                        <i class="bi bi-lightning-charge-fill text-amber-300 text-sm"></i>
+                        <span>Bayar Angsuran via Simpanan Sukarela</span>
+                    </button>
+
+                    <div class="flex items-center justify-between px-1 text-[11px]">
+                        <span class="text-gray-400 dark:text-obsidian-500 text-[10px] flex items-center gap-1">
+                            <i class="bi bi-shield-check text-emerald-500"></i> Autodebet instan & otomatis tercatat
+                        </span>
+                        <button onclick="Portal.tab('pinjaman')" class="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold text-[11px] flex items-center gap-1">
+                            <span>Jadwal Lengkap</span> <i class="bi bi-chevron-right text-[9px]"></i>
+                        </button>
                     </div>
                 </div>`;
             } else if (sukarela) {
+                const defisit = totalNominal - saldoSukarela;
                 actionHtml = `
-                <div class="mt-4 pt-4 border-t border-gray-100 dark:border-obsidian-800 space-y-2">
-                    <div class="p-3 rounded-2xl bg-gray-50 dark:bg-obsidian-800/60 border border-gray-100 dark:border-obsidian-800 flex items-center justify-between text-xs">
-                        <div>
-                            <p class="text-[10px] text-gray-400 dark:text-obsidian-400">Saldo Sukarela Tidak Mencukupi</p>
-                            <p class="font-bold text-gray-700 dark:text-obsidian-200">${this.rp(saldoSukarela)}</p>
+                <div class="mt-4 space-y-2.5">
+                    <!-- Kartu Defisit Saldo -->
+                    <div class="p-3.5 rounded-2xl bg-amber-50/80 dark:bg-obsidian-800/80 border border-amber-200/70 dark:border-obsidian-700 flex items-center justify-between text-xs gap-2">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                                <i class="bi bi-exclamation-triangle text-sm"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[10px] text-gray-500 dark:text-obsidian-400">Saldo Sukarela: <strong class="text-gray-800 dark:text-obsidian-200">${this.rp(saldoSukarela)}</strong></p>
+                                <p class="text-[11px] font-bold text-rose-600 dark:text-rose-400 truncate">Kurang ${this.rp(defisit)} untuk autodebet</p>
+                            </div>
                         </div>
-                        <button onclick="Portal.tab('simpanan')" class="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-semibold hover:bg-indigo-100 transition-colors">
-                            Top Up <i class="bi bi-arrow-right"></i>
+                        <button onclick="Portal.tab('simpanan')" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs flex items-center gap-1 shrink-0 active:scale-95">
+                            <i class="bi bi-wallet2 text-xs"></i> Top Up
                         </button>
                     </div>
-                    <button onclick="Portal.tab('pinjaman')" class="w-full py-2 text-center text-xs font-semibold text-gray-600 dark:text-obsidian-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                        Lihat Jadwal & Detail Pinjaman &rarr;
-                    </button>
+
+                    <!-- Tombol Opsi Alternatif -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="Portal.tab('simpanan')" class="py-2.5 px-3 rounded-xl bg-gray-100 dark:bg-obsidian-800 hover:bg-gray-200 dark:hover:bg-obsidian-700 text-gray-700 dark:text-obsidian-200 font-bold text-xs transition flex items-center justify-center gap-1.5">
+                            <i class="bi bi-qr-code text-xs"></i> <span>Transfer / Setor</span>
+                        </button>
+                        <button onclick="Portal.tab('pinjaman')" class="py-2.5 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-bold text-xs transition flex items-center justify-center gap-1.5">
+                            <span>Rincian Pinjaman</span> <i class="bi bi-arrow-right text-xs"></i>
+                        </button>
+                    </div>
                 </div>`;
             } else {
                 actionHtml = `
-                <div class="mt-4 pt-3 border-t border-gray-100 dark:border-obsidian-800">
-                    <button onclick="Portal.tab('pinjaman')" class="w-full py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-100 transition-colors flex items-center justify-center gap-1.5">
-                        <span>Lihat Rincian Jadwal Angsuran</span>
-                        <i class="bi bi-chevron-right text-[11px]"></i>
+                <div class="mt-4 pt-3 border-t border-gray-100 dark:border-obsidian-800 flex items-center justify-between">
+                    <span class="text-[11px] text-gray-500 dark:text-obsidian-400">Bayar di Kasir/Teller Koperasi</span>
+                    <button onclick="Portal.tab('pinjaman')" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition flex items-center gap-1 active:scale-95">
+                        <span>Lihat Rincian Jadwal</span> <i class="bi bi-arrow-right text-[10px]"></i>
                     </button>
                 </div>`;
             }
 
             container.innerHTML = `
-            <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-obsidian-800 transition-colors duration-300">
-                <div class="flex items-start justify-between gap-2 mb-3">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                            <i class="bi bi-receipt text-lg"></i>
+            <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-obsidian-800 relative overflow-hidden transition-colors duration-300">
+                <!-- Background decorative radial glow -->
+                <div class="absolute -top-16 -right-16 w-44 h-44 bg-gradient-to-br from-indigo-500/10 via-primary-500/5 to-transparent rounded-full blur-2xl pointer-events-none"></div>
+
+                <!-- 1. Header Card: Nama Pinjaman, No Kontrak & Dua Status Badges -->
+                <div class="flex items-start justify-between gap-3 mb-3 relative z-10">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-11 h-11 rounded-2xl ${isOverdue ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200/80 dark:border-rose-900/60' : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-900/60'} flex items-center justify-center text-lg shrink-0 shadow-xs">
+                            <i class="bi ${isOverdue ? 'bi-exclamation-octagon-fill' : 'bi-receipt-cutoff'}"></i>
                         </div>
-                        <div>
-                            <div class="flex items-center gap-1.5">
-                                <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-sm">Tagihan Angsuran</h3>
-                                <span class="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-obsidian-800 text-gray-600 dark:text-obsidian-300 font-semibold">Ke-${tagihan.angsuran_ke}/${tagihan.tenor}</span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <h3 class="font-black text-gray-900 dark:text-obsidian-50 text-sm tracking-tight">Tagihan Angsuran</h3>
+                                <span class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800/60 font-mono">
+                                    ${tagihan.no_pinjaman}
+                                </span>
                             </div>
-                            <p class="text-[11px] text-gray-400 dark:text-obsidian-400 truncate max-w-[180px] sm:max-w-none">${tagihan.jenis_pinjaman} &bull; ${tagihan.no_pinjaman}</p>
+                            <p class="text-[11px] text-gray-500 dark:text-obsidian-400 mt-0.5 font-medium truncate">
+                                ${tagihan.jenis_pinjaman}
+                            </p>
                         </div>
                     </div>
-                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${badgeClass}">
-                        <i class="bi ${badgeIcon}"></i> ${badgeText}
-                    </span>
-                </div>
 
-                <div class="bg-gray-50/70 dark:bg-obsidian-800/40 rounded-2xl p-3.5 border border-gray-100/80 dark:border-obsidian-800 mb-2">
-                    <div class="flex items-baseline justify-between mb-1">
-                        <span class="text-[11px] font-medium text-gray-500 dark:text-obsidian-400">Total Tagihan</span>
-                        <span class="text-[11px] text-gray-500 dark:text-obsidian-400">Jatuh Tempo: <b class="text-gray-700 dark:text-obsidian-200">${this.fdate(tagihan.tgl_jatuh_tempo)}</b></span>
-                    </div>
-                    <div class="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
-                        ${this.rp(totalNominal)}
-                    </div>
-                    <div class="grid grid-cols-3 gap-2 mt-3 pt-2.5 border-t border-gray-200/60 dark:border-obsidian-700/60 text-center">
-                        <div>
-                            <span class="block text-[9px] text-gray-400 dark:text-obsidian-400">Pokok</span>
-                            <span class="text-[11px] font-bold text-gray-700 dark:text-obsidian-200">${this.rp(pokok)}</span>
-                        </div>
-                        <div>
-                            <span class="block text-[9px] text-gray-400 dark:text-obsidian-400">Bunga</span>
-                            <span class="text-[11px] font-bold text-gray-700 dark:text-obsidian-200">${this.rp(bunga)}</span>
-                        </div>
-                        <div>
-                            <span class="block text-[9px] text-gray-400 dark:text-obsidian-400">Denda</span>
-                            <span class="text-[11px] font-bold ${denda > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-700 dark:text-obsidian-200'}">${this.rp(denda)}</span>
-                        </div>
+                    <!-- Badges (Kolektibilitas & Urgensi) -->
+                    <div class="flex flex-col items-end gap-1.5 shrink-0">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${urgencyClass}">
+                            <i class="bi ${urgencyIcon}"></i> ${urgencyText}
+                        </span>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border ${kolStatus.badge}">
+                            <span class="w-1.5 h-1.5 rounded-full ${kolStatus.dot}"></span>
+                            ${kolStatus.label}
+                        </span>
                     </div>
                 </div>
 
-                ${actionHtml}
+                <!-- 2. Tenor Progress Tracker Bar -->
+                <div class="mb-3.5 p-2.5 rounded-2xl bg-gray-50/80 dark:bg-obsidian-800/50 border border-gray-100 dark:border-obsidian-800/80 relative z-10">
+                    <div class="flex items-center justify-between text-[11px] mb-1.5">
+                        <div class="flex items-center gap-1.5 font-semibold text-gray-700 dark:text-obsidian-200">
+                            <i class="bi bi-pie-chart-fill text-indigo-500"></i>
+                            <span>Angsuran ke-<b>${angsuranKe}</b> dari <b>${tenorTotal}</b> bln</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900/50">
+                            ${persenTenor}% Berjalan (${sisaBulan} sisa)
+                        </span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-200/70 dark:bg-obsidian-700 rounded-full overflow-hidden p-0.5">
+                        <div class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-primary-500 to-emerald-500 transition-all duration-700" style="width: ${persenTenor}%"></div>
+                    </div>
+                </div>
+
+                <!-- 3. Financial Hero Card: Total Nominal, Jatuh Tempo & Sisa Pinjaman -->
+                <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-50 via-gray-50/80 to-indigo-50/20 dark:from-obsidian-800/70 dark:via-obsidian-800/50 dark:to-indigo-950/20 border border-slate-100 dark:border-obsidian-700/70 relative z-10">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200/60 dark:border-obsidian-700/60">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-obsidian-400">Total Tagihan Bulan Ini</span>
+                            <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight mt-0.5">
+                                ${this.rp(totalNominal)}
+                            </div>
+                            <div class="text-[11px] text-gray-500 dark:text-obsidian-400 mt-1 flex items-center gap-1.5">
+                                <i class="bi bi-calendar-check text-indigo-500"></i>
+                                <span>Jatuh Tempo: <b class="text-gray-700 dark:text-obsidian-200">${this.fdate(tagihan.tgl_jatuh_tempo)}</b></span>
+                            </div>
+                        </div>
+
+                        ${sisaPinjaman > 0 ? `
+                        <div class="sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200/40 dark:border-obsidian-700">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-obsidian-400">Sisa Pokok Pinjaman</span>
+                            <div class="text-base font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                                ${this.rp(sisaPinjaman)}
+                            </div>
+                            <span class="text-[10px] text-gray-400 dark:text-obsidian-500">Total utang tersisa</span>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- 4. Rincian Biaya (Pokok, Jasa/Bunga, Denda) -->
+                    <div class="grid grid-cols-3 gap-2 pt-3 text-center">
+                        <div class="p-2 rounded-xl bg-white/80 dark:bg-obsidian-900/60 border border-gray-100 dark:border-obsidian-700/50">
+                            <span class="block text-[9px] uppercase tracking-wider text-gray-400 dark:text-obsidian-400 font-bold">Pokok</span>
+                            <span class="text-xs font-bold text-gray-800 dark:text-obsidian-100 mt-0.5 block">${this.rp(pokok)}</span>
+                        </div>
+                        <div class="p-2 rounded-xl bg-white/80 dark:bg-obsidian-900/60 border border-gray-100 dark:border-obsidian-700/50">
+                            <span class="block text-[9px] uppercase tracking-wider text-gray-400 dark:text-obsidian-400 font-bold">Jasa / Bunga</span>
+                            <span class="text-xs font-bold text-gray-800 dark:text-obsidian-100 mt-0.5 block">${this.rp(bunga)}</span>
+                        </div>
+                        <div class="p-2 rounded-xl ${denda > 0 ? 'bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200/70 dark:border-rose-900/50' : 'bg-white/80 dark:bg-obsidian-900/60 border border-gray-100 dark:border-obsidian-700/50'}">
+                            <span class="block text-[9px] uppercase tracking-wider ${denda > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-400 dark:text-obsidian-400'} font-bold">Denda</span>
+                            <span class="text-xs font-bold ${denda > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-800 dark:text-obsidian-100'} mt-0.5 block">${this.rp(denda)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Actionable Simpanan Sukarela & Autodebet Section -->
+                <div class="relative z-10">
+                    ${actionHtml}
+                </div>
             </div>`;
             return;
         }
@@ -1373,22 +1636,31 @@ const Portal = {
         // KASUS 2: Punya pinjaman dan SEMUA SUDAH LUNAS
         if (has_loan && !tagihan) {
             container.innerHTML = `
-            <div class="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent dark:from-emerald-950/30 dark:via-teal-950/10 dark:to-transparent rounded-3xl p-5 border border-emerald-200/70 dark:border-emerald-800/50 transition-colors duration-300">
-                <div class="flex items-center gap-3.5">
-                    <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-emerald-800">
-                        <i class="bi bi-shield-check text-2xl"></i>
+            <div class="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent dark:from-emerald-950/30 dark:via-teal-950/10 dark:to-transparent rounded-3xl p-5 border border-emerald-200/80 dark:border-emerald-800/50 shadow-xs relative overflow-hidden transition-all duration-300">
+                <div class="absolute -top-12 -right-12 w-36 h-36 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="flex items-start gap-3.5 relative z-10">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-2xl shrink-0 shadow-md shadow-emerald-500/20">
+                        <i class="bi bi-shield-check"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1.5 mb-0.5">
+                        <div class="flex items-center gap-2 flex-wrap mb-1">
                             <h3 class="font-bold text-gray-900 dark:text-white text-sm">Semua Angsuran Lunas!</h3>
-                            <span class="px-2 py-0.2 rounded-full text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">Lancar</span>
+                            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
+                                <i class="bi bi-award-fill text-amber-500 mr-0.5"></i> Rekam Jejak KOL 1
+                            </span>
                         </div>
-                        <p class="text-xs text-gray-500 dark:text-obsidian-400 line-clamp-2">Tidak ada kewajiban tagihan pinjaman saat ini. Terima kasih telah menjaga kedisiplinan pembayaran Anda.</p>
+                        <p class="text-xs text-gray-600 dark:text-obsidian-300 leading-relaxed">
+                            Luar biasa! Seluruh kewajiban pinjaman Anda telah lunas tepat waktu. Kedisiplinan Anda membuka fasilitas kredit dengan limit lebih tinggi.
+                        </p>
                     </div>
                 </div>
-                <div class="mt-4 pt-3 border-t border-emerald-100/80 dark:border-emerald-900/40 flex justify-end">
-                    <button onclick="Portal.tab('pinjaman')" class="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1">
-                        Lihat Riwayat Pinjaman <i class="bi bi-arrow-right text-[10px]"></i>
+
+                <div class="mt-4 pt-3 border-t border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-between relative z-10">
+                    <button onclick="Portal.tab('pinjaman')" class="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1">
+                        <i class="bi bi-clock-history"></i> Riwayat Pinjaman
+                    </button>
+                    <button onclick="Portal.tab('pengajuan_pinjaman')" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-xs flex items-center gap-1 active:scale-95">
+                        <span>Ajukan Pinjaman Baru</span> <i class="bi bi-arrow-right text-[10px]"></i>
                     </button>
                 </div>
             </div>`;
@@ -1397,27 +1669,233 @@ const Portal = {
 
         // KASUS 3: Tidak punya pinjaman sama sekali
         container.innerHTML = `
-        <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-obsidian-800 transition-colors duration-300">
-            <div class="flex items-start gap-3.5">
-                <div class="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-900/50">
-                    <i class="bi bi-lightning-charge-fill text-xl"></i>
+        <div class="bg-gradient-to-br from-indigo-500/10 via-primary-500/5 to-transparent dark:from-indigo-950/30 dark:via-primary-950/10 dark:to-transparent rounded-3xl p-5 border border-indigo-200/70 dark:border-indigo-800/50 shadow-xs relative overflow-hidden transition-all duration-300">
+            <div class="absolute -top-12 -right-12 w-36 h-36 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="flex items-start gap-3.5 relative z-10">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-primary-600 text-white flex items-center justify-center text-2xl shrink-0 shadow-md shadow-indigo-600/20">
+                    <i class="bi bi-shield-heart-fill"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                        <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-sm">Bebas Kewajiban Pinjaman</h3>
-                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300">Aktif</span>
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <h3 class="font-bold text-gray-900 dark:text-white text-sm">Bebas Kewajiban Pinjaman</h3>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800">
+                            Fasilitas Tersedia
+                        </span>
                     </div>
-                    <p class="text-xs text-gray-500 dark:text-obsidian-400">Anda tidak memiliki tanggungan pinjaman aktif. Butuh tambahan modal usaha atau dana darurat?</p>
+                    <p class="text-xs text-gray-600 dark:text-obsidian-300 leading-relaxed">
+                        Saat ini Anda tidak memiliki tanggungan pinjaman aktif. Dapatkan akses permodalan usaha atau dana darurat dengan bunga kompetitif dan proses transparan.
+                    </p>
                 </div>
             </div>
-            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-obsidian-800 flex items-center justify-between">
-                <span class="text-[11px] text-gray-400 dark:text-obsidian-400">Bunga kompetitif & proses cepat</span>
-                <button onclick="Portal.tab('pinjaman')" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-sm flex items-center gap-1">
-                    <span>Simulasi Pinjaman</span>
-                    <i class="bi bi-arrow-right text-[10px]"></i>
+
+            <div class="mt-4 pt-3 border-t border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-between relative z-10">
+                <span class="text-[10px] text-gray-400 dark:text-obsidian-400 font-medium">Bunga ringan & syarat mudah</span>
+                <button onclick="Portal.tab('pengajuan_pinjaman')" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition shadow-xs flex items-center gap-1 active:scale-95">
+                    <span>Simulasi Pinjaman</span> <i class="bi bi-arrow-right text-[10px]"></i>
                 </button>
             </div>
         </div>`;
+    },
+
+    renderRatWidget(data) {
+        const el = document.getElementById('h-rat-widget');
+        if (!el) return;
+
+        if (!data || !data.session) {
+            el.classList.add('hidden');
+            el.innerHTML = '';
+            return;
+        }
+
+        const s = data.session;
+        const att = data.attendance || {};
+        const vote = data.voting || {};
+        const isAktif = s.status === 'aktif';
+        const qPct = att.quorum_percent || 0;
+        const isQuorum = att.quorum_reached;
+        const isPresent = att.is_present;
+
+        // Badge Status
+        const badgeStatusClass = isAktif ? 'bg-emerald-400 text-gray-900 animate-pulse' : 'bg-amber-400 text-gray-900';
+        const badgeStatusText = isAktif ? '🟢 RAT BERLANGSUNG' : '🟡 PERSIAPAN RAT';
+
+        // Chip Presensi
+        const chipPresensi = isPresent
+            ? '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 flex items-center gap-1"><i class="bi bi-check-circle-fill"></i> Presensi Tercatat</span>'
+            : '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-200 border border-amber-400/30 flex items-center gap-1"><i class="bi bi-exclamation-circle-fill"></i> Belum Presensi</span>';
+
+        // Chip E-Voting
+        let chipVoting = '';
+        if (vote.open_topics > 0) {
+            if (vote.has_pending_vote) {
+                const sisaVote = vote.open_topics - vote.voted_topics;
+                chipVoting = `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-500/20 text-rose-200 border border-rose-400/30 flex items-center gap-1"><i class="bi bi-box-seam-fill"></i> ${sisaVote} Topik Belum Memilih</span>`;
+            } else {
+                chipVoting = '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/20 text-blue-200 border border-blue-400/30 flex items-center gap-1"><i class="bi bi-check2-all"></i> Hak Suara Lengkap</span>';
+            }
+        } else {
+            chipVoting = '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/10 text-indigo-200 border border-white/20 flex items-center gap-1"><i class="bi bi-info-circle"></i> Sesi Musyawarah</span>';
+        }
+
+        el.classList.remove('hidden');
+        el.innerHTML = `
+        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-950 p-5 text-white shadow-xl shadow-indigo-900/20 border border-indigo-500/30 transition-all duration-300">
+            <!-- Background Ornaments -->
+            <div class="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-400/10 rounded-full blur-xl pointer-events-none"></div>
+
+            <div class="relative z-10 space-y-3.5">
+                <!-- Header Card -->
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${badgeStatusClass}">
+                                ${badgeStatusText}
+                            </span>
+                            <span class="text-[10px] text-indigo-200 font-medium truncate">${this.fdate(s.tanggal)}</span>
+                        </div>
+                        <h3 class="text-sm font-black text-white leading-tight line-clamp-1">${s.judul}</h3>
+                        <p class="text-[10px] text-indigo-200/80 flex items-center gap-1 mt-0.5 truncate">
+                            <i class="bi bi-geo-alt text-[9px]"></i> ${s.lokasi || 'Kantor Koperasi'}
+                        </p>
+                    </div>
+                    <div class="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white shrink-0 border border-white/15">
+                        <i class="bi bi-people-fill text-lg text-cyan-300"></i>
+                    </div>
+                </div>
+
+                <!-- Quorum Progress Meter -->
+                <div class="bg-black/25 backdrop-blur-sm rounded-2xl p-3 border border-white/10">
+                    <div class="flex justify-between items-baseline mb-1.5">
+                        <span class="text-[10px] font-bold text-indigo-200 uppercase tracking-wider flex items-center gap-1">
+                            <i class="bi bi-bar-chart-fill text-cyan-300"></i> Kuorum Kehadiran
+                        </span>
+                        <span class="text-[11px] font-black ${isQuorum ? 'text-emerald-300' : 'text-amber-300'}">
+                            ${qPct}% <span class="text-[9px] font-normal text-indigo-200">(${att.total_hadir || 0}/${att.total_anggota || 0} Anggota)</span>
+                        </span>
+                    </div>
+                    <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full ${isQuorum ? 'bg-gradient-to-r from-emerald-400 to-teal-400' : 'bg-gradient-to-r from-amber-400 to-cyan-400'} transition-all duration-1000"
+                             style="width: ${Math.min(qPct, 100)}%"></div>
+                    </div>
+                    <div class="flex justify-between items-center mt-1 text-[8px] text-indigo-200/70">
+                        <span>Target Minimum: 50%</span>
+                        <span class="${isQuorum ? 'text-emerald-300 font-bold' : 'text-amber-300 font-bold'}">
+                            ${isQuorum ? '✓ Kuorum Sah Terpenuhi' : 'Menuju Kuorum 50%'}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Status Anggota & Tombol Aksi -->
+                <div class="flex items-center justify-between gap-2 pt-1 border-t border-white/10">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        ${chipPresensi}
+                        ${chipVoting}
+                    </div>
+                    <button onclick="Portal.tab('rat')" 
+                        class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white font-bold text-[11px] shadow-md shadow-indigo-900/30 active:scale-95 transition-all flex items-center gap-1.5 shrink-0">
+                        <span>Buka RAT</span>
+                        <i class="bi bi-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    },
+
+    renderRecentActivities(list) {
+        const container = document.getElementById('h-recent-list');
+        if (!container) return;
+
+        this.recentActivities = list || [];
+
+        if (!list || list.length === 0) {
+            container.innerHTML = `
+                <div class="p-6 text-center rounded-2xl bg-gray-50/70 dark:bg-obsidian-800/40 border border-dashed border-gray-200 dark:border-obsidian-700">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 dark:text-indigo-400 flex items-center justify-center mx-auto mb-2 text-base">
+                        <i class="bi bi-journal-check"></i>
+                    </div>
+                    <p class="text-xs font-bold text-gray-800 dark:text-obsidian-100">Buku Aktivitas Masih Bersih</p>
+                    <p class="text-[10px] text-gray-500 dark:text-obsidian-400 mt-1 max-w-[280px] mx-auto leading-relaxed">Setiap mutasi simpanan, angsuran pinjaman, dan transaksi kasir akan tertera resmi di sini.</p>
+                    <button onclick="Portal.openReceiptQuickModal()" class="mt-3 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-sm">
+                        <i class="bi bi-receipt"></i> Buka Contoh Struk Digital
+                    </button>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = list.map((t, idx) => {
+            const isMasuk = t.dk === 'D';
+            const nominal = parseFloat(t.nominal || 0);
+
+            let iconName = 'bi-wallet2';
+            let boxClass = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800/40';
+            let iconColor = 'text-emerald-600 dark:text-emerald-400';
+            let nominalClass = 'text-emerald-600 dark:text-emerald-400';
+            let nominalPrefix = '+';
+
+            if (t.kategori === 'simpanan') {
+                if (isMasuk) {
+                    iconName = 'bi-arrow-down-left';
+                    boxClass = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-800/40';
+                    iconColor = 'text-emerald-600 dark:text-emerald-400';
+                    nominalClass = 'text-emerald-600 dark:text-emerald-400';
+                    nominalPrefix = '+';
+                } else {
+                    iconName = 'bi-arrow-up-right';
+                    boxClass = 'bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-800/40';
+                    iconColor = 'text-rose-600 dark:text-rose-400';
+                    nominalClass = 'text-gray-900 dark:text-obsidian-100';
+                    nominalPrefix = '-';
+                }
+            } else if (t.kategori === 'pinjaman') {
+                iconName = 'bi-credit-card-2-front';
+                boxClass = 'bg-orange-50 dark:bg-orange-950/40 border-orange-100 dark:border-orange-800/40';
+                iconColor = 'text-orange-600 dark:text-orange-400';
+                nominalClass = 'text-gray-900 dark:text-obsidian-100';
+                nominalPrefix = '-';
+            } else if (t.kategori === 'toko') {
+                iconName = 'bi-bag-check';
+                boxClass = 'bg-blue-50 dark:bg-blue-950/40 border-blue-100 dark:border-blue-800/40';
+                iconColor = 'text-blue-600 dark:text-blue-400';
+                nominalClass = 'text-gray-900 dark:text-obsidian-100';
+                nominalPrefix = '-';
+            }
+
+            const badgeStatus = t.status === 'sukses' || t.status === 'lunas' || t.status === 'selesai'
+                ? '<span class="text-[8px] px-1.5 py-0.2 rounded-full font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">Sukses</span>'
+                : `<span class="text-[8px] px-1.5 py-0.2 rounded-full font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 capitalize">${t.status}</span>`;
+
+            return `
+            <div onclick="Portal.openReceiptModal(${idx})" 
+                 title="Ketuk untuk melihat bukti transaksi digital resmi"
+                 class="flex items-center justify-between p-3 rounded-2xl bg-gray-50/70 dark:bg-obsidian-800/40 border border-gray-100 dark:border-obsidian-800 hover:bg-white dark:hover:bg-obsidian-800 hover:border-indigo-100 dark:hover:border-indigo-900 transition-all cursor-pointer active:scale-[0.99] group">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border ${boxClass}">
+                        <i class="bi ${iconName} ${iconColor} text-base"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <p class="text-xs font-bold text-gray-800 dark:text-obsidian-100 truncate">${t.judul}</p>
+                            <i class="bi bi-receipt text-[10px] text-indigo-500"></i>
+                        </div>
+                        <p class="text-[10px] text-gray-400 dark:text-obsidian-400 truncate mt-0.5">
+                            ${t.deskripsi} &bull; <span class="font-mono">${this.fdate(t.tanggal)}</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="text-right shrink-0 ml-3">
+                    <p class="text-xs font-black ${nominalClass}">
+                        ${nominalPrefix}${this.rp(nominal)}
+                    </p>
+                    <div class="mt-1 flex items-center justify-end gap-1">
+                        <span class="text-[8px] px-1.5 py-0.5 rounded-md font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/50 flex items-center gap-0.5">
+                            <i class="bi bi-receipt"></i> Struk
+                        </span>
+                        ${badgeStatus}
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
     },
 
     async tab(name, isManual = false) {
@@ -1490,32 +1968,48 @@ const Portal = {
             };
 
             if (activeContent.innerHTML.trim() === '') {
-                activeContent.innerHTML = '<div class="flex justify-center py-20"><i class="ri-loader-4-line text-4xl animate-spin text-blue-500"></i></div>';
-                try {
-                    const html = await fetch(`${this.PORTAL_BASE}views/${name}.html?v=${this.VERSION}`).then(res => {
-                        if (!res.ok) throw new Error('Failed to load view');
-                        return res.text();
-                    });
-                    activeContent.innerHTML = html;
+                if (this.viewCache[name]) {
+                    activeContent.innerHTML = this.viewCache[name];
                     this.updatePrivacyIcons();
-                } catch (e) {
-                    activeContent.innerHTML = '<div class="text-center py-20 text-gray-500 text-xs">Gagal memuat tampilan</div>';
+                } else {
+                    activeContent.innerHTML = '<div class="flex justify-center py-20"><i class="ri-loader-4-line text-4xl animate-spin text-blue-500"></i></div>';
+                    try {
+                        const html = await fetch(`${this.PORTAL_BASE}views/${name}.html?v=${this.VERSION}`).then(res => {
+                            if (!res.ok) throw new Error('Failed to load view');
+                            return res.text();
+                        });
+                        this.viewCache[name] = html;
+                        activeContent.innerHTML = html;
+                        this.updatePrivacyIcons();
+                    } catch (e) {
+                        activeContent.innerHTML = '<div class="text-center py-20 text-gray-500 text-xs">Gagal memuat tampilan</div>';
+                    }
                 }
             }
         }
 
-        // Load appropriate data
+        // Load appropriate data with SWR (Stale-While-Revalidate)
         if (name === 'home') {
-            this.showSkeletonDashboard();
+            if (!this.dataCache['dashboard']) {
+                this.showSkeletonDashboard();
+            }
             await this.loadDashboardData();
         }
         else if (name === 'simpanan') {
-            this.showSkeletonSimpanan();
-            await this.loadSimpanan(document.getElementById('p-content-simpanan'));
+            const container = document.getElementById('p-content-simpanan');
+            if (!this.dataCache['simpanan']) {
+                this.showSkeletonSimpanan();
+            }
+            await this.loadSimpanan(container);
+            this.dataCache['simpanan'] = true;
         }
         else if (name === 'pinjaman') {
-            this.showSkeletonPinjaman();
-            await this.loadPinjaman(document.getElementById('p-content-pinjaman'));
+            const container = document.getElementById('p-content-pinjaman');
+            if (!this.dataCache['pinjaman']) {
+                this.showSkeletonPinjaman();
+            }
+            await this.loadPinjaman(container);
+            this.dataCache['pinjaman'] = true;
         }
         else if (name === 'pengajuan_pinjaman') this.loadPengajuanPinjaman();
         else if (name === 'rat') await this.loadRAT();
@@ -1527,9 +2021,8 @@ const Portal = {
     loadProfil() {
         if (!this.member) return;
 
-        const firstName = this.member.nama ? this.member.nama.split(' ')[0] : 'Anggota';
         const elAvatar = document.getElementById('p-avatar-profil');
-        if (elAvatar) elAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName)}&background=0D8ABC&color=fff&size=150`;
+        if (elAvatar) elAvatar.src = this.getAvatarUrl(this.member.nama);
 
         const elNama = document.getElementById('p-nama-profil');
         const elNo = document.getElementById('p-no-profil');
@@ -1544,6 +2037,23 @@ const Portal = {
         // Format tanggal bergabung menjadi tahun jika ada, default 2024
         const tglGabung = this.member.created_at ? new Date(this.member.created_at).getFullYear() : '2024';
         if (elTgl) elTgl.textContent = `${tglGabung}`;
+
+        // Populate Institutional Legal Card
+        const legalNama = document.getElementById('p-legal-nama');
+        const legalSk = document.getElementById('p-legal-sk');
+        const legalKetua = document.getElementById('p-legal-ketua');
+        const legalAlamat = document.getElementById('p-legal-alamat');
+        const legalWaBtn = document.getElementById('p-legal-wa-btn');
+
+        if (legalNama) legalNama.textContent = this.pwaName || this.appSettings?.app_name || 'KOSMIK Sandya Raharja';
+        if (legalSk) legalSk.textContent = this.appSettings?.no_badan_hukum || 'AHU-0004128.AH.01.26.TAHUN 2020';
+        if (legalKetua) legalKetua.textContent = this.appSettings?.ketua_koperasi || 'Sangga';
+        if (legalAlamat) legalAlamat.textContent = this.appSettings?.alamat || 'Jl. Ikan Piranha Atas';
+        if (legalWaBtn) {
+            const wa = this.appSettings?.wa_admin || this.appSettings?.telepon || '628123456789';
+            const cleanWa = wa.replace(/[^0-9]/g, '').replace(/^0/, '62');
+            legalWaBtn.href = `https://wa.me/${cleanWa}?text=Halo%20Pengurus%20Koperasi,%20saya%20${encodeURIComponent(this.member.nama)}%20ingin%20berkonsultasi.`;
+        }
 
         // Sync Theme Toggle Checkbox State
         const themeToggle = document.getElementById('theme-toggle-check');
@@ -1881,7 +2391,7 @@ const Portal = {
                     <span><i class="bi bi-hash mr-1"></i>Kode: <span class="font-semibold text-gray-600 dark:text-obsidian-300">${p.kode}</span></span>
                 </div>
             </div>`;
-        }).join('') : '<div class="text-center py-10 bg-gray-50 dark:bg-obsidian-900 rounded-2xl border border-dashed border-gray-200 dark:border-obsidian-800"><i class="bi bi-inbox text-3xl text-gray-300 dark:text-obsidian-700"></i><p class="text-xs text-gray-400 dark:text-obsidian-500 mt-2">Belum ada produk simpanan</p></div>';
+        }).join('') : '<div class="text-center py-10 bg-gray-50 dark:bg-obsidian-900 rounded-3xl border border-dashed border-gray-200 dark:border-obsidian-800"><i class="bi bi-piggy-bank text-3xl text-gray-400 dark:text-obsidian-600"></i><p class="text-xs font-bold text-gray-700 dark:text-obsidian-200 mt-2">Belum Ada Rekening Simpanan Aktif</p><p class="text-[10px] text-gray-400 dark:text-obsidian-500 mt-1 max-w-[260px] mx-auto">Kunjungi kantor kas koperasi atau hubungi pengurus untuk pembukaan simpanan pertama Anda.</p></div>';
 
         // Wire click — open mutasi modal
         container.querySelectorAll('.simp-prod-row').forEach(el => {
@@ -2134,10 +2644,9 @@ const Portal = {
             </div>`;
         };
 
-        // Render active loans
         container.innerHTML = aktifList.length
             ? aktifList.map((p, i) => renderCard(p, i, aktifList)).join('')
-            : '<div class="text-center py-12 bg-gray-50 rounded-3xl border border-dashed border-gray-200"><i class="bi bi-wallet2 text-4xl text-gray-300"></i><p class="text-sm font-medium text-gray-500 mt-3">Tidak ada pinjaman aktif</p></div>';
+            : '<div class="text-center py-12 bg-gray-50 dark:bg-obsidian-900 rounded-3xl border border-dashed border-gray-200 dark:border-obsidian-800"><i class="bi bi-shield-check text-4xl text-emerald-500/70"></i><p class="text-sm font-bold text-gray-700 dark:text-obsidian-200 mt-3">Tidak Ada Pinjaman Berjalan</p><p class="text-xs text-gray-400 dark:text-obsidian-500 mt-1 max-w-[280px] mx-auto">Semua kewajiban telah lunas atau belum ada pinjaman aktif. Fasilitas kredit koperasi selalu siap mendukung kebutuhan usaha dan keluarga Anda.</p></div>';
 
         // Wire click -> angsuran modal for active loans
         container.querySelectorAll('.pin-row').forEach(el => {
@@ -2525,25 +3034,36 @@ const Portal = {
             listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="bi bi-inbox text-2xl block mb-2"></i>Belum ada mutasi</div>';
             return;
         }
-        listEl.innerHTML = rm.data.map(t => {
+        this.currentMutasiList = rm.data;
+        listEl.innerHTML = rm.data.map((t, i) => {
             const isMasuk = t.dk === 'D';
             const colorText = isMasuk ? 'text-emerald-600' : 'text-rose-600';
             const iconCls2 = isMasuk ? 'bi-arrow-down-left text-emerald-500 bg-emerald-50 border-emerald-100' : 'bi-arrow-up-right text-rose-500 bg-rose-50 border-rose-100';
             const prefix = isMasuk ? '+' : '-';
             return `
-            <div class="bg-gray-50 dark:bg-obsidian-800/40 p-3 rounded-xl flex items-center justify-between border border-transparent dark:border-obsidian-800/50">
+            <div onclick="Portal.openReceiptFromSimpananIndex(${i})" 
+                 title="Ketuk untuk melihat bukti transaksi digital resmi"
+                 class="bg-gray-50 dark:bg-obsidian-800/40 hover:bg-white dark:hover:bg-obsidian-800 p-3 rounded-2xl flex items-center justify-between border border-gray-100/60 dark:border-obsidian-800/50 cursor-pointer transition-all active:scale-[0.99] group shadow-2xs">
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 shrink-0 rounded-full flex items-center justify-center border ${iconCls2.split(' ').slice(1).join(' ')} dark:border-opacity-20">
                         <i class="bi ${iconCls2.split(' ')[0]}"></i>
                     </div>
                     <div>
-                        <p class="text-xs font-bold text-gray-800 dark:text-obsidian-100">${t.nama_transaksi}</p>
+                        <div class="flex items-center gap-1.5">
+                            <p class="text-xs font-bold text-gray-800 dark:text-obsidian-100">${t.nama_transaksi}</p>
+                            <i class="bi bi-receipt text-[10px] text-indigo-500 opacity-80"></i>
+                        </div>
                         <p class="text-[10px] text-gray-500 dark:text-obsidian-500">${this.fdate(t.tgl_transaksi)}</p>
                     </div>
                 </div>
                 <div class="text-right">
                     <p class="text-xs font-bold ${colorText}">${prefix}${this.rp(t.jumlah)}</p>
-                    <p class="text-[9px] text-gray-400 dark:text-obsidian-500">Saldo: ${this.rp(t.saldo_sesudah)}</p>
+                    <div class="flex items-center justify-end gap-1 mt-0.5">
+                        <span class="text-[8px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-1.5 py-0.2 rounded border border-indigo-100 dark:border-indigo-800/50 flex items-center gap-0.5">
+                            <i class="bi bi-receipt"></i> Slip
+                        </span>
+                        <p class="text-[9px] text-gray-400 dark:text-obsidian-500">Saldo: ${this.rp(t.saldo_sesudah)}</p>
+                    </div>
                 </div>
             </div>`;
         }).join('');
@@ -2584,7 +3104,9 @@ const Portal = {
             listEl.innerHTML = '<div class="text-center py-8 text-gray-400"><i class="bi bi-inbox text-2xl block mb-2"></i>Tidak ada data angsuran</div>';
             return;
         }
-        listEl.innerHTML = ra.data.map(a => {
+        this.currentAngsuranList = ra.data;
+        this.currentPinjamanInfo = { no_pinjaman, jenis_pinjaman };
+        listEl.innerHTML = ra.data.map((a, idx) => {
             const isLunas2 = a.status === 'lunas';
             const isTerlambat = a.status === 'terlambat';
             const statusBadge = isLunas2
@@ -2592,24 +3114,30 @@ const Portal = {
                 : (isTerlambat
                     ? '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-100 text-red-700">Terlambat</span>'
                     : '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-gray-100 text-gray-600">Belum</span>');
-            const rowBg = isLunas2 ? 'bg-emerald-50 border-emerald-100' : (isTerlambat ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100');
+            const rowBg = isLunas2 ? 'bg-emerald-50/70 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-800/40' : (isTerlambat ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100 dark:bg-obsidian-800/40 dark:border-obsidian-800');
+            const receiptBtn = (isLunas2 || a.tgl_bayar)
+                ? `<button onclick="Portal.openReceiptFromAngsuranIndex(${idx})" class="mt-2.5 w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold rounded-xl text-[10px] flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-indigo-100 dark:border-indigo-800/40 shadow-2xs">
+                    <i class="bi bi-receipt"></i> Lihat Bukti Bayar (Struk Resmi)
+                   </button>`
+                : '';
             return `
-            <div class="p-3 rounded-xl border ${rowBg}">
+            <div class="p-3.5 rounded-2xl border ${rowBg}">
                 <div class="flex items-center justify-between mb-1.5">
                     <div class="flex items-center gap-2">
                         <span class="w-7 h-7 rounded-full ${isLunas2 ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-200 text-gray-600'} flex items-center justify-center text-[10px] font-bold">${a.angsuran_ke}</span>
                         <div>
-                            <p class="text-xs font-semibold text-gray-700">Jatuh Tempo: ${this.fdate(a.tgl_jatuh_tempo)}</p>
-                            ${a.tgl_bayar ? '<p class="text-[9px] text-emerald-600">Dibayar: ' + this.fdate(a.tgl_bayar) + '</p>' : ''}
+                            <p class="text-xs font-semibold text-gray-700 dark:text-obsidian-200">Jatuh Tempo: ${this.fdate(a.tgl_jatuh_tempo)}</p>
+                            ${a.tgl_bayar ? '<p class="text-[9px] text-emerald-600 font-medium">Dibayar: ' + this.fdate(a.tgl_bayar) + '</p>' : ''}
                         </div>
                     </div>
                     ${statusBadge}
                 </div>
                 <div class="grid grid-cols-3 gap-1 mt-2 text-center">
-                    <div class="bg-white/60 rounded-lg p-1.5"><p class="text-[8px] text-gray-400 mb-0.5">Pokok</p><p class="text-[10px] font-bold text-gray-700">${this.rp(a.pokok)}</p></div>
-                    <div class="bg-white/60 rounded-lg p-1.5"><p class="text-[8px] text-gray-400 mb-0.5">Bunga</p><p class="text-[10px] font-bold text-gray-700">${this.rp(a.bunga)}</p></div>
-                    <div class="bg-white/60 rounded-lg p-1.5"><p class="text-[8px] text-gray-400 mb-0.5">Total</p><p class="text-[10px] font-bold text-gray-800">${this.rp(a.total)}</p></div>
+                    <div class="bg-white/70 dark:bg-obsidian-800/60 rounded-xl p-1.5"><p class="text-[8px] text-gray-400 mb-0.5">Pokok</p><p class="text-[10px] font-bold text-gray-700 dark:text-obsidian-200">${this.rp(a.pokok)}</p></div>
+                    <div class="bg-white/70 dark:bg-obsidian-800/60 rounded-xl p-1.5"><p class="text-[8px] text-gray-400 mb-0.5">Bunga</p><p class="text-[10px] font-bold text-gray-700 dark:text-obsidian-200">${this.rp(a.bunga)}</p></div>
+                    <div class="bg-white/70 dark:bg-obsidian-800/60 rounded-xl p-1.5"><p class="text-[8px] text-gray-400 mb-0.5">Total</p><p class="text-[10px] font-bold text-gray-800 dark:text-obsidian-100">${this.rp(a.total)}</p></div>
                 </div>
+                ${receiptBtn}
             </div>`;
         }).join('');
     },
@@ -2693,18 +3221,29 @@ const Portal = {
             }
         }
     },
-    generateQRCode() {
+    async generateQRCode() {
         const container = document.getElementById('p-qrcode');
-        if (container && !container.innerHTML.trim()) {
-            new QRCode(container, {
-                text: this.member.no_anggota,
-                width: 110,
-                height: 110,
-                colorDark: "#0f172a",
-                colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
-            });
+        if (!container || container.innerHTML.trim() || !this.member) return;
+
+        if (typeof QRCode === 'undefined') {
+            container.innerHTML = '<div class="py-4 text-center"><i class="ri-loader-4-line animate-spin text-xl text-blue-500"></i></div>';
+            try {
+                await this.loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+                container.innerHTML = '';
+            } catch (e) {
+                container.innerHTML = '<p class="text-[10px] text-rose-500 font-semibold">Gagal memuat QR</p>';
+                return;
+            }
         }
+
+        new QRCode(container, {
+            text: this.member.no_anggota,
+            width: 110,
+            height: 110,
+            colorDark: "#0f172a",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
     },
     getGreeting() {
         const hour = new Date().getHours();
@@ -3165,6 +3704,15 @@ const Portal = {
             html2canvas: { scale: 2, useCORS: true, letterRendering: true },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
+
+        if (typeof html2pdf === 'undefined') {
+            try {
+                await this.loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js');
+            } catch (err) {
+                Swal.fire('Error', 'Gagal memuat modul generator PDF: ' + err.message, 'error');
+                return;
+            }
+        }
 
         try {
             const worker = html2pdf().set(opt).from(container);
@@ -3968,6 +4516,7 @@ const Portal = {
 
         const res = await this.api('portal/retail-orders');
         const orders = res?.data || [];
+        this.tokoOrders = orders;
 
         if (orders.length === 0) {
             listEl.innerHTML = '';
@@ -3976,31 +4525,189 @@ const Portal = {
         }
         if (emptyEl) emptyEl.classList.add('hidden');
 
-        listEl.innerHTML = orders.map(ord => {
+        listEl.innerHTML = orders.map((ord, idx) => {
             const badgeCls = ord.status === 'selesai' 
                 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
                 : (ord.status === 'siap_diambil'
-                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
                     : (ord.status === 'diproses'
-                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-obsidian-800 dark:text-obsidian-300'));
+                        ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300'
+                        : (ord.status === 'dibatalkan'
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300')));
             
-            const statusLabel = ord.status === 'siap_diambil' ? 'Siap Diambil' : ord.status.toUpperCase();
+            const dotColor = ord.status === 'selesai'
+                ? 'bg-emerald-500'
+                : (ord.status === 'siap_diambil' ? 'bg-indigo-500' : (ord.status === 'diproses' ? 'bg-cyan-500' : (ord.status === 'dibatalkan' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse')));
+
+            const statusLabel = ord.status === 'siap_diambil' ? 'Siap Diambil' : (ord.status === 'diproses' ? 'Disiapkan' : ord.status.toUpperCase());
             const itemsText = (ord.items || []).map(i => `${i.nama_produk} (${i.qty}x)`).join(', ');
 
             return `
-            <div class="bg-white dark:bg-obsidian-900 p-4 rounded-2xl border border-gray-100 dark:border-obsidian-800 shadow-sm text-left">
-                <div class="flex items-center justify-between mb-1.5">
-                    <span class="text-[10px] font-mono font-bold text-gray-400">${ord.no_pesanan}</span>
+            <div onclick="Portal.showTokoOrderDetail(${idx})"
+                class="bg-white dark:bg-obsidian-900 p-4 rounded-2xl border border-gray-100 dark:border-obsidian-800 shadow-sm text-left hover:border-amber-400 dark:hover:border-amber-600 active:scale-[0.99] transition-all cursor-pointer group">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full ${dotColor}"></span>
+                        <span class="text-[11px] font-mono font-bold text-gray-500 dark:text-obsidian-400">${ord.no_pesanan}</span>
+                    </div>
                     <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${badgeCls}">${statusLabel}</span>
                 </div>
-                <p class="text-xs font-bold text-gray-800 dark:text-obsidian-100 line-clamp-1 mb-1">${itemsText || 'Pesanan Toko'}</p>
-                <div class="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-obsidian-800 text-[10px]">
-                    <span class="text-gray-400">${this.fdate(ord.tgl_pesanan)} • ${ord.metode_pembayaran === 'sukarela' ? 'Potong Sukarela' : 'Tunai Ambil'}</span>
-                    <span class="text-xs font-black text-amber-600 dark:text-amber-400">${this.rp(ord.total_nominal)}</span>
+                
+                <div class="space-y-1 mb-2.5">
+                    <p class="text-xs font-bold text-gray-900 dark:text-obsidian-100 line-clamp-1 leading-snug">${itemsText || 'Pesanan Toko'}</p>
+                    <p class="text-[10px] text-gray-400 dark:text-obsidian-500">${(ord.items || []).length} jenis barang belanja</p>
+                </div>
+
+                <div class="flex items-center justify-between pt-2.5 border-t border-gray-50 dark:border-obsidian-800 text-[11px]">
+                    <div class="text-gray-500 dark:text-obsidian-400">
+                        <span>${this.fdate(ord.tgl_pesanan)}</span>
+                        <span class="block text-[10px] text-gray-400 dark:text-obsidian-500">${ord.metode_pembayaran === 'sukarela' ? '🟢 Potong Sukarela' : '🔵 Tunai di Kasir'}</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-black text-amber-600 dark:text-amber-400 block">${this.rp(ord.total_nominal)}</span>
+                        <span class="text-[10px] font-bold text-amber-500 dark:text-amber-400 group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-0.5">
+                            Lihat Rincian <i class="bi bi-chevron-right text-[9px]"></i>
+                        </span>
+                    </div>
                 </div>
             </div>`;
         }).join('');
+    },
+
+    showTokoOrderDetail(idx) {
+        this.haptic('light');
+        if (!this.tokoOrders || !this.tokoOrders[idx]) return;
+        const ord = this.tokoOrders[idx];
+
+        document.getElementById('modal-ord-no').textContent = ord.no_pesanan;
+        document.getElementById('modal-ord-tgl').textContent = this.fdate(ord.tgl_pesanan);
+        document.getElementById('modal-ord-total').textContent = this.rp(ord.total_nominal);
+        document.getElementById('modal-ord-item-count').textContent = `${(ord.items || []).length} Jenis Barang`;
+
+        // Metode
+        document.getElementById('modal-ord-metode').innerHTML = ord.metode_pembayaran === 'sukarela'
+            ? `<span class="text-emerald-600 dark:text-emerald-400">🟢 Potong Sukarela (Lunas)</span>`
+            : `<span class="text-blue-600 dark:text-blue-400">🔵 Tunai (Bayar di Kasir)</span>`;
+
+        // Catatan
+        const catatanBox = document.getElementById('modal-ord-catatan-box');
+        const catatanText = document.getElementById('modal-ord-catatan-text');
+        if (ord.catatan && ord.catatan.trim()) {
+            catatanText.textContent = ord.catatan;
+            catatanBox.classList.remove('hidden');
+        } else {
+            catatanBox.classList.add('hidden');
+        }
+
+        // Status Box
+        const statusBox = document.getElementById('modal-ord-status-box');
+        let statusHtml = '';
+        if (ord.status === 'pending') {
+            statusHtml = `
+                <div class="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center text-base shrink-0">
+                    <i class="bi bi-hourglass-split"></i>
+                </div>
+                <div>
+                    <h5 class="font-bold text-amber-800 dark:text-amber-200">Pesanan Masuk (Pending)</h5>
+                    <p class="text-[11px] text-amber-700/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">Pesanan Anda telah diterima sistem dan menunggu penyiapan barang oleh petugas toko koperasi.</p>
+                </div>
+            `;
+            statusBox.className = "p-3.5 rounded-2xl border text-xs flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50";
+        } else if (ord.status === 'diproses') {
+            statusHtml = `
+                <div class="w-8 h-8 rounded-xl bg-cyan-100 dark:bg-cyan-900/40 text-cyan-600 dark:text-cyan-400 flex items-center justify-center text-base shrink-0">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <div>
+                    <h5 class="font-bold text-cyan-800 dark:text-cyan-200">Sedang Disiapkan Petugas</h5>
+                    <p class="text-[11px] text-cyan-700/80 dark:text-cyan-300/80 mt-0.5 leading-relaxed">Petugas toko sedang mengumpulkan dan memeriksa kondisi barang belanja pesanan Anda.</p>
+                </div>
+            `;
+            statusBox.className = "p-3.5 rounded-2xl border text-xs flex items-start gap-3 bg-cyan-50 dark:bg-cyan-900/20 border-cyan-200 dark:border-cyan-800/50";
+        } else if (ord.status === 'siap_diambil') {
+            statusHtml = `
+                <div class="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-base shrink-0">
+                    <i class="bi bi-bag-check-fill"></i>
+                </div>
+                <div>
+                    <h5 class="font-bold text-indigo-800 dark:text-indigo-200">Siap Diambil di Kasir!</h5>
+                    <p class="text-[11px] text-indigo-700/80 dark:text-indigo-300/80 mt-0.5 leading-relaxed">Barang belanja Anda sudah siap. Silakan ambil di kasir/kantor koperasi dan tunjukkan nomor pesanan ini.</p>
+                </div>
+            `;
+            statusBox.className = "p-3.5 rounded-2xl border text-xs flex items-start gap-3 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800/50";
+        } else if (ord.status === 'selesai') {
+            statusHtml = `
+                <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-base shrink-0">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <div>
+                    <h5 class="font-bold text-emerald-800 dark:text-emerald-200">Pesanan Selesai</h5>
+                    <p class="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 mt-0.5 leading-relaxed">Barang telah diserahterimakan dan transaksi tuntas. Terima kasih telah berbelanja di Toko Koperasi!</p>
+                </div>
+            `;
+            statusBox.className = "p-3.5 rounded-2xl border text-xs flex items-start gap-3 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50";
+        } else if (ord.status === 'dibatalkan') {
+            statusHtml = `
+                <div class="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 flex items-center justify-center text-base shrink-0">
+                    <i class="bi bi-x-circle-fill"></i>
+                </div>
+                <div>
+                    <h5 class="font-bold text-rose-800 dark:text-rose-200">Pesanan Dibatalkan</h5>
+                    <p class="text-[11px] text-rose-700/80 dark:text-rose-300/80 mt-0.5 leading-relaxed">Pesanan ini dibatalkan. Jika menggunakan saldo Sukarela, saldo telah otomatis dikembalikan.</p>
+                </div>
+            `;
+            statusBox.className = "p-3.5 rounded-2xl border text-xs flex items-start gap-3 bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/50";
+        }
+        statusBox.innerHTML = statusHtml;
+
+        // Items List
+        const itemsListEl = document.getElementById('modal-ord-items-list');
+        itemsListEl.innerHTML = (ord.items || []).map(it => {
+            const imgHtml = it.gambar 
+                ? `<img src="${it.gambar}" alt="${it.nama_produk}" class="w-11 h-11 object-cover rounded-xl border border-gray-100 dark:border-obsidian-700 shrink-0">`
+                : `<div class="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg shrink-0 border border-amber-100 dark:border-amber-800/30"><i class="bi bi-basket2"></i></div>`;
+            return `
+            <div class="flex items-center justify-between p-3 bg-gray-50/80 dark:bg-obsidian-800/50 rounded-2xl border border-gray-100 dark:border-obsidian-700/50 gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    ${imgHtml}
+                    <div class="min-w-0">
+                        <h5 class="text-xs font-bold text-gray-900 dark:text-obsidian-100 truncate leading-tight">${it.nama_produk}</h5>
+                        <p class="text-[10px] text-gray-400 dark:text-obsidian-400 mt-1">${this.rp(it.harga_satuan)} × <b class="text-gray-700 dark:text-obsidian-200">${it.qty} ${it.satuan || 'pcs'}</b></p>
+                    </div>
+                </div>
+                <div class="text-right shrink-0">
+                    <span class="text-xs font-black text-amber-600 dark:text-amber-400 block">${this.rp(it.subtotal)}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        this.currentTokoOrder = ord;
+        this.openModal('toko-order-detail-modal');
+    },
+
+    openReceiptFromCurrentTokoOrder() {
+        this.closeModal('toko-order-detail-modal');
+        setTimeout(() => {
+            if (this.currentTokoOrder) {
+                this.openReceiptFromTokoOrder(this.currentTokoOrder);
+            }
+        }, 350);
+    },
+
+    openReceiptFromTokoOrder(ord) {
+        if (!ord) return;
+        const mapped = {
+            kategori: 'toko',
+            kode: ord.no_pesanan || `ORD-${Date.now().toString().slice(-8)}`,
+            tanggal: ord.tgl_pesanan || ord.created_at || new Date().toISOString(),
+            judul: `Belanja Toko Retail (${ord.metode_pembayaran ? ord.metode_pembayaran.toUpperCase() : 'KAS'})`,
+            deskripsi: `${(ord.items || []).length} jenis barang belanjaan • Status: ${(ord.status || 'SELESAI').toUpperCase()}`,
+            dk: 'K',
+            nominal: ord.total_nominal,
+            status: ord.status === 'selesai' || ord.status === 'diproses' ? 'sukses' : ord.status
+        };
+        this.showReceipt(mapped);
     },
 
     showKtaModal() {

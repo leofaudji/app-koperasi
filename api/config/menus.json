@@ -147,6 +147,13 @@
                 "icon": "ri-book-open-line",
                 "url": "#/jurnal",
                 "perm": "keuangan.jurnal"
+            },
+            {
+                "id": 68,
+                "nama": "Pesanan Toko",
+                "icon": "ri-shopping-bag-3-line",
+                "url": "#/toko-pesanan",
+                "perm": "dashboard.view"
             }
         ]
     },

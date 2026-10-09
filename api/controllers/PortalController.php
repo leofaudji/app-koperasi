@@ -65,18 +65,27 @@ switch ($id) {
 
         logPortalActivity('Login ke Portal', $user['anggota_id']);
 
-        $pwaName = $db->fetch("SELECT setting_value FROM app_settings WHERE setting_key = 'pwa_name'")['setting_value'] ?? 'Portal Anggota Koperasi';
-        $logoUrl = $db->fetch("SELECT setting_value FROM app_settings WHERE setting_key = 'logo_url'")['setting_value'] ?? '';
+        $foto = $db->fetch("SELECT foto FROM anggota WHERE id = ?", [$user['anggota_id']])['foto'] ?? null;
+        $branding = $db->fetchAll("SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('pwa_name', 'logo_url', 'app_name', 'ketua_koperasi', 'alamat', 'telepon', 'wa_admin', 'email')");
+        $settings = [];
+        foreach ($branding as $b) {
+            $settings[$b['setting_key']] = $b['setting_value'];
+        }
+
+        $pwaName = $settings['pwa_name'] ?? ($settings['app_name'] ?? 'KOSMIK Sandya Raharja');
+        $logoUrl = $settings['logo_url'] ?? '';
 
         $token = getCsrfToken();
         successResponse([
             'anggota' => [
                 'id' => $user['anggota_id'],
                 'nama' => $user['anggota_nama'],
-                'no_anggota' => $user['no_anggota']
+                'no_anggota' => $user['no_anggota'],
+                'foto' => $foto
             ],
             'pwa_name' => $pwaName,
             'logo_url' => $logoUrl,
+            'settings' => $settings,
             'csrf_token' => $token
         ], 'Login berhasil');
         break;
@@ -108,18 +117,18 @@ switch ($id) {
 
     case 'me':
         $anggotaId = portalAuthCheck();
-        $anggota = $db->fetch("SELECT id, no_anggota, nama, telepon, email, created_at FROM anggota WHERE id = ?", [$anggotaId]);
+        $anggota = $db->fetch("SELECT id, no_anggota, nama, telepon, email, foto, created_at FROM anggota WHERE id = ?", [$anggotaId]);
         if (!$anggota)
             errorResponse('Anggota tidak ditemukan');
 
-        // Fetch PWA branding from settings
-        $branding = $db->fetchAll("SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('pwa_name', 'logo_url')");
+        // Fetch PWA branding & institutional details from settings
+        $branding = $db->fetchAll("SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('pwa_name', 'logo_url', 'app_name', 'ketua_koperasi', 'alamat', 'telepon', 'wa_admin', 'email')");
         $settings = [];
         foreach ($branding as $b) {
             $settings[$b['setting_key']] = $b['setting_value'];
         }
         
-        $pwaName = $settings['pwa_name'] ?? 'Portal Anggota Koperasi';
+        $pwaName = $settings['pwa_name'] ?? ($settings['app_name'] ?? 'KOSMIK Sandya Raharja');
         $logoUrl = $settings['logo_url'] ?? '';
 
         $token = getCsrfToken();
@@ -127,7 +136,189 @@ switch ($id) {
             'anggota' => $anggota,
             'pwa_name' => $pwaName,
             'logo_url' => $logoUrl,
+            'settings' => $settings,
             'csrf_token' => $token
+        ]);
+        break;
+
+    case 'dashboard-summary':
+        $anggotaId = portalAuthCheck();
+        $today = date('Y-m-d');
+        $sevenDaysLater = date('Y-m-d', strtotime('+7 days'));
+
+        // 1. Saldo Simpanan
+        $saldo = $db->fetchAll(
+            "SELECT js.id, js.nama, js.kode,
+                COALESCE(rs.saldo, 0) as saldo,
+                rs.no_rekening, rs.tgl_buka, rs.status as status_rekening
+             FROM jenis_simpanan js
+             LEFT JOIN rekening_simpanan rs ON js.id = rs.jenis_simpanan_id AND rs.anggota_id = ?
+             WHERE js.is_active = 1
+             ORDER BY js.kode",
+            [$anggotaId]
+        );
+
+        // 2. Pinjaman Aktif
+        $pinjaman = $db->fetchAll(
+            "SELECT p.id, p.no_pinjaman, p.jumlah, p.tenor, p.bunga_persen, p.total_bayar,
+                    p.sisa_pinjaman, p.status, p.tgl_pengajuan, p.tgl_pencairan, p.keterangan,
+                    jp.nama as jenis_pinjaman
+             FROM pinjaman p JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+             WHERE p.anggota_id = ? ORDER BY p.tgl_pengajuan DESC",
+            [$anggotaId]
+        );
+
+        // 3. Upcoming Installments
+        $upcoming = $db->fetchAll(
+            "SELECT a.angsuran_ke, a.tgl_jatuh_tempo, a.total, a.status, a.denda,
+                    p.no_pinjaman, jp.nama as jenis_pinjaman,
+                    DATEDIFF(a.tgl_jatuh_tempo, ?) as hari_lagi
+             FROM angsuran a
+             JOIN pinjaman p ON a.pinjaman_id = p.id
+             JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+             WHERE p.anggota_id = ?
+               AND a.status NOT IN ('lunas')
+               AND a.tgl_jatuh_tempo BETWEEN ? AND ?
+             ORDER BY a.tgl_jatuh_tempo ASC",
+            [$today, $anggotaId, $today, $sevenDaysLater]
+        );
+
+        // 4. Tagihan Terdekat & Sukarela
+        $tagihan = $db->fetch(
+            "SELECT a.id as angsuran_id, a.angsuran_ke, a.tgl_jatuh_tempo, 
+                    a.pokok, a.bunga, a.denda, a.total, a.status as status_angsuran,
+                    p.id as pinjaman_id, p.no_pinjaman, p.tenor, p.sisa_pinjaman,
+                    jp.nama as jenis_pinjaman,
+                    DATEDIFF(a.tgl_jatuh_tempo, CURDATE()) as hari_lagi
+             FROM angsuran a
+             JOIN pinjaman p ON a.pinjaman_id = p.id
+             JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+             WHERE p.anggota_id = ?
+               AND p.status = 'cair'
+               AND a.status NOT IN ('lunas')
+             ORDER BY a.tgl_jatuh_tempo ASC, a.id ASC
+             LIMIT 1",
+            [$anggotaId]
+        );
+
+        $sukarela = $db->fetch(
+            "SELECT rs.id as rekening_id, rs.no_rekening, rs.saldo
+             FROM rekening_simpanan rs
+             JOIN jenis_simpanan js ON rs.jenis_simpanan_id = js.id
+             WHERE rs.anggota_id = ? 
+               AND rs.status = 'aktif'
+               AND (js.kode = 'SS' OR LOWER(js.nama) LIKE '%sukarela%')
+             ORDER BY rs.saldo DESC
+             LIMIT 1",
+            [$anggotaId]
+        );
+
+        $pendingPengajuan = null;
+        if ($tagihan) {
+            try {
+                $pendingPengajuan = $db->fetch(
+                    "SELECT id, no_pengajuan, status, tgl_pengajuan 
+                     FROM pengajuan_angsuran 
+                     WHERE angsuran_id = ? AND status = 'pending'
+                     LIMIT 1",
+                    [$tagihan['angsuran_id']]
+                );
+            } catch (Exception $e) {
+                $pendingPengajuan = null;
+            }
+        }
+
+        $hasLoan = $db->fetch(
+            "SELECT COUNT(*) as cnt FROM pinjaman WHERE anggota_id = ? AND status = 'cair'",
+            [$anggotaId]
+        );
+
+        // 5. Pengumuman
+        $pengumuman = $db->fetchAll(
+            "SELECT id, judul, konten, tipe, created_at 
+             FROM pengumuman 
+             WHERE is_active = 1 
+             ORDER BY created_at DESC"
+        );
+
+        // 6. RAT Widget
+        $session = $db->fetch(
+            "SELECT id, judul, tanggal, lokasi, status, qr_token 
+             FROM rat_sessions 
+             WHERE status IN ('aktif', 'persiapan') 
+             ORDER BY CASE WHEN status = 'aktif' THEN 1 ELSE 2 END, tanggal DESC 
+             LIMIT 1"
+        );
+        $ratWidget = null;
+        if ($session) {
+            $sessionId = (int)$session['id'];
+            $att = $db->fetch("SELECT id, kehadiran, waktu_hadir FROM rat_attendance WHERE session_id = ? AND anggota_id = ?", [$sessionId, $anggotaId]);
+            $quorum = $db->fetch("SELECT total_anggota, total_hadir, quorum_tercapai FROM rat_quorum WHERE session_id = ?", [$sessionId]);
+            $userVotes = $db->fetchAll("SELECT topic_id, pilihan FROM rat_votes WHERE session_id = ? AND anggota_id = ?", [$sessionId, $anggotaId]);
+            $ratWidget = [
+                'session' => $session,
+                'my_attendance' => $att ?: null,
+                'quorum' => $quorum ?: ['total_anggota' => 0, 'total_hadir' => 0, 'quorum_tercapai' => 0],
+                'my_votes' => $userVotes ?: []
+            ];
+        }
+
+        // 7. Aktivitas Terbaru
+        $simpananTrx = $db->fetchAll(
+            "SELECT 'simpanan' as kategori, s.no_transaksi as kode, s.tgl_transaksi as tanggal, s.created_at,
+                    js.nama as judul, kt.nama as deskripsi, kt.dk, s.jumlah as nominal, 'sukses' as status
+             FROM simpanan s
+             JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
+             JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+             WHERE s.anggota_id = ?
+             ORDER BY s.created_at DESC LIMIT 5",
+            [$anggotaId]
+        );
+        $angsuranTrx = $db->fetchAll(
+            "SELECT 'pinjaman' as kategori, p.no_pinjaman as kode, a.tgl_bayar as tanggal, a.tgl_bayar as created_at,
+                    CONCAT('Angsuran ', jp.nama) as judul,
+                    CONCAT('Angsuran Ke-', a.angsuran_ke, ' · Tenor ', p.tenor, ' bln') as deskripsi,
+                    'K' as dk, a.total as nominal, 'sukses' as status
+             FROM angsuran a
+             JOIN pinjaman p ON a.pinjaman_id = p.id
+             JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+             WHERE p.anggota_id = ? AND a.status = 'lunas' AND a.tgl_bayar IS NOT NULL
+             ORDER BY a.tgl_bayar DESC LIMIT 5",
+            [$anggotaId]
+        );
+        $tokoTrx = [];
+        try {
+            $tokoTrx = $db->fetchAll(
+                "SELECT 'toko' as kategori, tp.no_pesanan as kode, DATE(tp.tgl_pesanan) as tanggal, tp.tgl_pesanan as created_at,
+                        'Belanja Toko Koperasi' as judul,
+                        CONCAT('Metode: ', CASE WHEN tp.metode_pembayaran = 'sukarela' THEN 'Saldo Sukarela' ELSE 'Tunai' END) as deskripsi,
+                        'K' as dk, tp.total_nominal as nominal, tp.status as status
+                 FROM toko_pesanan tp
+                 WHERE tp.anggota_id = ?
+                 ORDER BY tp.id DESC LIMIT 5",
+                [$anggotaId]
+            );
+        } catch (Exception $e) {}
+        $all = array_merge($simpananTrx, $angsuranTrx, $tokoTrx);
+        usort($all, function($a, $b) {
+            return strtotime($b['created_at']) <=> strtotime($a['created_at']);
+        });
+        $aktivitas = array_slice($all, 0, 5);
+
+        successResponse([
+            'saldo' => $saldo,
+            'pinjaman' => $pinjaman,
+            'upcoming' => $upcoming,
+            'notifications' => [],
+            'tagihan' => [
+                'has_loan' => (int)($hasLoan['cnt'] ?? 0) > 0,
+                'tagihan' => $tagihan ?: null,
+                'sukarela' => $sukarela ?: null,
+                'pending_pengajuan' => $pendingPengajuan ?: null
+            ],
+            'pengumuman' => $pengumuman,
+            'rat_widget' => $ratWidget,
+            'aktivitas' => $aktivitas
         ]);
         break;
 
@@ -1149,7 +1340,7 @@ switch ($id) {
     case 'retail-orders':
         $anggotaId = portalAuthCheck();
         $orders = $db->fetchAll(
-            "SELECT id, no_pesanan, total_nominal, metode_pembayaran, status, catatan, tgl_pesanan 
+            "SELECT id, no_pesanan, total_nominal, metode_pembayaran, status, catatan, tgl_pesanan, tgl_selesai 
              FROM toko_pesanan 
              WHERE anggota_id = ? 
              ORDER BY id DESC",
@@ -1158,15 +1349,126 @@ switch ($id) {
 
         foreach ($orders as &$ord) {
             $ord['items'] = $db->fetchAll(
-                "SELECT nama_produk, harga_satuan, qty, subtotal 
-                 FROM toko_pesanan_detail 
-                 WHERE pesanan_id = ?",
+                "SELECT tpd.nama_produk, tpd.harga_satuan, tpd.qty, tpd.subtotal, tp.satuan, tp.gambar, tp.kode_produk 
+                 FROM toko_pesanan_detail tpd
+                 LEFT JOIN toko_produk tp ON tpd.produk_id = tp.id
+                 WHERE tpd.pesanan_id = ?",
                 [$ord['id']]
             );
         }
         unset($ord);
 
         successResponse($orders);
+        break;
+
+    case 'aktivitas-terbaru':
+        $anggotaId = portalAuthCheck();
+        // 1. Simpanan
+        $simpananTrx = $db->fetchAll(
+            "SELECT 'simpanan' as kategori, s.no_transaksi as kode, s.tgl_transaksi as tanggal, s.created_at,
+                    js.nama as judul, kt.nama as deskripsi, kt.dk, s.jumlah as nominal, 'sukses' as status
+             FROM simpanan s
+             JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id
+             JOIN kode_transaksi_simpanan kt ON s.kode_transaksi_id = kt.id
+             WHERE s.anggota_id = ?
+             ORDER BY s.created_at DESC LIMIT 5",
+            [$anggotaId]
+        );
+
+        // 2. Angsuran Pinjaman (yang lunas / dibayar)
+        $angsuranTrx = $db->fetchAll(
+            "SELECT 'pinjaman' as kategori, p.no_pinjaman as kode, a.tgl_bayar as tanggal, a.tgl_bayar as created_at,
+                    CONCAT('Angsuran ', jp.nama) as judul,
+                    CONCAT('Angsuran Ke-', a.angsuran_ke, ' · Tenor ', p.tenor, ' bln') as deskripsi,
+                    'K' as dk, a.total as nominal, 'sukses' as status
+             FROM angsuran a
+             JOIN pinjaman p ON a.pinjaman_id = p.id
+             JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+             WHERE p.anggota_id = ? AND a.status = 'lunas' AND a.tgl_bayar IS NOT NULL
+             ORDER BY a.tgl_bayar DESC LIMIT 5",
+            [$anggotaId]
+        );
+
+        // 3. Toko Pesanan Retail
+        $tokoTrx = [];
+        try {
+            $tokoTrx = $db->fetchAll(
+                "SELECT 'toko' as kategori, tp.no_pesanan as kode, DATE(tp.tgl_pesanan) as tanggal, tp.tgl_pesanan as created_at,
+                        'Belanja Toko Koperasi' as judul,
+                        CONCAT('Metode: ', CASE WHEN tp.metode_pembayaran = 'sukarela' THEN 'Saldo Sukarela' ELSE 'Tunai' END) as deskripsi,
+                        'K' as dk, tp.total_nominal as nominal, tp.status as status
+                 FROM toko_pesanan tp
+                 WHERE tp.anggota_id = ?
+                 ORDER BY tp.id DESC LIMIT 5",
+                [$anggotaId]
+            );
+        } catch (Exception $e) { /* ignore if table missing */ }
+
+        $all = array_merge($simpananTrx, $angsuranTrx, $tokoTrx);
+        usort($all, function($a, $b) {
+            return strtotime($b['created_at']) <=> strtotime($a['created_at']);
+        });
+        $recent = array_slice($all, 0, 5);
+        successResponse($recent);
+        break;
+
+    case 'rat-widget':
+        $anggotaId = portalAuthCheck();
+        // Cek sesi RAT aktif atau persiapan
+        $session = $db->fetch(
+            "SELECT id, judul, tanggal, lokasi, status, qr_token 
+             FROM rat_sessions 
+             WHERE status IN ('aktif', 'persiapan') 
+             ORDER BY CASE WHEN status = 'aktif' THEN 1 ELSE 2 END, tanggal DESC 
+             LIMIT 1"
+        );
+
+        if (!$session) {
+            successResponse(null);
+            break;
+        }
+
+        $sessionId = (int) $session['id'];
+        $totalAnggota = (int) $db->count("SELECT COUNT(*) FROM anggota WHERE status = 'aktif'");
+        $totalHadir = (int) $db->count("SELECT COUNT(*) FROM rat_attendance WHERE session_id = ?", [$sessionId]);
+        $sudahHadir = (bool) $db->fetch("SELECT id FROM rat_attendance WHERE session_id = ? AND anggota_id = ?", [$sessionId, $anggotaId]);
+
+        // Topics e-voting
+        $topics = $db->fetchAll("SELECT id, judul, status FROM rat_voting_topics WHERE session_id = ?", [$sessionId]);
+        $totalTopics = count($topics);
+        $openTopics = 0;
+        $votedTopics = 0;
+
+        foreach ($topics as $t) {
+            if ($t['status'] === 'buka') {
+                $openTopics++;
+                $voted = $db->fetch("SELECT id FROM rat_votes WHERE topic_id = ? AND anggota_id = ?", [$t['id'], $anggotaId]);
+                if ($voted) {
+                    $votedTopics++;
+                }
+            }
+        }
+
+        $quorumPercent = $totalAnggota > 0 ? round(($totalHadir / $totalAnggota) * 100, 1) : 0;
+        $quorumTarget = 50.0;
+        $isQuorumReached = $quorumPercent >= $quorumTarget;
+
+        successResponse([
+            'session' => $session,
+            'attendance' => [
+                'total_hadir' => $totalHadir,
+                'total_anggota' => $totalAnggota,
+                'quorum_percent' => $quorumPercent,
+                'quorum_reached' => $isQuorumReached,
+                'is_present' => $sudahHadir
+            ],
+            'voting' => [
+                'total_topics' => $totalTopics,
+                'open_topics' => $openTopics,
+                'voted_topics' => $votedTopics,
+                'has_pending_vote' => ($openTopics > 0 && $votedTopics < $openTopics)
+            ]
+        ]);
         break;
 
     default:

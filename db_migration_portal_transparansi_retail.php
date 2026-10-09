@@ -108,6 +108,13 @@ try {
         echo "[OK] Seeding 6 contoh produk toko koperasi berhasil.\n";
     }
 
+    // 6. Pastikan tabel audit_logs kolom action bertipe VARCHAR(50)
+    $colAction = $db->fetch("SHOW COLUMNS FROM audit_logs LIKE 'action'");
+    if ($colAction && strpos(strtolower($colAction['Type']), 'varchar') === false) {
+        $db->execute("ALTER TABLE audit_logs MODIFY COLUMN action VARCHAR(50) NOT NULL DEFAULT 'update'");
+        echo "[OK] Kolom 'action' di tabel audit_logs diubah menjadi VARCHAR(50).\n";
+    }
+
     echo "=== MIGRATION COMPLETED SUCCESSFULLY ===\n";
 } catch (Exception $e) {
     echo "ERROR: " . $e->getMessage() . "\n";

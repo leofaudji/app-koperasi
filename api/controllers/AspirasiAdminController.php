@@ -215,7 +215,7 @@ class AspirasiAdminController
         );
 
         if (function_exists('logActivity')) {
-            logActivity('tanggapi_aspirasi', 'portal_aspirasi', $id, $aspirasi, [
+            logActivity('update', 'portal_aspirasi', $id, $aspirasi, [
                 'status' => $status,
                 'tanggapan' => $tanggapan,
                 'ditanggapi_oleh' => $userId
@@ -243,7 +243,7 @@ class AspirasiAdminController
         $this->db->execute("DELETE FROM portal_aspirasi WHERE id = ?", [$id]);
 
         if (function_exists('logActivity')) {
-            logActivity('delete_aspirasi', 'portal_aspirasi', $id, $row, null);
+            logActivity('delete', 'portal_aspirasi', $id, $row, null);
         }
 
         successResponse(null, 'Aspirasi berhasil dihapus.');

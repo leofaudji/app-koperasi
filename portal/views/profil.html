@@ -290,6 +290,57 @@
     </div>
 </div>
 
+<!-- Legalitas & Kontak Kelembagaan Koperasi -->
+<div class="bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 text-white rounded-3xl p-5 shadow-lg border border-indigo-800/40 relative overflow-hidden mb-6">
+    <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+    <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-amber-400">
+                <i class="bi bi-shield-fill-check text-base"></i>
+            </div>
+            <div>
+                <p class="text-[9px] uppercase tracking-widest text-indigo-200/80 font-bold">Badan Hukum Kemenkumham RI</p>
+                <h4 id="p-legal-nama" class="text-xs font-black text-white">KOSMIK Sandya Raharja</h4>
+            </div>
+        </div>
+        <span class="text-[8px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+            Terdaftar RI
+        </span>
+    </div>
+    
+    <div class="space-y-1.5 text-[10px] text-slate-300 border-t border-white/10 pt-3">
+        <div class="flex items-center justify-between">
+            <span class="text-slate-400">No. AHU / Badan Hukum:</span>
+            <span id="p-legal-sk" class="font-mono font-bold text-slate-200">AHU-0004128.AH.01.26.TAHUN 2020</span>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-slate-400">Ketua Pengurus:</span>
+            <span id="p-legal-ketua" class="font-bold text-slate-200">Sangga</span>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-slate-400">Layanan Kas Anggota:</span>
+            <span class="font-bold text-slate-200">Senin - Jumat 08:00 - 15:00 WIB</span>
+        </div>
+        <div class="pt-1">
+            <p class="text-slate-400">Alamat Kantor:</p>
+            <p id="p-legal-alamat" class="text-slate-200 font-medium leading-relaxed mt-0.5">Jl. Ikan Piranha Atas</p>
+        </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-white/10 flex gap-2">
+        <a id="p-legal-wa-btn" href="#" target="_blank"
+            class="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition-all text-white font-bold text-[10px] flex items-center justify-center gap-1.5 shadow-md">
+            <i class="bi bi-whatsapp"></i>
+            <span>Chat CS Pengurus</span>
+        </a>
+        <button onclick="Portal.showTransparansiModal()"
+            class="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white font-bold text-[10px] flex items-center justify-center gap-1">
+            <i class="bi bi-patch-check"></i>
+            <span>Kepatuhan</span>
+        </button>
+    </div>
+</div>
+
 <!-- Logout Button -->
 <button onclick="Portal.logout()"
     class="w-full bg-white border border-rose-100 hover:bg-rose-50 text-rose-600 py-3.5 rounded-2xl font-bold shadow-sm active:scale-[0.98] transition-all flex justify-center items-center gap-2 mt-4">

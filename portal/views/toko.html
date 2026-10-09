@@ -44,10 +44,10 @@
     </div>
 </div>
 
-<!-- Spacer -->
-<div class="h-[185px]"></div>
+<!-- Spacer for Fixed Header & Floating Card -->
+<div class="h-[220px]"></div>
 
-<div class="px-6 space-y-5 pb-24">
+<div class="px-6 space-y-5 pb-24 mt-2">
     <!-- View Switcher (Katalog / Riwayat Pesanan) -->
     <div class="flex items-center bg-gray-100 dark:bg-obsidian-900 p-1 rounded-2xl border border-gray-200/50 dark:border-obsidian-800">
         <button onclick="Portal.setTokoTab('katalog')" id="btn-tab-katalog" class="flex-1 py-2 rounded-xl text-xs font-bold text-gray-800 dark:text-obsidian-100 bg-white dark:bg-obsidian-800 shadow-sm transition-all flex items-center justify-center gap-1.5">
@@ -99,6 +99,79 @@
             </div>
             <p class="text-sm font-bold text-gray-700 dark:text-obsidian-200">Belum Ada Pesanan</p>
             <p class="text-xs text-gray-400 mt-1">Pilih barang di katalog untuk mulai belanja.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Rincian Pesanan Saya (Bottom Sheet) -->
+<div id="toko-order-detail-modal" class="modal-sheet-wrapper fixed inset-0 z-50 flex flex-col">
+    <div class="modal-sheet-overlay absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onclick="Portal.closeModal('toko-order-detail-modal')"></div>
+    <div class="flex-1 pointer-events-none"></div>
+    <div class="modal-sheet-panel bg-white dark:bg-obsidian-900 rounded-t-[2.5rem] max-h-[88vh] flex flex-col max-w-[480px] mx-auto w-full shadow-2xl relative transition-all duration-300">
+        <!-- Drag Indicator -->
+        <div class="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1.5 bg-gray-200 dark:bg-obsidian-800 rounded-full z-10"></div>
+
+        <!-- Modal Header -->
+        <div class="p-6 pb-3.5 border-b border-gray-100 dark:border-obsidian-800 flex items-center justify-between shrink-0">
+            <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 block">Rincian Belanja</span>
+                <h3 class="text-base font-black text-gray-900 dark:text-obsidian-100 font-mono leading-tight" id="modal-ord-no">#ORD-...</h3>
+            </div>
+            <button onclick="Portal.closeModal('toko-order-detail-modal')" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-obsidian-800 text-gray-500 hover:text-gray-800 dark:hover:text-obsidian-200 flex items-center justify-center transition-colors">
+                <i class="bi bi-x-lg text-xs"></i>
+            </button>
+        </div>
+
+        <!-- Modal Scrollable Content -->
+        <div class="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar text-left text-xs">
+            <!-- Status Alert Banner -->
+            <div id="modal-ord-status-box" class="p-3.5 rounded-2xl border text-xs flex items-start gap-3">
+                <!-- Injected dynamically -->
+            </div>
+
+            <!-- Catatan Pesanan jika ada -->
+            <div id="modal-ord-catatan-box" class="hidden p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200/80 dark:border-amber-800/40 rounded-2xl text-[11px] text-amber-900 dark:text-amber-200">
+                <span class="font-bold block mb-0.5"><i class="bi bi-chat-left-text"></i> Catatan Pesanan:</span>
+                <p id="modal-ord-catatan-text" class="leading-relaxed"></p>
+            </div>
+
+            <!-- Daftar Item Belanja -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-black text-gray-400 dark:text-obsidian-500 uppercase tracking-wider">Barang Yang Dipesan</span>
+                    <span id="modal-ord-item-count" class="text-[10px] font-bold text-gray-500 dark:text-obsidian-400">0 Barang</span>
+                </div>
+                <div id="modal-ord-items-list" class="space-y-2">
+                    <!-- Dynamic items -->
+                </div>
+            </div>
+
+            <!-- Ringkasan Finansial & Metode -->
+            <div class="p-4 bg-gray-50 dark:bg-obsidian-800/60 rounded-2xl border border-gray-100 dark:border-obsidian-700/50 space-y-2 text-xs">
+                <div class="flex justify-between items-center text-gray-500 dark:text-obsidian-400">
+                    <span>Waktu Pesan:</span>
+                    <span class="font-medium text-gray-700 dark:text-obsidian-200" id="modal-ord-tgl">-</span>
+                </div>
+                <div class="flex justify-between items-center text-gray-500 dark:text-obsidian-400">
+                    <span>Metode Pembayaran:</span>
+                    <span class="font-bold" id="modal-ord-metode">-</span>
+                </div>
+                <div class="flex justify-between items-center pt-2 border-t border-gray-200/70 dark:border-obsidian-700 text-sm">
+                    <span class="font-bold text-gray-800 dark:text-obsidian-200">Total Pembayaran:</span>
+                    <span class="font-black text-amber-600 dark:text-amber-400 text-base" id="modal-ord-total">Rp 0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 bg-gray-50/80 dark:bg-obsidian-950/80 border-t border-gray-100 dark:border-obsidian-800 flex items-center gap-2.5 shrink-0">
+            <button id="modal-ord-btn-struk" onclick="Portal.openReceiptFromCurrentTokoOrder()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-xs transition-all active:scale-95 text-center flex items-center justify-center gap-1.5 shadow-sm">
+                <i class="bi bi-receipt"></i> Struk Belanja
+            </button>
+            <button onclick="Portal.closeModal('toko-order-detail-modal')" class="py-3 px-5 bg-gray-200 dark:bg-obsidian-800 hover:bg-gray-300 dark:hover:bg-obsidian-700 text-gray-800 dark:text-obsidian-200 rounded-2xl font-bold text-xs transition-all active:scale-95 text-center">
+                Tutup
+            </button>
         </div>
     </div>
 </div>

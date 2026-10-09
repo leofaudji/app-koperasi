@@ -4,6 +4,21 @@ Semua perubahan penting pada proyek Aplikasi Koperasi Simpan Pinjam akan didokum
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini menggunakan [Semantic Versioning](https://semver.org/lang/id/).
 
+## [v2.7.0] - 2026-10-06
+
+### 🛍️ Modul Manajemen Pesanan Toko Koperasi (`#/toko-pesanan`)
+- **Dashboard & Antrean Pesanan Retail Masuk**:
+  - Menghubungkan pesanan belanja dari Portal Anggota PWA (`toko_pesanan` & `toko_pesanan_detail`) ke antarmuka admin backoffice kasir/staf koperasi.
+  - KPI Summary: Total Pesanan, Perlu Diproses (Pending), Sedang Disiapkan, Siap Diambil, dan Selesai (plus akumulasi omset retail).
+  - Filter interaktif: Pencarian nama/no anggota/no pesanan, filter status, metode bayar (Potong Sukarela vs Tunai COD), dan filter tanggal.
+- **Workflow & Tindak Lanjut Pesanan**:
+  - Modal detail pesanan komprehensif menampilkan data pemesan, integrasi tautan WhatsApp 1-klik, rincian barang, total bayar, dan catatan anggota.
+  - Tombol aksi progresif: *Mulai Siapkan* $\rightarrow$ *Tandai Siap Diambil* $\rightarrow$ *Selesaikan Pesanan (Diserahkan)*.
+  - Pembatalan pesanan aman: Otomatis *refund* saldo Simpanan Sukarela dan mengembalikan stok barang ke etalase toko secara terintegrasi dengan pencatatan jejak audit.
+- **Cetak Struk Thermal POS & Ekspor Laporan**:
+  - Fitur cetak struk kasir format POS thermal 58mm/80mm siap pakai untuk diselipkan pada kantong belanjaan anggota.
+  - Ekspor rekapitulasi pesanan ke format PDF dan CSV UTF-8.
+
 ---
 
 ## [v2.6.0] - 2026-09-21

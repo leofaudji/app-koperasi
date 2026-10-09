@@ -2,24 +2,25 @@
 <div
     class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-6 pt-6 pb-4 bg-[#f8fafc]/95 dark:bg-obsidian-950/95 backdrop-blur-md z-30 shadow-sm border-b border-gray-100 dark:border-obsidian-800 transition-colors duration-300">
     <div class="flex justify-between items-center">
-        <div class="flex items-center gap-2">
-            <div id="h-greeting-icon" class="text-xl flex items-center justify-center">
-                <i class="bi bi-sun text-amber-500"></i>
+        <div class="flex items-center gap-2.5">
+            <div id="h-greeting-icon" class="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-500 flex items-center justify-center text-lg border border-amber-100 dark:border-amber-800/40">
+                <i class="bi bi-sun"></i>
             </div>
             <div>
                 <p class="text-[10px] text-gray-500 dark:text-obsidian-400 font-bold uppercase tracking-wider leading-none"
                     id="h-greeting-text">Selamat Datang,</p>
-                <h1 class="text-lg font-bold text-gray-900 dark:text-obsidian-100 truncate max-w-[200px] mt-0.5" id="h-nama">Nama Anggota</h1>
+                <h1 class="text-base font-bold text-gray-900 dark:text-obsidian-100 truncate max-w-[190px] mt-0.5" id="h-nama">Nama Anggota</h1>
                 <p class="text-[9px] text-gray-400 dark:text-obsidian-500 font-medium" id="h-no">AGT-0000</p>
             </div>
         </div>
-        <div class="flex items-center gap-3 mr-14">
+        <div class="flex items-center gap-2 mr-14">
             <button onclick="Portal.togglePrivacy()" 
-                class="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-obsidian-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-obsidian-200 transition-all active:scale-90">
+                title="Sembunyikan/Tampilkan Nominal"
+                class="w-10 h-10 rounded-2xl bg-white dark:bg-obsidian-800 border border-gray-100 dark:border-obsidian-700/60 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:hover:text-obsidian-200 shadow-xs transition-all active:scale-90">
                 <i class="privacy-toggle-icon bi bi-eye-fill"></i>
             </button>
-            <div class="w-11 h-11 rounded-2xl p-0.5 border-2 border-indigo-100 dark:border-indigo-900 bg-white dark:bg-obsidian-800 shadow-sm overflow-hidden">
-                <img src="https://ui-avatars.com/api/?name=Member&background=0D8ABC&color=fff" id="h-avatar"
+            <div class="w-10 h-10 rounded-2xl p-0.5 border-2 border-indigo-100 dark:border-indigo-900 bg-white dark:bg-obsidian-800 shadow-xs overflow-hidden">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='30' fill='%232563eb'/%3E%3Ctext x='50' y='55' font-family='sans-serif' font-size='38' font-weight='bold' fill='%23ffffff' text-anchor='middle' dominant-baseline='middle'%3EA%3C/text%3E%3C/svg%3E" id="h-avatar"
                     class="w-full h-full rounded-xl object-cover" alt="Profile">
             </div>
         </div>
@@ -27,124 +28,231 @@
 </div>
 
 <!-- Spacer to prevent content overlap -->
-<div class="h-[96px]"></div>
+<div class="h-[92px]"></div>
 
-<div class="px-6 space-y-5">
+<div class="px-6 flex flex-col gap-5 pb-10">
     <!-- 1. URGENT: Angsuran Due Notification -->
     <div id="h-notif-angsuran" class="hidden">
-        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-4 shadow-sm">
+        <div class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-4 shadow-sm">
             <div class="flex items-start gap-3">
-                <div class="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0 mt-0.5">
+                <div class="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0 mt-0.5">
                     <i class="bi bi-bell-fill text-amber-600 dark:text-amber-400 text-base animate-bounce"></i>
                 </div>
-                <div class="flex-1">
-                    <p class="text-sm font-bold text-amber-800 dark:text-amber-200 mb-1">Angsuran Segera Jatuh Tempo</p>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-amber-900 dark:text-amber-200 mb-1">Angsuran Segera Jatuh Tempo</p>
                     <div id="h-notif-list" class="space-y-1.5 text-amber-700 dark:text-amber-300"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 2. STATUS: Wallet Card -->
+    <!-- WIDGET KHUSUS MUSIM RAT: RAT E-Voting & Quorum Countdown (Tampil otomatis saat sesi aktif) -->
+    <div id="h-rat-widget" class="hidden"></div>
+
+    <!-- 1.5 OPERATIONAL STATUS: Jam Kas & Hotline Koperasi -->
+    <div id="h-operational-bar" class="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-white dark:bg-obsidian-900 border border-gray-100 dark:border-obsidian-800 shadow-2xs text-[11px] transition-colors">
+        <div class="flex items-center gap-2.5 min-w-0">
+            <span id="h-op-indicator" class="relative flex h-2.5 w-2.5 shrink-0">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span id="h-op-text" class="font-bold text-gray-700 dark:text-obsidian-200 truncate">Layanan Kas Buka (08.00 - 15.00 WIB)</span>
+        </div>
+        <a id="h-op-wa-btn" href="#" target="_blank" class="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 hover:underline shrink-0 ml-2">
+            <i class="bi bi-whatsapp"></i>
+            <span>Bantuan CS</span>
+        </a>
+    </div>
+
+    <!-- 2. STATUS: Interactive Wallet Card -->
     <div class="wallet-card">
         <div class="relative z-10">
-            <p class="text-xs text-blue-100 font-medium mb-1 drop-shadow-sm">Total Saldo Simpanan</p>
-            <h2 class="text-2xl font-bold mb-4 drop-shadow-md" id="h-total-simpanan">Rp 0</h2>
+            <div class="flex justify-between items-start mb-1">
+                <div>
+                    <span class="text-[10px] text-blue-100 uppercase tracking-widest font-semibold">Total Saldo Simpanan</span>
+                    <h2 class="text-2xl font-black mt-0.5 tracking-tight drop-shadow-md" id="h-total-simpanan">Rp 0</h2>
+                </div>
+                <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-400/25 border border-emerald-300/40 text-emerald-200 backdrop-blur-xs">
+                    Aktif
+                </span>
+            </div>
 
-            <div class="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-white/20">
+            <div class="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-white/20">
                 <div>
-                    <p class="text-[10px] text-blue-100 uppercase tracking-wider mb-0.5">Kewajiban Pinjaman</p>
-                    <p class="text-sm font-semibold" id="h-total-pinjaman">Rp 0</p>
+                    <p class="text-[9px] text-blue-100/80 uppercase tracking-wider">Kewajiban Pinjaman</p>
+                    <p class="text-xs font-bold mt-0.5 text-white" id="h-total-pinjaman">Rp 0</p>
                 </div>
-                <div>
-                    <p class="text-[10px] text-blue-100 uppercase tracking-wider mb-0.5">Status Anggota</p>
-                    <p class="text-sm font-semibold uppercase tracking-wider text-emerald-300">Aktif</p>
+                <div class="text-right">
+                    <p class="text-[9px] text-blue-100/80 uppercase tracking-wider">Status Keanggotaan</p>
+                    <p class="text-xs font-bold mt-0.5 text-emerald-300">Terverifikasi</p>
                 </div>
+            </div>
+
+            <!-- Integrated Quick Transact Pills -->
+            <div class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-white/15">
+                <button onclick="Portal.tab('simpanan')"
+                    class="py-2 px-1.5 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition-all text-white backdrop-blur-xs flex items-center justify-center gap-1.5 text-[10px] font-bold">
+                    <i class="bi bi-wallet2 text-xs"></i>
+                    <span>Setor/Top Up</span>
+                </button>
+                <button onclick="Portal.tab('pengajuan_pinjaman')"
+                    class="py-2 px-1.5 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition-all text-white backdrop-blur-xs flex items-center justify-center gap-1.5 text-[10px] font-bold">
+                    <i class="bi bi-plus-circle text-xs"></i>
+                    <span>Ajukan Kredit</span>
+                </button>
+                <button onclick="Portal.tab('toko')"
+                    class="py-2 px-1.5 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition-all text-white backdrop-blur-xs flex items-center justify-center gap-1.5 text-[10px] font-bold">
+                    <i class="bi bi-bag-check text-xs"></i>
+                    <span>Belanja Toko</span>
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- 3. NAVIGATION: Quick Actions -->
-    <div class="bg-white dark:bg-obsidian-900 p-4 rounded-2xl border border-gray-100 dark:border-obsidian-800 shadow-sm transition-colors duration-300">
-        <div class="flex items-center justify-between mb-3">
-            <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-sm flex items-center gap-2">
-                <i class="bi bi-grid-fill text-indigo-500"></i> Menu Cepat
-            </h3>
-            <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">Layanan Lengkap</span>
+    <!-- 3. ACTIONABLE BILLING: Tagihan & Jadwal Angsuran Terdekat (Prioritas Tinggi) -->
+    <div id="h-billing-container">
+        <!-- Rendered dynamically via Portal.renderBillingCard() -->
+        <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-obsidian-800 animate-pulse">
+            <div class="flex items-center justify-between mb-3">
+                <div class="h-4 bg-gray-200 dark:bg-obsidian-800 rounded w-1/3"></div>
+                <div class="h-5 bg-gray-200 dark:bg-obsidian-800 rounded-full w-20"></div>
+            </div>
+            <div class="h-7 bg-gray-200 dark:bg-obsidian-800 rounded w-1/2 mb-3"></div>
+            <div class="h-14 bg-gray-100 dark:bg-obsidian-800 rounded-2xl"></div>
         </div>
+    </div>
+
+    <!-- 4. NAVIGATION: Menu Layanan Koperasi (8 Menu Fungsional Lengkap) -->
+    <div class="bg-white dark:bg-obsidian-900 p-4 rounded-3xl border border-gray-100 dark:border-obsidian-800 shadow-sm transition-colors duration-300">
+        <div class="flex items-center justify-between mb-3.5 px-0.5">
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="bi bi-grid-fill text-indigo-500"></i> Layanan Koperasi
+                </h3>
+                <p class="text-[10px] text-gray-400 dark:text-obsidian-500 mt-0.5">Akses cepat transaksi & administrasi</p>
+            </div>
+            <span class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-800/40">
+                8 Layanan
+            </span>
+        </div>
+
         <div class="grid grid-cols-4 gap-y-3.5 gap-x-2 text-center">
+            <!-- 1. Simpanan -->
             <button onclick="Portal.tab('simpanan')"
                 class="group flex flex-col items-center gap-1.5 transition active:scale-95">
                 <div
-                    class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg shadow-sm border border-emerald-100 dark:border-emerald-800/50 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                    class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shadow-xs border border-emerald-100 dark:border-emerald-800/50 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                     <i class="bi bi-wallet2"></i>
                 </div>
-                <span class="text-[9px] font-bold text-gray-600 dark:text-obsidian-400">Simpanan</span>
+                <span class="text-[10px] font-bold text-gray-700 dark:text-obsidian-300 leading-tight">Simpanan</span>
             </button>
+
+            <!-- 2. Pinjaman -->
             <button onclick="Portal.tab('pinjaman')"
                 class="group flex flex-col items-center gap-1.5 transition active:scale-95">
                 <div
-                    class="w-11 h-11 rounded-2xl bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center text-lg shadow-sm border border-orange-100 dark:border-orange-800/50 group-hover:bg-orange-600 group-hover:text-white transition-all">
+                    class="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xl shadow-xs border border-orange-100 dark:border-orange-800/50 group-hover:bg-orange-600 group-hover:text-white transition-all">
                     <i class="bi bi-cash-coin"></i>
                 </div>
-                <span class="text-[9px] font-bold text-gray-600 dark:text-obsidian-400">Pinjaman</span>
+                <span class="text-[10px] font-bold text-gray-700 dark:text-obsidian-300 leading-tight">Pinjaman</span>
             </button>
+
+            <!-- 3. Ajukan Pinjaman (Baru di Menu Cepat) -->
+            <button onclick="Portal.tab('pengajuan_pinjaman')"
+                class="group flex flex-col items-center gap-1.5 transition active:scale-95">
+                <div
+                    class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl shadow-xs border border-blue-100 dark:border-blue-800/50 group-hover:bg-blue-600 group-hover:text-white transition-all relative">
+                    <i class="bi bi-plus-circle-fill"></i>
+                    <span class="absolute -top-1 -right-1 px-1 py-0.2 bg-blue-600 text-white text-[7px] font-black rounded-full uppercase">Ajukan</span>
+                </div>
+                <span class="text-[10px] font-bold text-gray-700 dark:text-obsidian-300 leading-tight">Ajukan Kredit</span>
+            </button>
+
+            <!-- 4. Toko Retail -->
             <button onclick="Portal.tab('toko')"
                 class="group flex flex-col items-center gap-1.5 transition active:scale-95">
                 <div
-                    class="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg shadow-sm border border-amber-100 dark:border-amber-800/50 group-hover:bg-amber-600 group-hover:text-white transition-all relative">
+                    class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shadow-xs border border-amber-100 dark:border-amber-800/50 group-hover:bg-amber-600 group-hover:text-white transition-all relative">
                     <i class="bi bi-shop"></i>
-                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full"></span>
+                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white dark:border-obsidian-900 animate-pulse"></span>
                 </div>
-                <span class="text-[9px] font-bold text-gray-600 dark:text-obsidian-400">Toko Retail</span>
+                <span class="text-[10px] font-bold text-gray-700 dark:text-obsidian-300 leading-tight">Toko Retail</span>
             </button>
-            <button onclick="Portal.showTransparansiModal()"
-                class="group flex flex-col items-center gap-1.5 transition active:scale-95">
-                <div
-                    class="w-11 h-11 rounded-2xl bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 flex items-center justify-center text-lg shadow-sm border border-teal-100 dark:border-teal-800/50 group-hover:bg-teal-600 group-hover:text-white transition-all">
-                    <i class="bi bi-shield-check"></i>
-                </div>
-                <span class="text-[9px] font-bold text-gray-600 dark:text-obsidian-400">Kepatuhan</span>
-            </button>
+
+            <!-- 5. RAT Koperasi -->
             <button onclick="Portal.tab('rat')"
                 class="group flex flex-col items-center gap-1.5 transition active:scale-95">
                 <div
-                    class="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg shadow-sm border border-blue-100 dark:border-blue-800/50 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                    <i class="bi bi-people"></i>
+                    class="w-12 h-12 rounded-2xl bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 flex items-center justify-center text-xl shadow-xs border border-cyan-100 dark:border-cyan-800/50 group-hover:bg-cyan-600 group-hover:text-white transition-all">
+                    <i class="bi bi-people-fill"></i>
                 </div>
-                <span class="text-[9px] font-bold text-gray-600 dark:text-obsidian-400">RAT</span>
+                <span class="text-[10px] font-bold text-gray-700 dark:text-obsidian-300 leading-tight">RAT Online</span>
             </button>
-            <button onclick="Portal.showBantuanAspirasiModal()"
+
+            <!-- 6. Struk Digital (Bukti Transaksi Resmi) -->
+            <button onclick="Portal.openReceiptQuickModal()"
                 class="group flex flex-col items-center gap-1.5 transition active:scale-95">
                 <div
-                    class="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center text-lg shadow-sm border border-rose-100 dark:border-rose-800/50 group-hover:bg-rose-600 group-hover:text-white transition-all">
-                    <i class="bi bi-chat-heart"></i>
+                    class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shadow-xs border border-indigo-100 dark:border-indigo-800/50 group-hover:bg-indigo-600 group-hover:text-white transition-all relative">
+                    <i class="bi bi-receipt"></i>
+                    <span class="absolute -top-1 -right-1 px-1 py-0.2 bg-indigo-600 text-white text-[7px] font-black rounded-full uppercase">Struk</span>
                 </div>
-                <span class="text-[9px] font-bold text-gray-600 dark:text-obsidian-400">Aspirasi</span>
+                <span class="text-[10px] font-bold text-gray-700 dark:text-obsidian-300 leading-tight">Struk Digital</span>
             </button>
+
+            <!-- 7. KTA Digital -->
             <button onclick="Portal.showKtaModal()"
                 class="group flex flex-col items-center gap-1.5 transition active:scale-95">
                 <div
-                    class="w-11 h-11 rounded-2xl bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg shadow-sm border border-purple-100 dark:border-purple-800/50 group-hover:bg-purple-600 group-hover:text-white transition-all">
+                    class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl shadow-xs border border-purple-100 dark:border-purple-800/50 group-hover:bg-purple-600 group-hover:text-white transition-all">
                     <i class="bi bi-person-vcard"></i>
                 </div>
-                <span class="text-[9px] font-bold text-gray-600 dark:text-obsidian-400">KTA Digital</span>
+                <span class="text-[10px] font-bold text-gray-700 dark:text-obsidian-300 leading-tight">KTA Digital</span>
             </button>
-            <button onclick="Portal.tab('laporan')"
+
+            <!-- 8. Aspirasi & Bantuan -->
+            <button onclick="Portal.showBantuanAspirasiModal()"
                 class="group flex flex-col items-center gap-1.5 transition active:scale-95">
                 <div
-                    class="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg shadow-sm border border-indigo-100 dark:border-indigo-800/50 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                    <i class="bi bi-file-earmark-bar-graph"></i>
+                    class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xl shadow-xs border border-rose-100 dark:border-rose-800/50 group-hover:bg-rose-600 group-hover:text-white transition-all">
+                    <i class="bi bi-chat-heart"></i>
                 </div>
-                <span class="text-[9px] font-bold text-gray-600 dark:text-obsidian-400">Laporan</span>
+                <span class="text-[10px] font-bold text-gray-700 dark:text-obsidian-300 leading-tight">Aspirasi</span>
             </button>
         </div>
     </div>
 
-    <!-- BANNER TRANSPARANSI KESEHATAN KOPERASI -->
-    <div id="banner-transparansi" onclick="Portal.showTransparansiModal()" class="cursor-pointer bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 rounded-2xl p-4 text-white shadow-lg shadow-teal-600/15 flex items-center justify-between transition-all active:scale-[0.98]">
+    <!-- FEED AKTIVITAS TERBARU (Recent Activity Passbook) -->
+    <div id="h-recent-activities" class="bg-white dark:bg-obsidian-900 p-4 sm:p-5 rounded-3xl border border-gray-100 dark:border-obsidian-800 shadow-sm transition-colors duration-300">
+        <div class="flex items-center justify-between mb-3 px-0.5">
+            <div>
+                <div class="flex items-center gap-2">
+                    <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="bi bi-clock-history text-indigo-500"></i> Aktivitas Terakhir
+                    </h3>
+                    <span class="text-[8px] px-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-extrabold border border-indigo-100 dark:border-indigo-800/60 flex items-center gap-0.5">
+                        <i class="bi bi-receipt"></i> Struk Digital
+                    </span>
+                </div>
+                <p class="text-[10px] text-gray-400 dark:text-obsidian-500 mt-0.5">Ketuk transaksi untuk cetak / bagikan slip struk</p>
+            </div>
+            <button onclick="Portal.openReceiptQuickModal()" class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-1 rounded-xl">
+                <i class="bi bi-receipt"></i> Buka Struk
+            </button>
+        </div>
+        <div id="h-recent-list" class="space-y-2">
+            <!-- Populated via Portal.renderRecentActivities() -->
+            <div class="p-4 text-center text-xs text-gray-400">Memuat aktivitas...</div>
+        </div>
+    </div>
+
+    <!-- 5. INFORMASI & BROADCAST: Pengumuman Pengurus (Tampil otomatis jika ada) -->
+    <div id="h-pengumuman-container" class="space-y-3 empty:hidden"></div>
+
+    <!-- 6. KEPATUHAN & AKREDITASI: Banner Transparansi Kesehatan Koperasi -->
+    <div id="banner-transparansi" onclick="Portal.showTransparansiModal()" class="cursor-pointer bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 rounded-3xl p-4 text-white shadow-lg shadow-teal-600/15 flex items-center justify-between transition-all active:scale-[0.98]">
         <div class="flex items-center gap-3">
-            <div id="banner-transparansi-icon" class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-xl shrink-0">
+            <div id="banner-transparansi-icon" class="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-xl shrink-0 border border-white/20">
                 <i class="bi bi-shield-check"></i>
             </div>
             <div>
@@ -156,90 +264,93 @@
                 <p id="banner-transparansi-desc" class="text-[9px] text-teal-100 opacity-80 mt-0.5">Penilaian resmi KKPKK Kemenkop UKM</p>
             </div>
         </div>
-        <i class="bi bi-chevron-right text-teal-200 text-sm"></i>
+        <i class="bi bi-chevron-right text-teal-200 text-sm shrink-0 ml-2"></i>
     </div>
 
-    <!-- PENGUMUMAN / BROADCAST FEED CONTAINER -->
-    <div id="h-pengumuman-container" class="space-y-4 empty:hidden pt-2"></div>
-
-    <!-- 4. HEALTH: Ringkasan Aset -->
-    <div class="bg-white dark:bg-obsidian-900 rounded-2xl border border-gray-100 dark:border-obsidian-800 shadow-sm overflow-hidden transition-colors duration-300">
-        <div class="px-4 pt-4 pb-3 flex items-center justify-between border-b border-gray-50 dark:border-obsidian-800">
-            <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-sm flex items-center gap-2">
-                <i class="bi bi-pie-chart-fill text-indigo-500"></i> Neraca Personal
-            </h3>
-            <span class="text-[9px] bg-gray-100 dark:bg-obsidian-800 px-2 py-0.5 rounded-full text-gray-500 dark:text-obsidian-400" id="h-aset-time">—</span>
+    <!-- 7. PORTOFOLIO & ANALISIS: Neraca Personal Anggota -->
+    <div class="bg-white dark:bg-obsidian-900 rounded-3xl border border-gray-100 dark:border-obsidian-800 shadow-sm overflow-hidden transition-colors duration-300">
+        <div class="px-5 pt-4 pb-3 flex items-center justify-between border-b border-gray-50 dark:border-obsidian-800">
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="bi bi-pie-chart-fill text-indigo-500"></i> Neraca Personal Anggota
+                </h3>
+                <p class="text-[9px] text-gray-400 dark:text-obsidian-500 mt-0.5">Posisi aset & solvabilitas pribadi</p>
+            </div>
+            <span class="text-[9px] bg-gray-100 dark:bg-obsidian-800 px-2 py-0.5 rounded-full text-gray-500 dark:text-obsidian-400 font-mono" id="h-aset-time">—</span>
         </div>
         <div class="divide-y divide-gray-50 dark:divide-obsidian-800">
-            <div class="flex items-center justify-between px-4 py-3">
+            <div class="flex items-center justify-between px-5 py-3">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                        <i class="bi bi-plus-circle-fill text-emerald-500 text-sm"></i>
+                    <div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                        <i class="bi bi-plus-circle-fill text-emerald-500 text-xs"></i>
                     </div>
-                    <p class="text-xs font-semibold text-gray-600 dark:text-obsidian-300">Total Aset</p>
+                    <p class="text-xs font-semibold text-gray-600 dark:text-obsidian-300">Total Aset (Simpanan)</p>
                 </div>
                 <p class="text-xs font-black text-emerald-600 dark:text-emerald-400" id="h-aset-total">Rp —</p>
             </div>
-            <div class="flex items-center justify-between px-4 py-3">
+            <div class="flex items-center justify-between px-5 py-3">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center shrink-0">
-                        <i class="bi bi-dash-circle-fill text-rose-500 text-sm"></i>
+                    <div class="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center shrink-0">
+                        <i class="bi bi-dash-circle-fill text-rose-500 text-xs"></i>
                     </div>
-                    <p class="text-xs font-semibold text-gray-600 dark:text-obsidian-300">Kewajiban</p>
+                    <p class="text-xs font-semibold text-gray-600 dark:text-obsidian-300">Kewajiban (Sisa Pinjaman)</p>
                 </div>
                 <p class="text-xs font-black text-rose-500 dark:text-rose-400" id="h-aset-kewajiban">Rp —</p>
             </div>
-            <div class="flex items-center justify-between px-4 py-3 bg-gray-50/30 dark:bg-obsidian-800/30">
+            <div class="flex items-center justify-between px-5 py-3 bg-gray-50/40 dark:bg-obsidian-800/40">
                 <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
-                        <i class="bi bi-wallet-fill text-indigo-500 text-sm"></i>
+                    <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                        <i class="bi bi-wallet-fill text-indigo-500 text-xs"></i>
                     </div>
                     <p class="text-xs font-bold text-gray-800 dark:text-obsidian-100">Ekuitas Bersih</p>
                 </div>
                 <p class="text-xs font-black text-indigo-600 dark:text-indigo-400" id="h-aset-ekuitas">Rp —</p>
             </div>
         </div>
-        <div class="px-4 pb-4 pt-3 bg-gray-50/50 dark:bg-obsidian-800/50">
+        <div class="px-5 pb-4 pt-3 bg-gray-50/60 dark:bg-obsidian-800/60">
             <div class="flex justify-between text-[9px] mb-1.5 uppercase font-black tracking-widest text-gray-400 dark:text-obsidian-500">
-                <span>Skor Kesehatan Keuangan</span>
+                <span>Skor Kesehatan Keuangan Pribadi</span>
                 <span id="h-rasio-label">—</span>
             </div>
-            <div class="h-1.5 bg-gray-200 dark:bg-obsidian-700 rounded-full overflow-hidden">
+            <div class="h-2 bg-gray-200 dark:bg-obsidian-700 rounded-full overflow-hidden">
                 <div id="h-aset-bar" class="h-full rounded-full bg-indigo-500 transition-all duration-1000"
                     style="width:0%"></div>
             </div>
         </div>
     </div>
 
-    <!-- 5. BILLING: Tagihan & Jadwal Angsuran Terdekat -->
-    <div id="h-billing-container" class="mb-6">
-        <!-- Rendered dynamically via Portal.renderBillingCard() -->
-        <div class="bg-white dark:bg-obsidian-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-obsidian-800 animate-pulse">
-            <div class="flex items-center justify-between mb-4">
-                <div class="h-4 bg-gray-200 dark:bg-obsidian-800 rounded w-1/3"></div>
-                <div class="h-6 bg-gray-200 dark:bg-obsidian-800 rounded-full w-20"></div>
+    <!-- 8. RINCIAN PORTOFOLIO: Komposisi Simpanan Detail -->
+    <div class="bg-white dark:bg-obsidian-900 p-5 rounded-3xl border border-gray-100 dark:border-obsidian-800 shadow-sm transition-colors duration-300">
+        <div class="flex items-center justify-between mb-3.5">
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="bi bi-stack text-indigo-500"></i> Komposisi Simpanan
+                </h3>
+                <p class="text-[9px] text-gray-400 dark:text-obsidian-500 mt-0.5">Distribusi saldo per jenis simpanan</p>
             </div>
-            <div class="h-8 bg-gray-200 dark:bg-obsidian-800 rounded w-1/2 mb-3"></div>
-            <div class="h-16 bg-gray-100 dark:bg-obsidian-800 rounded-2xl"></div>
+            <button onclick="Portal.tab('simpanan')" class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5">
+                Kelola <i class="bi bi-chevron-right text-[9px]"></i>
+            </button>
         </div>
-    </div>
-
-    <!-- 6. DETAILS: Breakdown List -->
-    <div class="bg-white dark:bg-obsidian-900 p-4 rounded-2xl border border-gray-100 dark:border-obsidian-800 shadow-sm transition-colors duration-300">
-        <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-sm mb-3 flex items-center gap-2">
-            <i class="bi bi-stack text-indigo-500"></i> Komposisi Simpanan
-        </h3>
-        <div id="h-simpanan-breakdown" class="space-y-3 pb-2">
+        <div id="h-simpanan-breakdown" class="space-y-2.5 pb-1">
             <!-- Populated via JS -->
         </div>
     </div>
 
-    <!-- Komposisi Pinjaman Detail -->
-    <div class="bg-white dark:bg-obsidian-900 p-4 rounded-2xl border border-gray-100 dark:border-obsidian-800 shadow-sm pb-6 transition-colors duration-300">
-        <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-sm mb-3 flex items-center gap-2">
-            <i class="bi bi-list-stars text-rose-500"></i> Daftar Pinjaman Aktif
-        </h3>
-        <div id="h-pinjaman-breakdown" class="space-y-3">
+    <!-- 9. RINCIAN PORTOFOLIO: Daftar Pinjaman Aktif -->
+    <div class="bg-white dark:bg-obsidian-900 p-5 rounded-3xl border border-gray-100 dark:border-obsidian-800 shadow-sm transition-colors duration-300">
+        <div class="flex items-center justify-between mb-3.5">
+            <div>
+                <h3 class="font-bold text-gray-800 dark:text-obsidian-100 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="bi bi-list-stars text-rose-500"></i> Daftar Pinjaman Berjalan
+                </h3>
+                <p class="text-[9px] text-gray-400 dark:text-obsidian-500 mt-0.5">Pantau tenor & sisa pokok pinjaman</p>
+            </div>
+            <button onclick="Portal.tab('pinjaman')" class="text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-0.5">
+                Riwayat <i class="bi bi-chevron-right text-[9px]"></i>
+            </button>
+        </div>
+        <div id="h-pinjaman-breakdown" class="space-y-2.5">
             <!-- Populated via JS -->
         </div>
     </div>

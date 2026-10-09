@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '2.7.0', // Modul Laporan Aspirasi Pengawas, Ekosistem Retail, & Sinkronisasi Kesehatan KKPKK
+    version: '2.7.2', // Desain Rapi & Merge Kolom Tabel Pesanan Toko
     API_BASE: (() => {
         // Best way: find the root based on where this script is loaded from
         const script = document.currentScript || document.querySelector('script[src*="assets/js/app.js"]');

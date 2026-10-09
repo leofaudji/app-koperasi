@@ -239,20 +239,24 @@ function logActivity($action, $tableName, $recordId, $oldData = null, $newData =
     if (!$userId)
         return;
 
-    $db->execute(
-        "INSERT INTO audit_logs (user_id, action, table_name, record_id, old_data, new_data, ip_address, user_agent) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        [
-            $userId,
-            $action,
-            $tableName,
-            $recordId,
-            $oldData ? json_encode($oldData) : null,
-            $newData ? json_encode($newData) : null,
-            $_SERVER['REMOTE_ADDR'] ?? null,
-            $_SERVER['HTTP_USER_AGENT'] ?? null
-        ]
-    );
+    try {
+        $db->execute(
+            "INSERT INTO audit_logs (user_id, action, table_name, record_id, old_data, new_data, ip_address, user_agent) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                $userId,
+                $action,
+                $tableName,
+                $recordId,
+                $oldData ? json_encode($oldData) : null,
+                $newData ? json_encode($newData) : null,
+                $_SERVER['REMOTE_ADDR'] ?? null,
+                $_SERVER['HTTP_USER_AGENT'] ?? null
+            ]
+        );
+    } catch (\Throwable $e) {
+        error_log("Gagal mencatat audit log: " . $e->getMessage());
+    }
 }
 
 function getIPLocation($ip)
@@ -429,6 +433,9 @@ try {
             break;
         case 'aspirasi':
             require_once $controllerPath . 'AspirasiAdminController.php';
+            break;
+        case 'toko-pesanan':
+            require_once $controllerPath . 'TokoAdminController.php';
             break;
         case 'audit':
             require_once $controllerPath . 'AuditController.php';
