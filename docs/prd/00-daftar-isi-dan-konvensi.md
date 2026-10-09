@@ -3,7 +3,7 @@
 ## 1. Identifikasi Dokumen
 - **Nama Produk**: Aplikasi Koperasi Simpan Pinjam Terintegrasi (KSP Core & Portal PWA)
 - **Kode Repositori**: `app-koperasi`
-- **Versi Produk Saat Ini**: `v2.6.0`
+- **Versi Produk Saat Ini**: `v2.8.0`
 - **Klasifikasi Dokumen**: Product Requirement Document (PRD) Modular
 - **Target Pembaca**: Product Owner, Pengurus Koperasi, Software Engineer, Quality Assurance, Database Administrator, AI Coding Agents.
 
@@ -17,13 +17,13 @@
 | **01** | [`01-ringkasan-eksekutif-dan-arsitektur.md`](file:///d:/laragon/www/app-koperasi/docs/prd/01-ringkasan-eksekutif-dan-arsitektur.md) | Visi produk, target pengguna, arsitektur sistem, tech stack & multi-platform | Lead Architect |
 | **02** | [`02-autentikasi-dan-manajemen-akses-rbac.md`](file:///d:/laragon/www/app-koperasi/docs/prd/02-autentikasi-dan-manajemen-akses-rbac.md) | Login, sesi HTTPS, CSRF, RBAC dinamis (Role & Permissions), Audit Trail | Security Lead |
 | **03** | [`03-master-data-dan-keanggotaan.md`](file:///d:/laragon/www/app-koperasi/docs/prd/03-master-data-dan-keanggotaan.md) | Profil anggota, verifikasi NIK/KTP, produk simpanan/pinjaman, COA | Core Dev |
-| **04** | [`04-modul-simpanan.md`](file:///d:/laragon/www/app-koperasi/docs/prd/04-modul-simpanan.md) | Simpanan Pokok, Wajib, Sukarela, Partisipatif, Mutasi, Monitoring Tunggakan SW | Financial Dev |
-| **05** | [`05-modul-pinjaman-dan-agunan.md`](file:///d:/laragon/www/app-koperasi/docs/prd/05-modul-pinjaman-dan-agunan.md) | Pinjaman flat, review, approval, multi-refinancing (top-up), agunan, SPK QR | Credit Dev |
-| **06** | [`06-modul-angsuran-dan-reversal.md`](file:///d:/laragon/www/app-koperasi/docs/prd/06-modul-angsuran-dan-reversal.md) | Angsuran kasir/overbooking SS, pelunasan dipercepat, thermal POS, reversal non-destruktif | Billing Dev |
+| **04** | [`04-modul-simpanan.md`](file:///d:/laragon/www/app-koperasi/docs/prd/04-modul-simpanan.md) | Simpanan Pokok, Wajib, Sukarela, Partisipatif, Mutasi, Monitoring Tunggakan SW, Push Reversal | Financial Dev |
+| **05** | [`05-modul-pinjaman-dan-agunan.md`](file:///d:/laragon/www/app-koperasi/docs/prd/05-modul-pinjaman-dan-agunan.md) | Pinjaman flat, review, approval, multi-refinancing (top-up), agunan, SPK QR, Push Pencairan & Reversal | Credit Dev |
+| **06** | [`06-modul-angsuran-dan-reversal.md`](file:///d:/laragon/www/app-koperasi/docs/prd/06-modul-angsuran-dan-reversal.md) | Angsuran kasir/overbooking SS, pelunasan dipercepat, thermal POS, reversal non-destruktif & Push Reversal | Billing Dev |
 | **07** | [`07-modul-akuntansi-dan-keuangan.md`](file:///d:/laragon/www/app-koperasi/docs/prd/07-modul-akuntansi-dan-keuangan.md) | Double-entry GL, Kas Masuk/Keluar, Neraca SAK EP, Laba Rugi, Arus Kas, Ekuitas, Kunci Buku | Accounting Lead |
 | **08** | [`08-modul-laporan-dan-analitik.md`](file:///d:/laragon/www/app-koperasi/docs/prd/08-modul-laporan-dan-analitik.md) | Laporan saldo, baki debet, kolektibilitas/NPL, mutasi, ekspor PDF Landscape & CSV UTF-8 | Reporting Dev |
 | **09** | [`09-modul-rat-dan-shu.md`](file:///d:/laragon/www/app-koperasi/docs/prd/09-modul-rat-dan-shu.md) | RAT kuorum, Doorprize wheel, distribusi SHU otomatis, tutup buku tahunan | Governance Dev |
-| **10** | [`10-portal-anggota-pwa.md`](file:///d:/laragon/www/app-koperasi/docs/prd/10-portal-anggota-pwa.md) | PWA Member Portal, Service Worker offline, Billing card, Autodebet SS, Transparansi KKPKK, Aspirasi, & Toko | Mobile/PWA Dev |
+| **10** | [`10-portal-anggota-pwa.md`](file:///d:/laragon/www/app-koperasi/docs/prd/10-portal-anggota-pwa.md) | PWA Member Portal, Web Push Notification RFC 8291/8292, Billing card, Autodebet SS, Toko, & Admin Push (`#/web-push`) | Mobile/PWA Dev |
 | **11** | [`11-kepatuhan-regulasi-dan-kesehatan-koperasi.md`](file:///d:/laragon/www/app-koperasi/docs/prd/11-kepatuhan-regulasi-dan-kesehatan-koperasi.md) | Kertas Kerja Pemeriksaan Kesehatan Koperasi (KKPKK 4 Pilar), 7 Rasio KUK 1-4, Shared Engine Helper | Compliance Lead |
 | **12** | [`12-keamanan-infrastruktur-dan-pemeliharaan.md`](file:///d:/laragon/www/app-koperasi/docs/prd/12-keamanan-infrastruktur-dan-pemeliharaan.md) | Redis caching, Backup/Restore .sql, CLI scripts, Database integrity repair | DevOps Lead |
 

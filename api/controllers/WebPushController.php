@@ -259,6 +259,137 @@ switch ($method) {
             ]);
         }
 
+        if ($id === 'due-installments') {
+            checkPermission('dashboard.view');
+
+            $kategori = $_GET['kategori'] ?? 'all';
+            $hasDevice = $_GET['has_device'] ?? 'all';
+            $search = trim($_GET['search'] ?? '');
+            $page = max(1, (int) ($_GET['page'] ?? 1));
+            $limit = max(10, min(100, (int) ($_GET['limit'] ?? 20)));
+            $offset = ($page - 1) * $limit;
+
+            // 1. Overall stats per category across all unpaid installments
+            $statsSql = "
+                SELECT 
+                    COUNT(*) as total_unpaid,
+                    COALESCE(SUM(an.total), 0) as total_nominal,
+                    COALESCE(SUM(CASE WHEN ps.device_count > 0 THEN 1 ELSE 0 END), 0) as total_with_device,
+
+                    SUM(CASE WHEN DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) BETWEEN 1 AND 5 THEN 1 ELSE 0 END) as h_min_5_count,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) BETWEEN 1 AND 5 THEN an.total ELSE 0 END), 0) as h_min_5_nominal,
+                    SUM(CASE WHEN DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) BETWEEN 1 AND 5 AND ps.device_count > 0 THEN 1 ELSE 0 END) as h_min_5_with_device,
+
+                    SUM(CASE WHEN DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) = 0 THEN 1 ELSE 0 END) as today_count,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) = 0 THEN an.total ELSE 0 END), 0) as today_nominal,
+                    SUM(CASE WHEN DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) = 0 AND ps.device_count > 0 THEN 1 ELSE 0 END) as today_with_device,
+
+                    SUM(CASE WHEN DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) BETWEEN 1 AND 7 THEN 1 ELSE 0 END) as late_7_count,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) BETWEEN 1 AND 7 THEN an.total ELSE 0 END), 0) as late_7_nominal,
+                    SUM(CASE WHEN DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) BETWEEN 1 AND 7 AND ps.device_count > 0 THEN 1 ELSE 0 END) as late_7_with_device,
+
+                    SUM(CASE WHEN DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) BETWEEN 8 AND 30 THEN 1 ELSE 0 END) as late_30_count,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) BETWEEN 8 AND 30 THEN an.total ELSE 0 END), 0) as late_30_nominal,
+                    SUM(CASE WHEN DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) BETWEEN 8 AND 30 AND ps.device_count > 0 THEN 1 ELSE 0 END) as late_30_with_device,
+
+                    SUM(CASE WHEN DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) > 30 THEN 1 ELSE 0 END) as late_over_30_count,
+                    COALESCE(SUM(CASE WHEN DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) > 30 THEN an.total ELSE 0 END), 0) as late_over_30_nominal,
+                    SUM(CASE WHEN DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) > 30 AND ps.device_count > 0 THEN 1 ELSE 0 END) as late_over_30_with_device
+                FROM angsuran an
+                JOIN pinjaman p ON an.pinjaman_id = p.id
+                LEFT JOIN (
+                    SELECT anggota_id, COUNT(*) as device_count 
+                    FROM push_subscriptions 
+                    GROUP BY anggota_id
+                ) ps ON p.anggota_id = ps.anggota_id
+                WHERE an.status = 'belum'
+            ";
+            $categoryStats = $db->fetch($statsSql);
+
+            // 2. Build where filter for list
+            $where = "WHERE an.status = 'belum'";
+            $binds = [];
+
+            if ($kategori === 'h_min_5') {
+                $where .= " AND DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) BETWEEN 1 AND 5";
+            } elseif ($kategori === 'today') {
+                $where .= " AND DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) = 0";
+            } elseif ($kategori === 'late_7') {
+                $where .= " AND DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) BETWEEN 1 AND 7";
+            } elseif ($kategori === 'late_30') {
+                $where .= " AND DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) BETWEEN 8 AND 30";
+            } elseif ($kategori === 'late_over_30') {
+                $where .= " AND DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) > 30";
+            }
+
+            if ($hasDevice === 'yes') {
+                $where .= " AND COALESCE(ps.device_count, 0) > 0";
+            } elseif ($hasDevice === 'no') {
+                $where .= " AND COALESCE(ps.device_count, 0) = 0";
+            }
+
+            if ($search !== '') {
+                $where .= " AND (a.nama LIKE ? OR a.no_anggota LIKE ? OR p.no_pinjaman LIKE ? OR a.telepon LIKE ?)";
+                $binds[] = "%$search%";
+                $binds[] = "%$search%";
+                $binds[] = "%$search%";
+                $binds[] = "%$search%";
+            }
+
+            // Total count for current filter
+            $countSql = "
+                SELECT COUNT(*) as total 
+                FROM angsuran an
+                JOIN pinjaman p ON an.pinjaman_id = p.id
+                JOIN anggota a ON p.anggota_id = a.id
+                LEFT JOIN (
+                    SELECT anggota_id, COUNT(*) as device_count 
+                    FROM push_subscriptions 
+                    GROUP BY anggota_id
+                ) ps ON p.anggota_id = ps.anggota_id
+                $where
+            ";
+            $total = (int) ($db->fetch($countSql, $binds)['total'] ?? 0);
+
+            // Fetch list
+            $listSql = "
+                SELECT 
+                    an.id, an.pinjaman_id, an.angsuran_ke, an.tgl_jatuh_tempo, an.pokok, an.bunga, an.denda, an.total,
+                    DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) as diff_days,
+                    DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) as overdue_days,
+                    p.no_pinjaman, p.sisa_pinjaman, p.anggota_id,
+                    a.nama as nama_anggota, a.no_anggota, a.telepon,
+                    jp.nama as jenis_pinjaman,
+                    COALESCE(ps.device_count, 0) as device_count,
+                    (SELECT COUNT(*) FROM push_logs pl WHERE pl.anggota_id = p.anggota_id AND pl.tipe = 'tagihan' AND pl.status = 'success') as push_sent_count,
+                    (SELECT MAX(pl.created_at) FROM push_logs pl WHERE pl.anggota_id = p.anggota_id AND pl.tipe = 'tagihan') as last_push_at
+                FROM angsuran an
+                JOIN pinjaman p ON an.pinjaman_id = p.id
+                JOIN anggota a ON p.anggota_id = a.id
+                JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+                LEFT JOIN (
+                    SELECT anggota_id, COUNT(*) as device_count 
+                    FROM push_subscriptions 
+                    GROUP BY anggota_id
+                ) ps ON p.anggota_id = ps.anggota_id
+                $where
+                ORDER BY an.tgl_jatuh_tempo ASC, an.id ASC
+                LIMIT $limit OFFSET $offset
+            ";
+            $rows = $db->fetchAll($listSql, $binds);
+
+            successResponse([
+                'stats' => $categoryStats,
+                'data' => $rows,
+                'pagination' => [
+                    'page' => $page,
+                    'limit' => $limit,
+                    'total' => $total,
+                    'total_pages' => ceil($total / $limit)
+                ]
+            ]);
+        }
+
         errorResponse('Sub-resource tidak ditemukan', 404);
         break;
 
@@ -315,6 +446,87 @@ switch ($method) {
             } else {
                 errorResponse($res['message'] ?? 'Gagal mengirim push notifikasi ke anggota');
             }
+        }
+
+        if ($id === 'broadcast-tagihan') {
+            checkPermission('dashboard.view');
+
+            $mode = $params['mode'] ?? 'selected'; // 'selected' or 'category'
+            $kategori = $params['kategori'] ?? 'today';
+            $angsuranIds = $params['angsuran_ids'] ?? [];
+            $customTitle = trim($params['custom_title'] ?? '');
+            $customMessage = trim($params['custom_message'] ?? '');
+            $url = trim($params['url'] ?? '/portal/#pinjaman');
+            $onlyWithDevices = !empty($params['only_with_devices']);
+
+            if ($mode === 'category') {
+                $where = "WHERE an.status = 'belum'";
+                if ($kategori === 'h_min_5') {
+                    $where .= " AND DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) BETWEEN 1 AND 5";
+                } elseif ($kategori === 'today') {
+                    $where .= " AND DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) = 0";
+                } elseif ($kategori === 'late_7') {
+                    $where .= " AND DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) BETWEEN 1 AND 7";
+                } elseif ($kategori === 'late_30') {
+                    $where .= " AND DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) BETWEEN 8 AND 30";
+                } elseif ($kategori === 'late_over_30') {
+                    $where .= " AND DATEDIFF(CURDATE(), an.tgl_jatuh_tempo) > 30";
+                }
+
+                if ($onlyWithDevices) {
+                    $where .= " AND EXISTS (SELECT 1 FROM push_subscriptions ps WHERE ps.anggota_id = p.anggota_id)";
+                }
+
+                $targetRows = $db->fetchAll(
+                    "SELECT an.id 
+                     FROM angsuran an 
+                     JOIN pinjaman p ON an.pinjaman_id = p.id 
+                     $where 
+                     ORDER BY an.tgl_jatuh_tempo ASC"
+                );
+                $angsuranIds = array_column($targetRows, 'id');
+            }
+
+            if (empty($angsuranIds)) {
+                errorResponse('Tidak ada tagihan yang dipilih atau memenuhi kriteria');
+            }
+
+            $helper = WebPushHelper::getInstance();
+            $sent = 0;
+            $failed = 0;
+            $noDevice = 0;
+            $processed = 0;
+
+            foreach ($angsuranIds as $aid) {
+                $aid = (int) $aid;
+                if (!$aid) continue;
+
+                $r = $helper->sendDueInstallmentPush($aid, $customTitle, $customMessage, $url);
+                $processed++;
+                if (!empty($r['success'])) {
+                    $sent += ($r['sent'] ?? 1);
+                } elseif (($r['message'] ?? '') === 'Anggota has no push subscriptions') {
+                    $noDevice++;
+                } else {
+                    $failed++;
+                }
+            }
+
+            logActivity('create', 'web_push_due_broadcast', null, null, [
+                'mode' => $mode,
+                'kategori' => $kategori,
+                'processed' => $processed,
+                'sent' => $sent,
+                'no_device' => $noDevice,
+                'failed' => $failed
+            ]);
+
+            successResponse([
+                'processed' => $processed,
+                'sent' => $sent,
+                'no_device' => $noDevice,
+                'failed' => $failed
+            ], "Broadcast tagihan selesai: $sent notifikasi berhasil terkirim ($noDevice belum ada perangkat, $failed gagal).");
         }
 
         errorResponse('Action tidak ditemukan', 404);

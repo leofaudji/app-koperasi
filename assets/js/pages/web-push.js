@@ -4,10 +4,17 @@ const WebPushPage = {
     stats: null,
     subFilters: { page: 1, limit: 15, search: '' },
     logFilters: { page: 1, limit: 15, search: '', tipe: '', status: '' },
+    dueFilters: { page: 1, limit: 15, kategori: 'h_min_5', has_device: 'all', search: '' },
     subData: [],
     subPagination: {},
     logData: [],
     logPagination: {},
+    dueData: [],
+    dueStats: null,
+    duePagination: {},
+    selectedDueIds: new Set(),
+    dueTargetMode: 'selected',
+    singleDueTargetId: null,
 
     async render(container) {
         App.setTitle('Web Push Notifikasi', 'Laporan, pemantauan perangkat & pengiriman push notification');
@@ -57,13 +64,18 @@ const WebPushPage = {
                     <i class="ri-smartphone-line text-sm"></i> Perangkat Terdaftar
                     <span id="badge-total-devices" class="px-2 py-0.5 rounded-full bg-white/20 text-[10px] ml-1">0</span>
                 </button>
-                <button onclick="WebPushPage.switchTab('logs')" id="tab-btn-logs" 
+                <button onclick="WebPushPage.switchTab('tagihan')" id="tab-btn-tagihan" 
                     class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100">
-                    <i class="ri-history-line text-sm"></i> Riwayat Pengiriman
+                    <i class="ri-alarm-warning-line text-sm"></i> Tagihan Jatuh Tempo
+                    <span id="badge-due-count" class="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] ml-1">0</span>
                 </button>
                 <button onclick="WebPushPage.switchTab('broadcast')" id="tab-btn-broadcast" 
                     class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100">
                     <i class="ri-megaphone-line text-sm"></i> Kirim Broadcast
+                </button>
+                <button onclick="WebPushPage.switchTab('logs')" id="tab-btn-logs" 
+                    class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100">
+                    <i class="ri-history-line text-sm"></i> Riwayat Pengiriman
                 </button>
                 <button onclick="WebPushPage.switchTab('diagnostics')" id="tab-btn-diagnostics" 
                     class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100">
@@ -138,6 +150,111 @@ const WebPushPage = {
                 </div>
             </div>
         </div>
+
+        <!-- Modal Broadcast Tagihan -->
+        <div id="modal-broadcast-tagihan" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-gray-100 transform transition-all animate-scaleUp">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg">
+                            <i class="ri-alarm-warning-line"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-800" id="m-due-title">Kirim Push Pengingat Tagihan</h4>
+                            <p class="text-[10px] text-gray-400" id="m-due-subtitle">Kustomisasi judul dan pesan notifikasi sebelum dikirimkan</p>
+                        </div>
+                    </div>
+                    <button onclick="WebPushPage.closeModal('modal-broadcast-tagihan')" class="text-gray-400 hover:text-gray-600 p-1 rounded-xl">
+                        <i class="ri-close-line text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-4 text-xs">
+                    <!-- Target Summary Banner -->
+                    <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-xs">
+                                <i class="ri-send-plane-2-line"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Target Penerima</p>
+                                <p class="text-xs font-black text-gray-900" id="m-due-target-count">-</p>
+                            </div>
+                        </div>
+                        <span class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-white text-amber-800 border border-amber-200" id="m-due-kategori-badge">
+                            Kategori
+                        </span>
+                    </div>
+
+                    <!-- Template Preset Selector -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-600 mb-1">Gunakan Pola Rekomendasi:</label>
+                        <select id="m-due-template-preset" onchange="WebPushPage.applyDueTemplatePreset(this.value)"
+                            class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary-500/20">
+                            <option value="auto">⚡ Otomatis Cerdas (Sesuai Kategori Status Masing-Masing)</option>
+                            <option value="h_min_5">📅 Pengingat Halus (H-5 s/d H-1 Sebelum Jatuh Tempo)</option>
+                            <option value="today">⚠️ Mendesak (Jatuh Tempo Hari Ini H-0)</option>
+                            <option value="late_7">⏳ Peringatan Denda (Terlambat 1 - 7 Hari)</option>
+                            <option value="late_30">🚨 Surat Peringatan 1 (Menunggak 8 - 30 Hari)</option>
+                            <option value="late_over_30">🛑 Peringatan Keras Restrukturisasi (Menunggak > 30 Hari)</option>
+                            <option value="custom">✏️ Teks Bebas / Manual Custom</option>
+                        </select>
+                    </div>
+
+                    <!-- Judul Input -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-600 mb-1">Judul Notifikasi:</label>
+                        <input type="text" id="m-due-input-title" 
+                            class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary-500/20 font-bold text-gray-800"
+                            placeholder="Contoh: Pengingat Tagihan Pinjaman 📅">
+                    </div>
+
+                    <!-- Pesan Input -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-[11px] font-bold text-gray-600">Isi Pesan Notifikasi:</label>
+                            <span class="text-[10px] text-gray-400">Klik tag untuk menyisipkan variabel:</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 mb-2">
+                            <button type="button" onclick="WebPushPage.insertDueToken('{nama}')" class="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-amber-50 hover:text-amber-700 text-[10px] font-mono text-gray-600 border border-gray-200">+{nama}</button>
+                            <button type="button" onclick="WebPushPage.insertDueToken('{angsuran_ke}')" class="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-amber-50 hover:text-amber-700 text-[10px] font-mono text-gray-600 border border-gray-200">+{angsuran_ke}</button>
+                            <button type="button" onclick="WebPushPage.insertDueToken('{jenis_pinjaman}')" class="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-amber-50 hover:text-amber-700 text-[10px] font-mono text-gray-600 border border-gray-200">+{jenis_pinjaman}</button>
+                            <button type="button" onclick="WebPushPage.insertDueToken('{no_pinjaman}')" class="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-amber-50 hover:text-amber-700 text-[10px] font-mono text-gray-600 border border-gray-200">+{no_pinjaman}</button>
+                            <button type="button" onclick="WebPushPage.insertDueToken('{total}')" class="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-amber-50 hover:text-amber-700 text-[10px] font-mono text-gray-600 border border-gray-200">+{total}</button>
+                            <button type="button" onclick="WebPushPage.insertDueToken('{jatuh_tempo}')" class="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-amber-50 hover:text-amber-700 text-[10px] font-mono text-gray-600 border border-gray-200">+{jatuh_tempo}</button>
+                            <button type="button" onclick="WebPushPage.insertDueToken('{hari}')" class="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-amber-50 hover:text-amber-700 text-[10px] font-mono text-gray-600 border border-gray-200">+{hari}</button>
+                        </div>
+                        <textarea id="m-due-input-message" rows="3" 
+                            class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary-500/20 leading-relaxed text-gray-700"
+                            placeholder="Tulis pesan..."></textarea>
+                    </div>
+
+                    <!-- Target URL -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-gray-600 mb-1">Tautan URL saat Notifikasi Diklik:</label>
+                        <input type="text" id="m-due-input-url" value="/portal/#pinjaman"
+                            class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary-500/20 font-mono text-gray-600">
+                    </div>
+
+                    <!-- Options -->
+                    <div class="p-3 bg-amber-50/60 border border-amber-100 rounded-xl flex items-center gap-2.5">
+                        <input type="checkbox" id="m-due-only-devices" checked class="w-4 h-4 text-amber-600 rounded">
+                        <label for="m-due-only-devices" class="text-[11px] text-amber-900 font-medium">
+                            Hanya prioritaskan anggota yang telah mengaktifkan izin Web Push (lewatkan yang tidak memiliki perangkat)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-2.5">
+                    <button onclick="WebPushPage.closeModal('modal-broadcast-tagihan')" class="px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs">
+                        Batal
+                    </button>
+                    <button onclick="WebPushPage.executeSendBroadcastTagihan()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-xs shadow-md shadow-amber-500/20 flex items-center gap-1.5 active:scale-95">
+                        <i class="ri-send-plane-fill"></i> Kirim Notifikasi Push Sekarang
+                    </button>
+                </div>
+            </div>
+        </div>
         `;
 
         await this.loadStats();
@@ -146,7 +263,7 @@ const WebPushPage = {
 
     switchTab(tab) {
         this.activeTab = tab;
-        const tabs = ['subscriptions', 'logs', 'broadcast', 'diagnostics'];
+        const tabs = ['subscriptions', 'tagihan', 'broadcast', 'logs', 'diagnostics'];
         tabs.forEach(t => {
             const btn = document.getElementById(`tab-btn-${t}`);
             if (btn) {
@@ -163,6 +280,7 @@ const WebPushPage = {
 
     loadActiveTab() {
         if (this.activeTab === 'subscriptions') this.renderTabSubscriptions();
+        else if (this.activeTab === 'tagihan') this.renderTabTagihan();
         else if (this.activeTab === 'logs') this.renderTabLogs();
         else if (this.activeTab === 'broadcast') this.renderTabBroadcast();
         else if (this.activeTab === 'diagnostics') this.renderTabDiagnostics();
@@ -180,6 +298,17 @@ const WebPushPage = {
 
         const badgeTotal = document.getElementById('badge-total-devices');
         if (badgeTotal) badgeTotal.textContent = totalDevices;
+
+        // Fetch due stats for badge counter
+        try {
+            const dueRes = await App.api('web-push/due-installments?limit=1');
+            if (dueRes?.success && dueRes.data?.stats) {
+                this.dueStats = dueRes.data.stats;
+                const urgentDue = (parseInt(this.dueStats.today_count) || 0) + (parseInt(this.dueStats.h_min_5_count) || 0);
+                const badgeDue = document.getElementById('badge-due-count');
+                if (badgeDue) badgeDue.textContent = urgentDue;
+            }
+        } catch (e) {}
 
         const grid = document.getElementById('push-stats-grid');
         if (grid) {
@@ -444,7 +573,538 @@ const WebPushPage = {
     },
 
     // ==========================================
-    // TAB 2: LOGS
+    // TAB: BROADCAST TAGIHAN JATUH TEMPO
+    // ==========================================
+    async renderTabTagihan() {
+        const container = document.getElementById('push-tab-content');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="flex flex-col gap-6">
+                <!-- Segment Kategori Cards Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3" id="due-category-cards">
+                    <!-- Cards injected dynamically in fetchDueInstallments() -->
+                </div>
+
+                <!-- Main Card Table & Actions -->
+                <div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                    <!-- Toolbar & Batch Actions -->
+                    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-5">
+                        <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                            <!-- Search -->
+                            <div class="relative w-full sm:w-64">
+                                <i class="ri-search-line absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="text" id="due-search" placeholder="Cari nama, no anggota, pinjaman..." 
+                                    class="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+                                    value="${this.dueFilters.search}">
+                            </div>
+
+                            <!-- Filter Status Perangkat -->
+                            <select id="due-filter-device" class="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary-500/20">
+                                <option value="all" ${this.dueFilters.has_device === 'all' ? 'selected' : ''}>Semua Status Perangkat</option>
+                                <option value="yes" ${this.dueFilters.has_device === 'yes' ? 'selected' : ''}>🟢 Hanya yang Ada Perangkat Push</option>
+                                <option value="no" ${this.dueFilters.has_device === 'no' ? 'selected' : ''}>⚪ Belum Ada Perangkat</option>
+                            </select>
+
+                            <button onclick="WebPushPage.fetchDueInstallments()" class="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 transition" title="Refresh Data Tagihan">
+                                <i class="ri-refresh-line"></i>
+                            </button>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex items-center gap-2.5 w-full lg:w-auto justify-end">
+                            <button id="btn-broadcast-selected" onclick="WebPushPage.openBroadcastTagihanModal('selected')" disabled
+                                class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-gray-100 text-gray-400 cursor-not-allowed">
+                                <i class="ri-checkbox-multiple-line"></i> Kirim ke Terpilih (<span id="due-selected-count">0</span>)
+                            </button>
+                            <button id="btn-broadcast-category" onclick="WebPushPage.openBroadcastTagihanModal('category')"
+                                class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-md shadow-amber-500/20 active:scale-95">
+                                <i class="ri-broadcast-fill"></i> Broadcast Kategori Ini
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Selection Quick Alert Bar -->
+                    <div id="due-selection-banner" class="mb-4 p-3 rounded-2xl bg-amber-50/70 border border-amber-200/60 hidden flex justify-between items-center text-xs">
+                        <div class="flex items-center gap-2 text-amber-900">
+                            <i class="ri-information-line text-base text-amber-600"></i>
+                            <span>Terpilih <b id="due-banner-count">0</b> tagihan untuk dikirimi Web Push.</span>
+                        </div>
+                        <button onclick="WebPushPage.clearDueSelection()" class="text-[11px] text-amber-700 hover:underline font-bold">
+                            Batalkan Pilihan
+                        </button>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="overflow-x-auto rounded-2xl border border-gray-100">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="bg-gray-50/80 text-gray-400 text-[10px] font-bold uppercase tracking-wider border-b border-gray-100">
+                                    <th class="py-3 px-4 w-10 text-center">
+                                        <input type="checkbox" id="check-all-due" onchange="WebPushPage.toggleSelectDueAll(this.checked)" class="rounded text-primary-600">
+                                    </th>
+                                    <th class="py-3 px-4">Anggota</th>
+                                    <th class="py-3 px-4">Pinjaman</th>
+                                    <th class="py-3 px-4">Jatuh Tempo</th>
+                                    <th class="py-3 px-4 text-right">Total Tagihan</th>
+                                    <th class="py-3 px-4 text-center">Status Push</th>
+                                    <th class="py-3 px-4 text-center">Push Terakhir</th>
+                                    <th class="py-3 px-4 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="due-table-body" class="divide-y divide-gray-50 text-gray-700">
+                                <tr><td colspan="8" class="text-center py-10 text-gray-400">Memuat data tagihan...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="flex justify-between items-center mt-5 text-xs text-gray-500" id="due-pagination"></div>
+                </div>
+            </div>
+        `;
+
+        // Event listeners
+        document.getElementById('due-search')?.addEventListener('input', App.debounce((e) => {
+            this.dueFilters.search = e.target.value;
+            this.dueFilters.page = 1;
+            this.fetchDueInstallments();
+        }, 400));
+
+        document.getElementById('due-filter-device')?.addEventListener('change', (e) => {
+            this.dueFilters.has_device = e.target.value;
+            this.dueFilters.page = 1;
+            this.fetchDueInstallments();
+        });
+
+        await this.fetchDueInstallments();
+    },
+
+    selectDueKategori(kategori) {
+        this.dueFilters.kategori = kategori;
+        this.dueFilters.page = 1;
+        this.clearDueSelection();
+        this.fetchDueInstallments();
+    },
+
+    async fetchDueInstallments() {
+        const query = new URLSearchParams(this.dueFilters).toString();
+        const res = await App.api(`web-push/due-installments?${query}`);
+        if (!res?.success) return;
+
+        this.dueData = res.data.data;
+        this.dueStats = res.data.stats;
+        this.duePagination = res.data.pagination;
+
+        // Render Category KPI Cards
+        this.renderDueCategoryCards();
+
+        // Render Table Rows
+        const tbody = document.getElementById('due-table-body');
+        if (!tbody) return;
+
+        if (this.dueData.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-12">
+                        <div class="flex flex-col items-center justify-center text-gray-400">
+                            <i class="ri-checkbox-circle-line text-4xl mb-2 text-emerald-300"></i>
+                            <p class="font-medium text-xs">Tidak ada tagihan yang sesuai dengan kriteria filter saat ini</p>
+                        </div>
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = this.dueData.map((d) => {
+            const isChecked = this.selectedDueIds.has(d.id);
+            const diff = parseInt(d.diff_days);
+            const absDays = Math.abs(diff);
+
+            let dueBadge = '';
+            if (diff > 0) {
+                dueBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1 w-max"><i class="ri-time-line"></i> Sisa ${diff} hari</span>`;
+            } else if (diff === 0) {
+                dueBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse flex items-center gap-1 w-max"><i class="ri-alarm-warning-line"></i> HARI INI</span>`;
+            } else if (absDays <= 7) {
+                dueBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200 flex items-center gap-1 w-max"><i class="ri-hourglass-2-line"></i> Telat ${absDays} hari</span>`;
+            } else if (absDays <= 30) {
+                dueBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1 w-max"><i class="ri-error-warning-line"></i> SP 1 (${absDays} hari)</span>`;
+            } else {
+                dueBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-200 flex items-center gap-1 w-max"><i class="ri-close-circle-line"></i> Macet (${absDays} hari)</span>`;
+            }
+
+            const deviceBadge = d.device_count > 0 
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><i class="ri-smartphone-line"></i> ${d.device_count} Aktif</span>`
+                : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500"><i class="ri-smartphone-line"></i> Belum Ada</span>`;
+
+            const lastPushText = d.last_push_at 
+                ? `<span>${App.formatDate(d.last_push_at)}</span><span class="text-[10px] text-gray-400 block">${d.last_push_at.substring(11, 16)} WIB (${d.push_sent_count}x)</span>`
+                : `<span class="text-gray-400 italic">Belum Pernah</span>`;
+
+            return `
+                <tr class="hover:bg-gray-50/60 transition ${isChecked ? 'bg-amber-50/30' : ''}">
+                    <td class="py-3 px-4 text-center">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="WebPushPage.toggleSelectDue(${d.id})" class="rounded text-primary-600 due-row-checkbox">
+                    </td>
+                    <td class="py-3 px-4">
+                        <strong class="font-bold text-gray-800 block">${d.nama_anggota}</strong>
+                        <div class="flex items-center gap-2 mt-0.5 text-[10px] text-gray-400">
+                            <span>${d.no_anggota || '-'}</span>
+                            ${d.telepon ? `<span>• <i class="ri-phone-line"></i> ${d.telepon}</span>` : ''}
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="font-semibold text-gray-700 block">${d.jenis_pinjaman}</span>
+                        <div class="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400">
+                            <code>${d.no_pinjaman}</code>
+                            <span class="px-1.5 py-0.2 rounded bg-gray-100 font-bold text-gray-600">Ke-${d.angsuran_ke}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="text-gray-700 font-medium block">${App.formatDate(d.tgl_jatuh_tempo)}</span>
+                        <div class="mt-1">${dueBadge}</div>
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <strong class="font-black text-gray-900 block">${App.formatRupiah(d.total)}</strong>
+                        <span class="text-[10px] text-gray-400 block">Pokok: ${App.formatRupiah(d.pokok)}</span>
+                    </td>
+                    <td class="py-3 px-4 text-center">${deviceBadge}</td>
+                    <td class="py-3 px-4 text-center text-gray-600">${lastPushText}</td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="WebPushPage.openBroadcastTagihanModal('single', ${d.id})"
+                            class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-[10px] transition flex items-center gap-1 mx-auto"
+                            title="Kirim notifikasi tagihan ke anggota ini">
+                            <i class="ri-send-plane-fill"></i> Kirim Push
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        this.updateDueSelectionBar();
+
+        this.renderPagination('due-pagination', this.duePagination, (p) => {
+            this.dueFilters.page = p;
+            this.fetchDueInstallments();
+        });
+    },
+
+    renderDueCategoryCards() {
+        const grid = document.getElementById('due-category-cards');
+        if (!grid || !this.dueStats) return;
+
+        const s = this.dueStats;
+        const current = this.dueFilters.kategori;
+
+        const categories = [
+            {
+                key: 'h_min_5',
+                title: 'H-5 s/d H-1',
+                subtitle: '< 5 Hari Lagi',
+                count: parseInt(s.h_min_5_count) || 0,
+                withDevice: parseInt(s.h_min_5_with_device) || 0,
+                nominal: parseFloat(s.h_min_5_nominal) || 0,
+                icon: 'ri-time-line',
+                color: 'blue'
+            },
+            {
+                key: 'today',
+                title: 'H-0 Hari Ini',
+                subtitle: 'Jatuh Tempo Hari Ini',
+                count: parseInt(s.today_count) || 0,
+                withDevice: parseInt(s.today_with_device) || 0,
+                nominal: parseFloat(s.today_nominal) || 0,
+                icon: 'ri-alarm-warning-line',
+                color: 'amber'
+            },
+            {
+                key: 'late_7',
+                title: '1 - 7 Hari',
+                subtitle: 'Masa Tenggang',
+                count: parseInt(s.late_7_count) || 0,
+                withDevice: parseInt(s.late_7_with_device) || 0,
+                nominal: parseFloat(s.late_7_nominal) || 0,
+                icon: 'ri-hourglass-2-line',
+                color: 'orange'
+            },
+            {
+                key: 'late_30',
+                title: '8 - 30 Hari',
+                subtitle: 'Telat ~1 Bulan (SP 1)',
+                count: parseInt(s.late_30_count) || 0,
+                withDevice: parseInt(s.late_30_with_device) || 0,
+                nominal: parseFloat(s.late_30_nominal) || 0,
+                icon: 'ri-error-warning-line',
+                color: 'rose'
+            },
+            {
+                key: 'late_over_30',
+                title: '> 30 Hari',
+                subtitle: 'Macet (SP 2 & 3)',
+                count: parseInt(s.late_over_30_count) || 0,
+                withDevice: parseInt(s.late_over_30_with_device) || 0,
+                nominal: parseFloat(s.late_over_30_nominal) || 0,
+                icon: 'ri-close-circle-line',
+                color: 'red'
+            },
+            {
+                key: 'all',
+                title: 'Semua Tagihan',
+                subtitle: 'Total Belum Lunas',
+                count: parseInt(s.total_unpaid) || 0,
+                withDevice: parseInt(s.total_with_device) || 0,
+                nominal: parseFloat(s.total_nominal) || 0,
+                icon: 'ri-file-list-3-line',
+                color: 'slate'
+            }
+        ];
+
+        grid.innerHTML = categories.map(c => {
+            const isActive = current === c.key;
+            const borderCls = isActive 
+                ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-50/20 shadow-md' 
+                : 'border-gray-100 hover:border-gray-200 bg-white hover:shadow-sm';
+
+            return `
+                <div onclick="WebPushPage.selectDueKategori('${c.key}')" 
+                    class="p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${borderCls} group">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-gray-700">${c.title}</span>
+                            <div class="w-7 h-7 rounded-lg bg-${c.color}-50 text-${c.color}-600 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                                <i class="${c.icon}"></i>
+                            </div>
+                        </div>
+                        <h4 class="text-xl font-black text-gray-900">${c.count}</h4>
+                        <p class="text-[10px] text-gray-400 truncate mt-0.5">${c.subtitle}</p>
+                    </div>
+                    <div class="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[10px]">
+                        <span class="text-emerald-600 font-bold flex items-center gap-0.5" title="${c.withDevice} anggota punya izin Web Push">
+                            <i class="ri-smartphone-line"></i> ${c.withDevice} Siap
+                        </span>
+                        <span class="text-gray-400 font-mono truncate" title="${App.formatRupiah(c.nominal)}">
+                            ${App.formatRupiah(c.nominal)}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    toggleSelectDueAll(checked) {
+        if (checked) {
+            this.dueData.forEach(d => this.selectedDueIds.add(d.id));
+        } else {
+            this.dueData.forEach(d => this.selectedDueIds.delete(d.id));
+        }
+        this.fetchDueInstallments();
+    },
+
+    toggleSelectDue(id) {
+        if (this.selectedDueIds.has(id)) {
+            this.selectedDueIds.delete(id);
+        } else {
+            this.selectedDueIds.add(id);
+        }
+        this.updateDueSelectionBar();
+    },
+
+    clearDueSelection() {
+        this.selectedDueIds.clear();
+        this.updateDueSelectionBar();
+        document.querySelectorAll('.due-row-checkbox').forEach(cb => cb.checked = false);
+        const allCb = document.getElementById('check-all-due');
+        if (allCb) allCb.checked = false;
+    },
+
+    updateDueSelectionBar() {
+        const count = this.selectedDueIds.size;
+        const banner = document.getElementById('due-selection-banner');
+        const countLabel = document.getElementById('due-banner-count');
+        const selectedCount = document.getElementById('due-selected-count');
+        const btnSelected = document.getElementById('btn-broadcast-selected');
+
+        if (selectedCount) selectedCount.textContent = count;
+        if (countLabel) countLabel.textContent = count;
+
+        if (count > 0) {
+            banner?.classList.remove('hidden');
+            if (btnSelected) {
+                btnSelected.disabled = false;
+                btnSelected.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-primary-600 text-white shadow-sm hover:bg-primary-700 active:scale-95 cursor-pointer';
+            }
+        } else {
+            banner?.classList.add('hidden');
+            if (btnSelected) {
+                btnSelected.disabled = true;
+                btnSelected.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-gray-100 text-gray-400 cursor-not-allowed';
+            }
+        }
+
+        const allCb = document.getElementById('check-all-due');
+        if (allCb && this.dueData.length > 0) {
+            allCb.checked = this.dueData.every(d => this.selectedDueIds.has(d.id));
+        }
+    },
+
+    openBroadcastTagihanModal(mode, singleId = null) {
+        this.dueTargetMode = mode;
+        this.singleDueTargetId = singleId;
+
+        const targetCountLabel = document.getElementById('m-due-target-count');
+        const katBadge = document.getElementById('m-due-kategori-badge');
+        const presetSelect = document.getElementById('m-due-template-preset');
+
+        let targetCount = 0;
+        let katLabel = '';
+
+        if (mode === 'single' && singleId) {
+            const row = this.dueData.find(d => d.id === singleId);
+            targetCount = 1;
+            katLabel = row ? `${row.nama_anggota}` : '1 Tagihan';
+        } else if (mode === 'selected') {
+            targetCount = this.selectedDueIds.size;
+            katLabel = `${targetCount} Tagihan Terpilih`;
+        } else {
+            // Category mode
+            const cat = this.dueFilters.kategori;
+            const s = this.dueStats;
+            if (cat === 'h_min_5') { targetCount = s?.h_min_5_count || 0; katLabel = 'H-5 s/d H-1 (< 5 Hari)'; }
+            else if (cat === 'today') { targetCount = s?.today_count || 0; katLabel = 'Jatuh Tempo Hari Ini (H-0)'; }
+            else if (cat === 'late_7') { targetCount = s?.late_7_count || 0; katLabel = 'Terlambat 1 - 7 Hari'; }
+            else if (cat === 'late_30') { targetCount = s?.late_30_count || 0; katLabel = 'Terlambat 8 - 30 Hari (SP 1)'; }
+            else if (cat === 'late_over_30') { targetCount = s?.late_over_30_count || 0; katLabel = 'Menunggak > 30 Hari (Macet)'; }
+            else { targetCount = s?.total_unpaid || 0; katLabel = 'Semua Tagihan'; }
+        }
+
+        if (targetCountLabel) targetCountLabel.textContent = `${targetCount} Rekening Pinjaman`;
+        if (katBadge) katBadge.textContent = katLabel;
+
+        if (presetSelect) {
+            presetSelect.value = (mode === 'category' ? this.dueFilters.kategori : 'auto');
+            this.applyDueTemplatePreset(presetSelect.value);
+        }
+
+        this.openModal('modal-broadcast-tagihan');
+    },
+
+    applyDueTemplatePreset(preset) {
+        const titleInput = document.getElementById('m-due-input-title');
+        const msgInput = document.getElementById('m-due-input-message');
+        if (!titleInput || !msgInput) return;
+
+        if (preset === 'auto') {
+            titleInput.value = '';
+            msgInput.value = '';
+            titleInput.placeholder = '⚡ Otomatis Cerdas (Sistem memilih template sesuai status keterlambatan masing-masing)';
+            msgInput.placeholder = '⚡ Otomatis Cerdas (Pesan menyesuaikan secara otomatis: santun untuk H-5, mendesak untuk H-0, dan denda/SP untuk yang menunggak)';
+        } else if (preset === 'h_min_5') {
+            titleInput.value = 'Pengingat Tagihan Pinjaman 📅';
+            msgInput.value = 'Halo {nama}, angsuran {angsuran_ke} ({jenis_pinjaman}) sebesar {total} akan jatuh tempo dalam {hari} hari ({jatuh_tempo}). Mohon siapkan dana Anda.';
+        } else if (preset === 'today') {
+            titleInput.value = 'Tagihan Jatuh Tempo HARI INI ⚠️';
+            msgInput.value = 'Halo {nama}, angsuran {angsuran_ke} ({jenis_pinjaman}) sebesar {total} jatuh tempo HARI INI ({jatuh_tempo}). Segera lakukan pembayaran untuk menghindari denda.';
+        } else if (preset === 'late_7') {
+            titleInput.value = 'Peringatan Keterlambatan Angsuran ⏳';
+            msgInput.value = 'Halo {nama}, angsuran {angsuran_ke} ({jenis_pinjaman}) sebesar {total} telah melewati jatuh tempo {hari} hari. Denda harian mulai berjalan, mohon segera selesaikan pembayaran.';
+        } else if (preset === 'late_30') {
+            titleInput.value = 'Pemberitahuan Tunggakan Angsuran (SP 1) 🚨';
+            msgInput.value = 'PENTING: Tagihan angsuran {angsuran_ke} ({jenis_pinjaman} - {no_pinjaman}) sebesar {total} telah menunggak {hari} hari. Mohon segera lunasi pembayaran atau hubungi kantor koperasi.';
+        } else if (preset === 'late_over_30') {
+            titleInput.value = 'Peringatan Keras Menunggak Pinjaman 🛑';
+            msgInput.value = 'PERINGATAN: Pinjaman Anda ({jenis_pinjaman} - {no_pinjaman}) telah menunggak {hari} hari. Segera selesaikan kewajiban Anda atau hubungi pengurus koperasi untuk restrukturisasi.';
+        }
+    },
+
+    insertDueToken(token) {
+        const msgInput = document.getElementById('m-due-input-message');
+        if (!msgInput) return;
+        const start = msgInput.selectionStart;
+        const end = msgInput.selectionEnd;
+        const text = msgInput.value;
+        msgInput.value = text.substring(0, start) + token + text.substring(end);
+        msgInput.focus();
+        msgInput.selectionStart = msgInput.selectionEnd = start + token.length;
+    },
+
+    async executeSendBroadcastTagihan() {
+        const title = document.getElementById('m-due-input-title')?.value || '';
+        const msg = document.getElementById('m-due-input-message')?.value || '';
+        const url = document.getElementById('m-due-input-url')?.value || '/portal/#pinjaman';
+        const onlyWithDevices = document.getElementById('m-due-only-devices')?.checked ?? true;
+
+        let payload = {
+            mode: this.dueTargetMode,
+            kategori: this.dueFilters.kategori,
+            custom_title: title,
+            custom_message: msg,
+            url: url,
+            only_with_devices: onlyWithDevices
+        };
+
+        if (this.dueTargetMode === 'single' && this.singleDueTargetId) {
+            payload.mode = 'selected';
+            payload.angsuran_ids = [this.singleDueTargetId];
+        } else if (this.dueTargetMode === 'selected') {
+            payload.angsuran_ids = Array.from(this.selectedDueIds);
+            if (payload.angsuran_ids.length === 0) {
+                App.toast('Pilih minimal satu tagihan untuk dikirimi push notifikasi', 'warning');
+                return;
+            }
+        }
+
+        const confirm = await Swal.fire({
+            title: 'Kirim Web Push Tagihan?',
+            text: 'Notifikasi akan diproses dan dikirimkan langsung ke perangkat browser anggota terkait.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Kirim Sekarang',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#d97706'
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        Swal.fire({
+            title: 'Sedang Mengirim Web Push...',
+            text: 'Proses enkripsi VAPID dan pengiriman ke gateway sedang berlangsung...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        const res = await App.api('web-push/broadcast-tagihan', {
+            method: 'POST',
+            body: payload
+        });
+
+        Swal.close();
+
+        if (res?.success) {
+            this.closeModal('modal-broadcast-tagihan');
+            await Swal.fire({
+                title: 'Broadcast Tagihan Selesai! 🎉',
+                html: `
+                    <div class="text-left text-xs bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-2 mt-2">
+                        <div class="flex justify-between"><span>Total Diproses:</span><b>${res.data.processed}</b></div>
+                        <div class="flex justify-between text-emerald-600"><span>Sukses Terkirim:</span><b>${res.data.sent} Perangkat</b></div>
+                        <div class="flex justify-between text-gray-500"><span>Belum Ada Perangkat:</span><b>${res.data.no_device} Anggota</b></div>
+                        <div class="flex justify-between text-rose-600"><span>Gagal / Error:</span><b>${res.data.failed}</b></div>
+                    </div>
+                `,
+                icon: 'success'
+            });
+
+            this.clearDueSelection();
+            this.loadStats();
+            this.fetchDueInstallments();
+        } else {
+            Swal.fire('Gagal!', res?.message || 'Terjadi kesalahan saat memproses broadcast tagihan', 'error');
+        }
+    },
+
+    // ==========================================
+    // TAB 3: LOGS
     // ==========================================
     async renderTabLogs() {
         const container = document.getElementById('push-tab-content');
@@ -464,8 +1124,10 @@ const WebPushPage = {
                         <select id="log-filter-tipe" class="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary-500/20">
                             <option value="">Semua Tipe Event</option>
                             <option value="simpanan" ${this.logFilters.tipe === 'simpanan' ? 'selected' : ''}>🪙 Simpanan</option>
+                            <option value="angsuran" ${this.logFilters.tipe === 'angsuran' ? 'selected' : ''}>💳 Bayar Angsuran</option>
                             <option value="pinjaman" ${this.logFilters.tipe === 'pinjaman' ? 'selected' : ''}>🎉 Pencairan Kredit</option>
-                            <option value="tagihan" ${this.logFilters.tipe === 'tagihan' ? 'selected' : ''}>⚠️ Tagihan Angsuran</option>
+                            <option value="reversal" ${this.logFilters.tipe === 'reversal' ? 'selected' : ''}>🔄 Koreksi / Reversal</option>
+                            <option value="tagihan" ${this.logFilters.tipe === 'tagihan' ? 'selected' : ''}>⚠️ Tagihan Jatuh Tempo</option>
                             <option value="broadcast" ${this.logFilters.tipe === 'broadcast' ? 'selected' : ''}>📢 Broadcast Manual</option>
                             <option value="test" ${this.logFilters.tipe === 'test' ? 'selected' : ''}>🧪 Uji Coba</option>
                         </select>
@@ -559,7 +1221,9 @@ const WebPushPage = {
             // Badge tipe
             let tipeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600">General</span>';
             if (l.tipe === 'simpanan') tipeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100">🪙 Simpanan</span>';
+            else if (l.tipe === 'angsuran') tipeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-100">💳 Bayar Angsuran</span>';
             else if (l.tipe === 'pinjaman') tipeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">🎉 Pinjaman</span>';
+            else if (l.tipe === 'reversal') tipeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-100">🔄 Koreksi / Reversal</span>';
             else if (l.tipe === 'tagihan') tipeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-100">⚠️ Tagihan</span>';
             else if (l.tipe === 'broadcast') tipeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">📢 Broadcast</span>';
             else if (l.tipe === 'test') tipeBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">🧪 Tes</span>';

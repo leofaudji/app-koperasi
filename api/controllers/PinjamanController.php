@@ -565,6 +565,13 @@ switch ($method) {
 
                 $db->commit();
                 clearCache(['loan', 'finance', 'audit', 'member' => $pinjaman['anggota_id']]);
+
+                // Trigger Web Push Notification for Reversal Pencairan Pinjaman
+                try {
+                    require_once __DIR__ . '/../config/WebPushHelper.php';
+                    WebPushHelper::getInstance()->notifyPinjamanReversal((int) $targetId, $pinjaman);
+                } catch (\Throwable $e) {}
+
                 successResponse(null, 'Reversal pencairan pinjaman berhasil');
             } catch (Exception $e) {
                 $db->rollBack();

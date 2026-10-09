@@ -72,10 +72,13 @@ $$\text{Kas Bersih Diterima} = \text{Plafon Pinjaman Baru} - \sum \text{Sisa Pok
   - Seluruh pinjaman lama yang dipilih otomatis diubah statusnya menjadi `lunas`.
   - Seluruh jadwal angsuran pinjaman lama yang belum dibayar ditandai `lunas` dengan metode pembayaran `'topup'`.
   - Jurnal pencairan membagi pengeluaran kredit: pelunasan piutang lama dikreditkan ke pos piutang terkait, bunga/denda lama dikreditkan ke pos pendapatan jasa/denda, biaya baru dikreditkan ke pos provisi, dan sisanya didebit/kreditkan ke kas/bank fisik.
-- **Saat Reversal Pencairan Top-up (Pembatalan)**:
+- **Saat Reversal Pencairan (Pembatalan)**:
   - Sistem memulihkan status seluruh pinjaman lama kembali ke `'cair'`.
   - Saldo `sisa_pinjaman` pinjaman lama dipulihkan ke posisi semula sebelum pelunasan top-up.
   - Seluruh angsuran lama yang tadinya dilunasi top-up dikembalikan statusnya menjadi `'belum'`.
+  - Sistem otomatis mengirimkan Web Push Notifikasi bertajuk **"Koreksi/Reversal Pinjaman 🔄"** ke perangkat anggota, menginformasikan bahwa pencairan telah dibatalkan dan status pinjaman disesuaikan kembali.
+- **Notifikasi Pencairan Kredit (`WebPushHelper`)**:
+  - Saat pencairan dieksekusi, anggota secara otomatis menerima notifikasi Web Push **"Kredit Dicairkan! 🎉"** berisi nomor akad dan nominal pinjaman yang diterima.
 
 ---
 

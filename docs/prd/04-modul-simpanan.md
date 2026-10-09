@@ -114,6 +114,10 @@ Jika terjadi salah input oleh petugas kasir:
 3. Saldo pada `rekening_simpanan` otomatis dikembalikan ke posisi sebelum transaksi yang salah terjadi.
 4. Jurnal pembalik otomatis dibentuk dengan posisi debit dan kredit ditukar.
 5. Transaksi asli ditandai status visual **REVERSED** pada tabel laporan dan riwayat mutasi.
+6. **Notifikasi Web Push Real-Time Anggota (`WebPushHelper`)**:
+   - Sistem secara otomatis mengirimkan notifikasi **"Koreksi Saldo Simpanan 🔄"** ke browser/smartphone anggota yang bersangkutan.
+   - Pesan merinci nominal yang dikoreksi, jenis produk simpanan, dan saldo mutakhir setelah koreksi pembukuan.
+   - Jejak notifikasi tersimpan di `push_logs` dengan kategori event `'reversal'`.
 
 ---
 

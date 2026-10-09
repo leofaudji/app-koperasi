@@ -1,7 +1,8 @@
-const CACHE_NAME = 'koperasi-portal-v97';
+const CACHE_NAME = 'koperasi-portal-v99';
 const ASSETS = [
     './',
     'index.html',
+    'icons/icon-192.png',
     'assets/js/tailwind.min.js',
     'assets/js/sweetalert2.all.min.js',
     'assets/js/portal.js',
@@ -78,9 +79,7 @@ self.addEventListener('push', e => {
     let data = {
         title: 'Koperasi Simpan Pinjam',
         body: 'Pemberitahuan baru dari Koperasi',
-        url: '/portal/',
-        icon: 'icons/icon-192.png',
-        badge: 'icons/icon-192.png'
+        url: './'
     };
 
     if (e.data) {
@@ -91,20 +90,43 @@ self.addEventListener('push', e => {
         }
     }
 
+    // Resolve icon URL reliably using ServiceWorker scope
+    let iconUrl = '';
+    try {
+        iconUrl = new URL('icons/icon-192.png', self.registration.scope).href;
+    } catch (_) {}
+
+    let clickUrl = self.registration.scope;
+    if (data.url) {
+        try {
+            clickUrl = new URL(data.url, self.registration.scope).href;
+        } catch (_) {}
+    }
+
     const options = {
-        body: data.body,
-        icon: data.icon || 'icons/icon-192.png',
-        badge: data.badge || 'icons/icon-192.png',
+        body: data.body || 'Pemberitahuan baru dari Koperasi',
+        icon: iconUrl || undefined,
+        badge: iconUrl || undefined,
         vibrate: [100, 50, 100],
         data: {
-            url: data.url || '/portal/',
+            url: clickUrl,
             timestamp: data.timestamp || Date.now()
         },
-        tag: data.tag || 'general_koperasi',
+        tag: data.tag || ('kop_' + Date.now()),
         renotify: true
     };
 
-    e.waitUntil(self.registration.showNotification(data.title, options));
+    e.waitUntil(
+        self.registration.showNotification(data.title || 'Koperasi Simpan Pinjam', options)
+            .catch(err => {
+                console.warn('[SW Push] Fallback showNotification:', err);
+                // Fallback without rich icon/vibrate if browser restricts it
+                return self.registration.showNotification(data.title || 'Koperasi Simpan Pinjam', {
+                    body: data.body || 'Pemberitahuan baru dari Koperasi',
+                    data: { url: clickUrl }
+                });
+            })
+    );
 });
 
 self.addEventListener('notificationclick', e => {

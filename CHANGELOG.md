@@ -12,11 +12,23 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan p
   - Tabel rincian perangkat anggota terhubung dengan deteksi otomatis tipe platform (Android, iOS/Safari PWA, Windows, macOS) dan penyedia push gateway (Google FCM, Apple APNs, Microsoft WNS).
   - Tombol **"Tes Kirim"** ke anggota spesifik untuk menguji konektivitas pengiriman push langsung ke perangkat ponsel/desktop anggota.
 - **Riwayat Lengkap Pengiriman (*Push Logs*)**:
-  - Rekap jejak audit setiap notifikasi yang dipicu sistem (Setoran & Penarikan Simpanan, Pencairan Pinjaman, Pengingat Jatuh Tempo Tagihan H-3 & H-0, dan Broadcast Manual).
+  - Rekap jejak audit setiap notifikasi yang dipicu sistem (Setoran & Penarikan Simpanan, Pembayaran Angsuran & Pelunasan Pinjaman, Pencairan Pinjaman, Pengingat Jatuh Tempo Tagihan H-3 & H-0, Koreksi/Reversal Simpanan & Angsuran, serta Broadcast Manual).
+  - Integrasi pesan otomatis pembatalan/koreksi pembukuan (*Reversal*) sehingga anggota langsung mendapat notifikasi transparan jika transaksi simpanan, angsuran, atau pencairan pinjaman dikoreksi oleh petugas.
   - Rincian status sukses, sebagian, atau gagal beserta jumlah perangkat yang menerima dan detail pesan yang terkirim.
 - **Kirim Broadcast Push Notifikasi Massal**:
   - Form pengiriman broadcast pesan atau pengumuman darurat langsung ke layar seluruh anggota yang telah mengaktifkan izin notifikasi.
   - Fitur **Live Phone Screen Preview** untuk mensimulasikan tampilan visual notifikasi di layar smartphone sebelum dikirimkan.
+- **Broadcast Tagihan Pinjaman Jatuh Tempo (Segmentasi Cerdas)**:
+  - Tab interaktif khusus **"Tagihan Jatuh Tempo"** dengan kartu analitik 6 segmentasi keterlambatan:
+    1. 📅 **H-5 s/d H-1** (Segera Jatuh Tempo / < 5 Hari).
+    2. ⚠️ **H-0** (Jatuh Tempo HARI INI).
+    3. ⏳ **Terlambat 1 - 7 Hari** (Masa Tenggang / Denda Berjalan).
+    4. 🚨 **Terlambat 8 - 30 Hari** (~1 Bulan / Surat Peringatan SP 1).
+    5. 🛑 **Menunggak > 30 Hari** (Macet / Surat Peringatan SP 2 & 3).
+    6. 🌐 **Semua Tagihan Outstanding** (Total Belum Lunas).
+  - Indikator kesiapan perangkat push per anggota (🟢 Terkoneksi vs ⚪ Belum Ada Perangkat).
+  - Pengiriman fleksibel: Kirim batch terpilih (*multi-select checkbox*) atau broadcast massal seluruh kategori dalam 1-klik.
+  - Generator pesan otomatis cerdas (*Dynamic Preset*) dengan token personalisasi `{nama}`, `{angsuran_ke}`, `{jenis_pinjaman}`, `{no_pinjaman}`, `{total}`, `{jatuh_tempo}`, dan `{hari}`.
 - **Diagnostik Engine VAPID**:
   - Tampilan status uncompressed P-256 public key, subject VAPID, dan matriks kompatibilitas browser anggota.
 

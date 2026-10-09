@@ -384,6 +384,13 @@ switch ($method) {
 
                 $db->commit();
                 clearCache(['loan', 'finance', 'audit', 'saving', 'member' => $pinjaman['anggota_id']]);
+
+                // Trigger Web Push Notification for Reversal Angsuran
+                try {
+                    require_once __DIR__ . '/../config/WebPushHelper.php';
+                    WebPushHelper::getInstance()->notifyAngsuranReversal((int) $targetId, $angsuran);
+                } catch (\Throwable $e) {}
+
                 successResponse(null, 'Reversal angsuran berhasil');
             } catch (Exception $e) {
                 $db->rollBack();
@@ -603,6 +610,12 @@ switch ($method) {
                         WebPushHelper::getInstance()->notifySimpananTransaksi((int) $simpananId);
                     } catch (\Throwable $e) {}
                 }
+
+                // Trigger Web Push Notification for Installment Payment
+                try {
+                    require_once __DIR__ . '/../config/WebPushHelper.php';
+                    WebPushHelper::getInstance()->notifyAngsuranBayar((int) $pa['angsuran_id']);
+                } catch (\Throwable $e) {}
 
                 successResponse(null, 'Pengajuan angsuran berhasil disetujui (ACC). Saldo sukarela dipotong dan angsuran lunas.');
             } catch (Exception $e) {
@@ -907,6 +920,12 @@ switch ($method) {
                     WebPushHelper::getInstance()->notifySimpananTransaksi((int) $simpananId);
                 } catch (\Throwable $e) {}
             }
+
+            // Trigger Web Push Notification for Installment Payment
+            try {
+                require_once __DIR__ . '/../config/WebPushHelper.php';
+                WebPushHelper::getInstance()->notifyAngsuranBayar((int) $angsuranId);
+            } catch (\Throwable $e) {}
 
             // Log Activity (Payment)
             logActivity('create', 'angsuran', $angsuranId, null, [

@@ -4,6 +4,13 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [2.0.3] - 2026-10-09
+### Notifikasi Push Pembayaran Angsuran Pinjaman (Real-Time Struk Digital)
+- **Web Push Pembayaran Angsuran Kredit**:
+    - **Trigger Pembayaran Angsuran (Angsuran Diterima! ✅)**: Notifikasi push otomatis terkirim seketika saat anggota membayar angsuran di kasir (tunai/transfer) maupun disetujui via autodebet simpanan sukarela, mencantumkan angsuran ke-X, jenis pinjaman, nominal pembayaran, dan sisa pokok pinjaman terkini.
+    - **Trigger Pelunasan Pinjaman (Pinjaman LUNAS! 🎉)**: Notifikasi push khusus dengan pesan selamat saat pembayaran angsuran berhasil melunasi pinjaman sepenuhnya.
+    - **Pencatatan Log & Integrasi Menu Admin**: Terkoneksi langsung ke tabel `push_logs` dan modul pemantauan Web Push Notifikasi di panel admin.
+
 ## [2.0.2] - 2026-10-09
 ### Notifikasi Push Transaksi Simpanan (Setoran & Penarikan Real-Time)
 - **Web Push Transaksi Finansial Simpanan**:

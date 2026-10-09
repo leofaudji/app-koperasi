@@ -323,8 +323,8 @@ class WebPushHelper {
             'title' => $title,
             'body' => $message,
             'url' => $url,
-            'icon' => '/portal/icons/icon-192.png',
-            'badge' => '/portal/icons/icon-192.png',
+            'icon' => 'icons/icon-192.png',
+            'badge' => 'icons/icon-192.png',
             'timestamp' => time() * 1000
         ], $extra);
 
@@ -367,8 +367,8 @@ class WebPushHelper {
             'title' => $title,
             'body' => $message,
             'url' => $url,
-            'icon' => '/portal/icons/icon-192.png',
-            'badge' => '/portal/icons/icon-192.png',
+            'icon' => 'icons/icon-192.png',
+            'badge' => 'icons/icon-192.png',
             'timestamp' => time() * 1000
         ], $extra);
 
@@ -444,8 +444,12 @@ class WebPushHelper {
         $namaTrx = $trx['nama_transaksi'] ?: 'Transaksi';
         $jenisSimpanan = $trx['jenis_simpanan'] ?: 'Simpanan';
         $dk = $trx['dk'] ?? 'D';
+        $isReversal = (stripos($trx['keterangan'] ?? '', 'REVERSAL') !== false) || (stripos($trx['no_transaksi'] ?? '', 'REV') === 0);
 
-        if ($dk === 'D') {
+        if ($isReversal) {
+            $title = "Koreksi Saldo Simpanan 🔄";
+            $msg = "Telah dilakukan koreksi pembukuan (reversal) pada {$jenisSimpanan} sebesar {$jumlahFmt}. Saldo akhir Anda kini: {$saldoSesudahFmt}.";
+        } elseif ($dk === 'D') {
             $title = "Uang Masuk! 🪙";
             $msg = "Setoran {$jenisSimpanan} ({$namaTrx}) sebesar {$jumlahFmt} berhasil dibukukan. Saldo Anda kini {$saldoSesudahFmt}.";
         } else {
@@ -454,8 +458,113 @@ class WebPushHelper {
         }
 
         return $this->sendToAnggota((int) $trx['anggota_id'], $title, $msg, '/portal/#simpanan', [
-            'tag' => 'simpanan_trx_' . $trx['id'],
-            'tipe' => 'simpanan'
+            'tag' => ($isReversal ? 'simpanan_rev_' : 'simpanan_trx_') . $trx['id'],
+            'tipe' => $isReversal ? 'reversal' : 'simpanan'
+        ]);
+    }
+
+    /**
+     * Trigger: Notify Anggota of installment reversal / cancellation
+     */
+    public function notifyAngsuranReversal(int $angsuranId, ?array $angsuranData = null): array {
+        if (!$angsuranData) {
+            $angsuranData = $this->db->fetch("SELECT * FROM angsuran WHERE id = ?", [$angsuranId]);
+        }
+        if (!$angsuranData) return ['success' => false, 'message' => 'Angsuran not found'];
+
+        $pinjamanId = (int) $angsuranData['pinjaman_id'];
+        $p = $this->db->fetch(
+            "SELECT p.id, p.no_pinjaman, p.sisa_pinjaman, p.anggota_id,
+                    a.nama as nama_anggota, jp.nama as jenis_pinjaman
+             FROM pinjaman p
+             JOIN anggota a ON p.anggota_id = a.id
+             JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+             WHERE p.id = ?",
+            [$pinjamanId]
+        );
+
+        if (!$p) return ['success' => false, 'message' => 'Pinjaman not found'];
+
+        $totalFmt = "Rp " . number_format($angsuranData['total'] ?? 0, 0, ',', '.');
+        $sisaFmt = "Rp " . number_format(max(0, $p['sisa_pinjaman']), 0, ',', '.');
+        $angsuranKe = (string) ($angsuranData['angsuran_ke'] ?? '');
+        $angsuranKeLabel = ($angsuranKe === '0' || $angsuranKe === 'Manual') ? 'Pelunasan/Manual' : "ke-{$angsuranKe}";
+
+        $title = "Koreksi/Reversal Angsuran 🔄";
+        if (($angsuranData['metode_pembayaran'] ?? '') === 'sukarela') {
+            $msg = "Pembayaran angsuran {$angsuranKeLabel} ({$p['jenis_pinjaman']} - {$p['no_pinjaman']}) sebesar {$totalFmt} telah dibatalkan (reversal). Dana telah dikembalikan ke Simpanan Sukarela. Sisa tagihan pinjaman: {$sisaFmt}.";
+        } else {
+            $msg = "Pembayaran angsuran {$angsuranKeLabel} ({$p['jenis_pinjaman']} - {$p['no_pinjaman']}) sebesar {$totalFmt} telah dibatalkan (reversal). Sisa tagihan pinjaman disesuaikan kembali menjadi {$sisaFmt}.";
+        }
+
+        return $this->sendToAnggota((int) $p['anggota_id'], $title, $msg, '/portal/#pinjaman', [
+            'tag' => 'angsuran_rev_' . $angsuranId,
+            'tipe' => 'reversal'
+        ]);
+    }
+
+    /**
+     * Trigger: Notify Anggota of loan disbursement reversal
+     */
+    public function notifyPinjamanReversal(int $pinjamanId, ?array $pinjamanData = null): array {
+        if (!$pinjamanData) {
+            $pinjamanData = $this->db->fetch(
+                "SELECT p.id, p.no_pinjaman, p.jumlah, p.anggota_id, a.nama as nama_anggota, jp.nama as jenis_pinjaman
+                 FROM pinjaman p
+                 JOIN anggota a ON p.anggota_id = a.id
+                 JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+                 WHERE p.id = ?",
+                [$pinjamanId]
+            );
+        }
+        if (!$pinjamanData) return ['success' => false, 'message' => 'Pinjaman not found'];
+
+        $title = "Koreksi/Reversal Pinjaman 🔄";
+        $jumlahFmt = "Rp " . number_format($pinjamanData['jumlah'] ?? 0, 0, ',', '.');
+        $jenisPinjaman = $pinjamanData['jenis_pinjaman'] ?? 'Pinjaman';
+        $msg = "Pencairan pinjaman {$jenisPinjaman} ({$pinjamanData['no_pinjaman']}) sebesar {$jumlahFmt} telah dibatalkan (reversal). Status pinjaman dikembalikan ke disetujui.";
+
+        return $this->sendToAnggota((int) $pinjamanData['anggota_id'], $title, $msg, '/portal/#pinjaman', [
+            'tag' => 'pinjaman_rev_' . $pinjamanId,
+            'tipe' => 'reversal'
+        ]);
+    }
+
+    /**
+     * Trigger: Notify Anggota that installment payment has been recorded
+     */
+    public function notifyAngsuranBayar(int $angsuranId): array {
+        $ang = $this->db->fetch(
+            "SELECT an.id, an.no_transaksi, an.angsuran_ke, an.total, an.tgl_bayar, an.pokok, an.bunga, an.denda,
+                    p.id as pinjaman_id, p.no_pinjaman, p.sisa_pinjaman, p.status as status_pinjaman, p.tenor,
+                    p.anggota_id, a.nama as nama_anggota, jp.nama as jenis_pinjaman
+             FROM angsuran an
+             JOIN pinjaman p ON an.pinjaman_id = p.id
+             JOIN anggota a ON p.anggota_id = a.id
+             JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+             WHERE an.id = ?",
+            [$angsuranId]
+        );
+
+        if (!$ang) return ['success' => false, 'message' => 'Angsuran not found'];
+
+        $totalFmt = "Rp " . number_format($ang['total'], 0, ',', '.');
+        $sisaFmt = "Rp " . number_format(max(0, $ang['sisa_pinjaman']), 0, ',', '.');
+        $angsuranKe = (string) $ang['angsuran_ke'];
+        $angsuranKeLabel = ($angsuranKe === '0' || $angsuranKe === 'Manual') ? 'Pelunasan/Manual' : "ke-{$angsuranKe}";
+        $isLunas = ((float)$ang['sisa_pinjaman'] <= 0) || ($ang['status_pinjaman'] === 'lunas');
+
+        if ($isLunas) {
+            $title = "Pinjaman LUNAS! 🎉";
+            $msg = "Pembayaran angsuran {$angsuranKeLabel} ({$ang['jenis_pinjaman']} - {$ang['no_pinjaman']}) sebesar {$totalFmt} berhasil diterima. Selamat, pinjaman Anda telah LUNAS!";
+        } else {
+            $title = "Angsuran Diterima! ✅";
+            $msg = "Pembayaran angsuran {$angsuranKeLabel} ({$ang['jenis_pinjaman']}) sebesar {$totalFmt} berhasil dibukukan. Sisa pinjaman Anda: {$sisaFmt}.";
+        }
+
+        return $this->sendToAnggota((int) $ang['anggota_id'], $title, $msg, '/portal/#pinjaman', [
+            'tag' => 'angsuran_pay_' . $ang['id'],
+            'tipe' => 'angsuran'
         ]);
     }
 
@@ -502,5 +611,72 @@ class WebPushHelper {
             'processed' => count($upcoming),
             'details' => $results
         ];
+    }
+
+    /**
+     * Send targeted push notification for a specific due / overdue installment
+     */
+    public function sendDueInstallmentPush(int $angsuranId, ?string $customTitle = null, ?string $customMessage = null, string $url = '/portal/#pinjaman'): array {
+        $ang = $this->db->fetch(
+            "SELECT an.id, an.no_transaksi, an.angsuran_ke, an.total, an.pokok, an.bunga, an.denda, an.tgl_jatuh_tempo,
+                    DATEDIFF(an.tgl_jatuh_tempo, CURDATE()) as diff_days,
+                    p.id as pinjaman_id, p.no_pinjaman, p.sisa_pinjaman, p.tenor,
+                    p.anggota_id, a.nama as nama_anggota, a.no_anggota, jp.nama as jenis_pinjaman
+             FROM angsuran an
+             JOIN pinjaman p ON an.pinjaman_id = p.id
+             JOIN anggota a ON p.anggota_id = a.id
+             JOIN jenis_pinjaman jp ON p.jenis_pinjaman_id = jp.id
+             WHERE an.id = ?",
+            [$angsuranId]
+        );
+
+        if (!$ang) return ['success' => false, 'message' => 'Angsuran not found'];
+
+        $diff = (int) $ang['diff_days'];
+        $absDays = abs($diff);
+        $totalFmt = "Rp " . number_format($ang['total'], 0, ',', '.');
+        $angsuranKe = (string) $ang['angsuran_ke'];
+        $angsuranKeLabel = ($angsuranKe === '0' || $angsuranKe === 'Manual') ? 'Pelunasan/Manual' : "ke-{$angsuranKe}";
+        $tglJatuhTempoFmt = date('d/m/Y', strtotime($ang['tgl_jatuh_tempo']));
+
+        // Default template based on due category
+        if ($diff > 0) {
+            $defTitle = "Pengingat Tagihan Pinjaman 📅";
+            $defMsg = "Halo {$ang['nama_anggota']}, angsuran {$angsuranKeLabel} ({$ang['jenis_pinjaman']}) sebesar {$totalFmt} akan jatuh tempo dalam {$diff} hari ({$tglJatuhTempoFmt}). Mohon siapkan dana Anda.";
+        } elseif ($diff === 0) {
+            $defTitle = "Tagihan Jatuh Tempo HARI INI ⚠️";
+            $defMsg = "Halo {$ang['nama_anggota']}, angsuran {$angsuranKeLabel} ({$ang['jenis_pinjaman']}) sebesar {$totalFmt} jatuh tempo HARI INI. Segera lakukan pembayaran untuk menghindari denda.";
+        } elseif ($absDays <= 7) {
+            $defTitle = "Peringatan Keterlambatan Angsuran ⏳";
+            $defMsg = "Halo {$ang['nama_anggota']}, angsuran {$angsuranKeLabel} ({$ang['jenis_pinjaman']}) sebesar {$totalFmt} telah melewati jatuh tempo {$absDays} hari. Denda harian mulai berjalan, mohon segera selesaikan pembayaran.";
+        } elseif ($absDays <= 30) {
+            $defTitle = "Pemberitahuan Tunggakan Angsuran (SP 1) 🚨";
+            $defMsg = "PENTING: Tagihan angsuran {$angsuranKeLabel} ({$ang['jenis_pinjaman']} - {$ang['no_pinjaman']}) sebesar {$totalFmt} telah menunggak {$absDays} hari. Mohon segera lunasi pembayaran atau hubungi kantor koperasi.";
+        } else {
+            $defTitle = "Peringatan Keras Menunggak Pinjaman 🛑";
+            $defMsg = "PERINGATAN: Pinjaman Anda ({$ang['jenis_pinjaman']} - {$ang['no_pinjaman']}) telah menunggak {$absDays} hari. Segera selesaikan kewajiban Anda atau hubungi pengurus koperasi untuk restrukturisasi.";
+        }
+
+        $title = !empty(trim($customTitle ?? '')) ? trim($customTitle) : $defTitle;
+        $msg = !empty(trim($customMessage ?? '')) ? trim($customMessage) : $defMsg;
+
+        // Replace template variables
+        $replacements = [
+            '{nama}' => $ang['nama_anggota'],
+            '{no_anggota}' => $ang['no_anggota'],
+            '{angsuran_ke}' => $angsuranKeLabel,
+            '{jenis_pinjaman}' => $ang['jenis_pinjaman'],
+            '{no_pinjaman}' => $ang['no_pinjaman'],
+            '{total}' => $totalFmt,
+            '{jatuh_tempo}' => $tglJatuhTempoFmt,
+            '{hari}' => (string) $absDays
+        ];
+        $title = str_replace(array_keys($replacements), array_values($replacements), $title);
+        $msg = str_replace(array_keys($replacements), array_values($replacements), $msg);
+
+        return $this->sendToAnggota((int) $ang['anggota_id'], $title, $msg, $url, [
+            'tag' => 'bill_due_' . $ang['id'] . '_' . time(),
+            'tipe' => 'tagihan'
+        ]);
     }
 }

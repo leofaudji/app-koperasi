@@ -102,6 +102,10 @@ Jika kasir keliru memproses pembayaran angsuran:
    - Mencatat mutasi pengembalian simpanan dengan kode transaksi `REV...`.
 4. **Pembalikan Jurnal Akuntansi**:
    - Membentuk jurnal kontra berpasangan (`ref_tipe = 'reversal'`) untuk membatalkan jurnal angsuran semula tanpa menghapus catatan historis.
+5. **Notifikasi Web Push Real-Time Anggota (`WebPushHelper`)**:
+   - Sistem secara otomatis mengirimkan Web Push Notification bertajuk **"Koreksi/Reversal Angsuran 🔄"** langsung ke smartphone/browser anggota terkait.
+   - Pesan memuat transparansi penuh: nomor angsuran yang dibatalkan, penyesuaian kembali sisa tagihan pinjaman (`sisa_pinjaman`), serta konfirmasi pengembalian dana tabungan jika sebelumnya dibayar melalui Simpanan Sukarela.
+   - Status pengiriman dicatat dalam `push_logs` dengan tipe `'reversal'`.
 
 ---
 

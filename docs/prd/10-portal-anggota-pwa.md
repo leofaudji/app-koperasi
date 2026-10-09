@@ -186,7 +186,57 @@ Menu pemantauan di sisi Administrator Backoffice untuk melacak keamanan dan adop
 
 ---
 
-## 12. Spesifikasi Endpoint API Portal Anggota & Pengawas
+---
+
+## 12. Sistem Web Push Notification PWA & Pengelolaan Backoffice (`#/web-push`)
+
+Sistem Web Push Notification menghubungkan aktivitas transaksi backoffice koperasi secara *real-time* langsung ke layar smartphone / desktop anggota tanpa bergantung pada SMS gateway berbayar maupun aplikasi native:
+
+### 12.1 Arsitektur Native Web Push (RFC 8291 & RFC 8292 VAPID)
+- **Zero Third-Party Dependency**: Menggunakan implementasi mandiri standar enkripsi IETF RFC 8291 (`aes128gcm`) dan VAPID RFC 8292 (`ES256` ECDSA P-256) via OpenSSL PHP native.
+- **Kompatibilitas Lintas Platform**: Mendukung Android Chrome, Edge, Firefox, Desktop PC/Mac, dan iOS Safari 16.4+ (saat diinstal sebagai PWA di Home Screen).
+- **Service Worker PWA (`sw.js`)**: Bertindak sebagai *background listener* untuk menangani event `push` dan `notificationclick`, memunculkan notifikasi visual, badge koperasi, serta mengarahkan anggota ke tab rincian yang tepat saat notifikasi diklik.
+
+### 12.2 Matriks Pemicu Notifikasi Otomatis (*Event-Driven Triggers*)
+
+| Tipe Event | Pemicu Transaksi | Judul Notifikasi | Pesan & Payload |
+| :--- | :--- | :--- | :--- |
+| **Simpanan** (`simpanan`) | Setoran / Penarikan tunai atau transfer | **Uang Masuk! 🪙** / **Penarikan Simpanan 💸** | Rincian jenis simpanan, nominal mutasi, dan saldo akhir sesudah transaksi. |
+| **Angsuran** (`angsuran`) | Pembayaran cicilan (Tunai/Bank/Sukarela) | **Angsuran Diterima! ✅** / **Pinjaman LUNAS! 🎉** | Angsuran ke-N, nama produk, nominal bayar, dan sisa baki debet pinjaman. |
+| **Pencairan** (`pinjaman`) | Kasir mencairkan dana pinjaman yang disetujui | **Kredit Dicairkan! 🎉** | Nomor akad pinjaman, produk, dan nominal kas yang diterima anggota. |
+| **Reversal** (`reversal`) | Kasir melakukan pembatalan transaksi simpanan | **Koreksi Saldo Simpanan 🔄** | Nominal pembatalan dan posisi saldo akhir rekening setelah koreksi. |
+| **Reversal** (`reversal`) | Pembatalan pembayaran angsuran kasir | **Koreksi/Reversal Angsuran 🔄** | Pembatalan angsuran, restorasi sisa baki debet pinjaman, & *refund* SS jika ada. |
+| **Reversal** (`reversal`) | Pembatalan pencairan kredit pinjaman | **Koreksi/Reversal Pinjaman 🔄** | Pembatalan akad pencairan dan restorasi status pengajuan pinjaman. |
+| **Tagihan** (`tagihan`) | Cron job otomatis `cron_push_reminders.php` | **Tagihan Jatuh Tempo HARI INI ⚠️** / **Pengingat Tagihan 📅** | Pengingat terjadwal tagihan H-0 (hari ini) dan H-3 sebelum jatuh tempo. |
+| **Broadcast** (`broadcast`) | Form pengumuman darurat/massal admin | Sesuai input Pengurus | Pesan massal yang diterima serentak oleh seluruh perangkat terdaftar. |
+
+### 12.3 Modul Admin Backoffice Web Push (`#/web-push`)
+Modul terintegrasi di sidebar Admin untuk monitoring dan operasional:
+1. **Tab 1: Perangkat Terdaftar (*Push Subscriptions*)**:
+   - Menampilkan total perangkat aktif, anggota unik yang terhubung, tipe browser/OS, dan penyedia push gateway (Google FCM, Apple APNs, Microsoft WNS).
+   - Tombol **"Tes Kirim"** per baris anggota untuk simulasi push langsung ke ponsel anggota tertentu.
+2. **Tab 2: Broadcast Tagihan Jatuh Tempo (*Targeted Loan Due Reminders*)**:
+   - Dashboard analitik 6 kartu segmentasi jatuh tempo:
+     - 📅 **H-5 s/d H-1**: Segera jatuh tempo (< 5 hari) dengan pesan santun penyiapan dana.
+     - ⚠️ **H-0**: Jatuh tempo hari ini untuk mitigasi denda berjalan.
+     - ⏳ **Terlambat 1 - 7 Hari**: Masa tenggang dan notifikasi kalkulasi denda harian.
+     - 🚨 **Terlambat 8 - 30 Hari**: Tunggakan ~1 bulan (Surat Peringatan SP 1 digital).
+     - 🛑 **Menunggak > 30 Hari**: Piutang macet / peringatan restrukturisasi (SP 2 & 3).
+     - 🌐 **Semua Tagihan Outstanding**: Rangkuman seluruh cicilan belum lunas.
+   - Indikator status perangkat push per baris anggota (🟢 Terkoneksi vs ⚪ Belum Ada Perangkat).
+   - Opsi kirim batch anggota terpilih (*checkbox multi-select*) atau broadcast serentak seluruh kategori.
+   - Generator template dinamis dengan token variabel otomatis: `{nama}`, `{angsuran_ke}`, `{jenis_pinjaman}`, `{no_pinjaman}`, `{total}`, `{jatuh_tempo}`, dan `{hari}`.
+3. **Tab 3: Kirim Broadcast Push Notifikasi Massal**:
+   - Form penyiaran pesan darurat / informasi RAT / promo toko dengan fitur **Live Phone Screen Preview** real-time.
+4. **Tab 4: Riwayat Pengiriman (*Push Logs*)**:
+   - Jejak audit tabel `push_logs` memuat waktu, tipe event, judul/pesan, nama penerima, jumlah perangkat, dan status (`success`, `partial`, `failed`, `no_device`).
+   - Dilengkapi filter pencarian teks, filter tipe (`simpanan`, `angsuran`, `pinjaman`, `reversal`, `tagihan`, `broadcast`, `test`), dan filter status.
+5. **Tab 5: Diagnostik Engine VAPID**:
+   - Memeriksa kesiapan OpenSSL CLI, path `openssl.cnf`, status validitas kunci publik ECDSA P-256, dan tabel matriks dukungan OS.
+
+---
+
+## 13. Spesifikasi Endpoint API Portal Anggota, Pengawas & Web Push
 
 | Method | Endpoint | Fungsi | Hak Akses |
 | :--- | :--- | :--- | :--- |
@@ -212,3 +262,14 @@ Menu pemantauan di sisi Administrator Backoffice untuk melacak keamanan dan adop
 | `POST` | `/api/aspirasi/tanggapi/{id}`| Submit tanggapan resmi Dewan Pengawas atas tiket | `aspirasi.view` |
 | `DELETE`| `/api/aspirasi/{id}` | Hapus tiket aspirasi | `superadmin` |
 | `GET` | `/api/log/portal` | Mengambil data metrik dan riwayat `portal_logs` | `dashboard.view` |
+| `GET` | `/api/web-push/vapid-public-key` | Mengambil Public Key VAPID untuk pendaftaran browser | Publik / Anggota |
+| `POST` | `/api/web-push/subscribe` | Menyimpan endpoint subscription perangkat anggota | Anggota Login |
+| `POST` | `/api/web-push/unsubscribe` | Menghapus subscription perangkat saat izin dimatikan | Anggota Login |
+| `GET` | `/api/web-push/stats` | Statistik total perangkat, anggota terdaftar, & log hari ini | `pengaturan.view` |
+| `GET` | `/api/web-push/subscriptions`| Daftar seluruh perangkat terhubung & info provider | `pengaturan.view` |
+| `DELETE`| `/api/web-push/subscriptions/{id}` | Menghapus paksa subscription perangkat yang invalid | `pengaturan.edit` |
+| `GET` | `/api/web-push/due-installments` | Mengambil data tagihan jatuh tempo & KPI segmentasi | `dashboard.view` |
+| `POST` | `/api/web-push/broadcast-tagihan`| Mengirim broadcast push tertarget ke tagihan jatuh tempo | `dashboard.view` |
+| `GET` | `/api/web-push/logs` | Mengambil riwayat pengiriman push notifikasi | `pengaturan.view` |
+| `POST` | `/api/web-push/broadcast` | Mengirim notifikasi push massal ke seluruh anggota | `pengaturan.edit` |
+| `POST` | `/api/web-push/test-anggota` | Uji coba pengiriman push ke perangkat anggota spesifik | `pengaturan.edit` |
