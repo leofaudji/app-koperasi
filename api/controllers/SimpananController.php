@@ -490,6 +490,13 @@ switch ($method) {
 
                 $db->commit();
                 clearCache(['member' => $original['anggota_id'], 'saving', 'finance']);
+
+                // Trigger Web Push Notification for Reversal
+                try {
+                    require_once __DIR__ . '/../config/WebPushHelper.php';
+                    WebPushHelper::getInstance()->notifySimpananTransaksi((int) $revId);
+                } catch (\Throwable $e) {}
+
                 successResponse(['id' => $revId, 'no_transaksi' => $noTrx], 'Reversal simpanan berhasil');
             } catch (Exception $e) {
                 $db->rollBack();
@@ -627,6 +634,12 @@ switch ($method) {
  
             $db->commit();
  
+            // Trigger Web Push Notification to Anggota
+            try {
+                require_once __DIR__ . '/../config/WebPushHelper.php';
+                WebPushHelper::getInstance()->notifySimpananTransaksi((int) $simpananId);
+            } catch (\Throwable $e) {}
+
             // Clear caches via central helper
             clearCache(['member' => $anggotaId, 'saving', 'finance', 'audit']);
 

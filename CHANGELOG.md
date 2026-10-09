@@ -4,6 +4,24 @@ Semua perubahan penting pada proyek Aplikasi Koperasi Simpan Pinjam akan didokum
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini menggunakan [Semantic Versioning](https://semver.org/lang/id/).
 
+## [v2.8.0] - 2026-10-09
+
+### 📲 Modul Pemantauan & Laporan Web Push Notifikasi (`#/web-push`)
+- **Dashboard & Pemantauan Perangkat Terdaftar (*Push Subscriptions*)**:
+  - Menampilkan metrik real-time total perangkat terdaftar, anggota unik yang terhubung, jumlah notifikasi terkirim hari ini, dan status engine kriptografi RFC 8291 / RFC 8292 VAPID.
+  - Tabel rincian perangkat anggota terhubung dengan deteksi otomatis tipe platform (Android, iOS/Safari PWA, Windows, macOS) dan penyedia push gateway (Google FCM, Apple APNs, Microsoft WNS).
+  - Tombol **"Tes Kirim"** ke anggota spesifik untuk menguji konektivitas pengiriman push langsung ke perangkat ponsel/desktop anggota.
+- **Riwayat Lengkap Pengiriman (*Push Logs*)**:
+  - Rekap jejak audit setiap notifikasi yang dipicu sistem (Setoran & Penarikan Simpanan, Pencairan Pinjaman, Pengingat Jatuh Tempo Tagihan H-3 & H-0, dan Broadcast Manual).
+  - Rincian status sukses, sebagian, atau gagal beserta jumlah perangkat yang menerima dan detail pesan yang terkirim.
+- **Kirim Broadcast Push Notifikasi Massal**:
+  - Form pengiriman broadcast pesan atau pengumuman darurat langsung ke layar seluruh anggota yang telah mengaktifkan izin notifikasi.
+  - Fitur **Live Phone Screen Preview** untuk mensimulasikan tampilan visual notifikasi di layar smartphone sebelum dikirimkan.
+- **Diagnostik Engine VAPID**:
+  - Tampilan status uncompressed P-256 public key, subject VAPID, dan matriks kompatibilitas browser anggota.
+
+---
+
 ## [v2.7.0] - 2026-10-06
 
 ### 🛍️ Modul Manajemen Pesanan Toko Koperasi (`#/toko-pesanan`)

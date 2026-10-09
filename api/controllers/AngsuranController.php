@@ -500,7 +500,7 @@ switch ($method) {
                 $actualAngsuranNoTrx = $angsuranRow ? $angsuranRow['no_transaksi'] : "AG-{$pa['angsuran_id']}";
                 $ketSimpanan = "[AG:{$actualAngsuranNoTrx}] Pembayaran Angsuran ke-{$pa['angsuran_ke']} - {$pa['no_pinjaman']}";
 
-                $db->insert(
+                $simpananId = $db->insert(
                     "INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by, metode_pembayaran)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sukarela')",
                     [
@@ -596,6 +596,14 @@ switch ($method) {
 
                 $db->commit();
                 clearCache(['loan', 'finance', 'audit', 'saving', 'member' => $pa['anggota_id']]);
+
+                if (!empty($simpananId)) {
+                    try {
+                        require_once __DIR__ . '/../config/WebPushHelper.php';
+                        WebPushHelper::getInstance()->notifySimpananTransaksi((int) $simpananId);
+                    } catch (\Throwable $e) {}
+                }
+
                 successResponse(null, 'Pengajuan angsuran berhasil disetujui (ACC). Saldo sukarela dipotong dan angsuran lunas.');
             } catch (Exception $e) {
                 $db->rollBack();
@@ -796,7 +804,7 @@ switch ($method) {
                 $angsuranKeLabel = $angsuran['angsuran_ke'] === 'Manual' ? 'Manual' : 'ke-' . $angsuran['angsuran_ke'];
                 $ketSimpanan = "[AG:{$actualAngsuranNoTrx}] Pembayaran Angsuran {$angsuranKeLabel} - {$angsuran['no_pinjaman']}";
 
-                $db->insert(
+                $simpananId = $db->insert(
                     "INSERT INTO simpanan (no_transaksi, anggota_id, jenis_simpanan_id, rekening_id, kode_transaksi_id, tgl_transaksi, jumlah, saldo_sebelum, saldo_sesudah, keterangan, created_by, metode_pembayaran)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sukarela')",
                     [
@@ -891,6 +899,14 @@ switch ($method) {
             
             // Clear caches via central helper
             clearCache(['member' => $angsuran['anggota_id'], 'loan', 'finance', 'audit', 'saving']);
+
+            // Trigger Web Push Notification if savings was deducted
+            if (!empty($simpananId)) {
+                try {
+                    require_once __DIR__ . '/../config/WebPushHelper.php';
+                    WebPushHelper::getInstance()->notifySimpananTransaksi((int) $simpananId);
+                } catch (\Throwable $e) {}
+            }
 
             // Log Activity (Payment)
             logActivity('create', 'angsuran', $angsuranId, null, [

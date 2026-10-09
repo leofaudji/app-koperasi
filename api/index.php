@@ -446,6 +446,9 @@ try {
         case 'search':
             require_once $controllerPath . 'SearchController.php';
             break;
+        case 'web-push':
+            require_once $controllerPath . 'WebPushController.php';
+            break;
         default:
             errorResponse('Route not found', 404);
     }

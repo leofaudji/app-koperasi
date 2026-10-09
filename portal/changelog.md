@@ -4,6 +4,31 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [2.0.2] - 2026-10-09
+### Notifikasi Push Transaksi Simpanan (Setoran & Penarikan Real-Time)
+- **Web Push Transaksi Finansial Simpanan**:
+    - **Trigger Otomatis Setoran (Uang Masuk! 🪙)**: Notifikasi push terkirim secara instan ke perangkat anggota ketika kasir/teller menginput transaksi setoran simpanan (Pokok, Wajib, Sukarela, dll), mencantumkan jenis simpanan, nominal, dan saldo terkini (`saldo_sesudah`).
+    - **Trigger Otomatis Penarikan (Penarikan Simpanan 💸)**: Notifikasi push real-time saat terjadi penarikan simpanan tunai, transfer, maupun pemotongan autodebet simpanan sukarela untuk pembayaran angsuran kredit.
+    - **Trigger Koreksi / Reversal Administratif**: Memastikan mutasi pembalikan saldo simpanan akibat koreksi pembukuan tetap terkirim secara transparan ke anggota.
+    - **Deep-Linking Tab Simpanan**: Mengetuk notifikasi push langsung mengarahkan dan membuka tab Simpanan (`/portal/#simpanan`) secara presisi dengan dukungan `hashchange` responsif.
+
+## [2.0.0] - 2026-10-09
+### Native Web Push Notifications (RFC 8291 / RFC 8292 VAPID)
+- **Sistem Web Push Mandiri (100% Native PHP 8.3 & PWA)**:
+    - **Enkripsi Kriptografi RFC 8291 (`aes128gcm`) & RFC 8292 (`ES256` VAPID)**: Menjalankan engine pengiriman web push langsung dari server PHP ke Google FCM & Apple APNs tanpa ketergantungan pihak ketiga.
+    - **Tabel & Manajemen Subscription**: Mendaftarkan multi-device subscription anggota ke tabel database `push_subscriptions` dengan auto-eviction token kadaluarsa (404/410).
+    - **Pemberitahuan Otomatis Pencairan Kredit**: Notifikasi push terkirim seketika saat pengurus/admin menyetujui & mencairkan pinjaman anggota.
+    - **Pengingat Tagihan Otomatis (Cron Job H-3 & H-0)**: Menyediakan script `cron_push_reminders.php` untuk memicu notifikasi push pengingat jatuh tempo secara terjadwal setiap pagi.
+    - **Pengaturan & Uji Coba di Profil Anggota**: Menambahkan toggle aktivasi push notification ramah pengguna serta tombol *"Tes Notifikasi"* dengan feedback visual instan.
+
+## [1.9.4] - 2026-10-09
+### Clean & Focused Modern Home Experience (Decluttering)
+- **Eliminasi Redundansi & Cognitive Overload**:
+    - Merampingkan panjang gulir halaman Beranda (Home) hingga lebih dari 50% untuk menciptakan pengalaman *mobile banking* yang bersih, lega, dan berkelas.
+    - Menghilangkan duplikasi blok rincian di Beranda (*Komposisi Simpanan Detail*, *Daftar Pinjaman Berjalan*, dan *Neraca Personal*) yang sebelumnya menimbulkan pengulangan data karena informasi lengkapnya telah tersedia di Tab Simpanan, Tab Pinjaman, dan Tab Laporan.
+    - Merestrukturisasi *Wallet Card* menjadi kartu digital premium tanpa tombol-tombol kecil yang berdesakan, serta menambahkan pintasan sentuh intuitif (*touch-friendly*) ke Tab Simpanan dan Pinjaman.
+    - Mempertahankan fokus utama beranda pada hal yang paling esensial bagi anggota: Ringkasan Saldo Simpanan, Tagihan Angsuran Terdekat (Billing Card), 8 Menu Layanan Koperasi, dan Feed Aktivitas Terakhir (Struk Digital).
+
 ## [1.9.3] - 2026-10-09
 ### Safari iOS & WebKit Date Compatibility Engine
 - **Universal Multi-Format Date Parser (`parseDate`)**:

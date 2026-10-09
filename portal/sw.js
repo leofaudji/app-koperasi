@@ -1,4 +1,4 @@
-const CACHE_NAME = 'koperasi-portal-v93';
+const CACHE_NAME = 'koperasi-portal-v97';
 const ASSETS = [
     './',
     'index.html',
@@ -69,4 +69,61 @@ self.addEventListener('fetch', e => {
             })
         );
     }
+});
+
+// ==========================================
+// Web Push Notification Handlers (RFC 8291)
+// ==========================================
+self.addEventListener('push', e => {
+    let data = {
+        title: 'Koperasi Simpan Pinjam',
+        body: 'Pemberitahuan baru dari Koperasi',
+        url: '/portal/',
+        icon: 'icons/icon-192.png',
+        badge: 'icons/icon-192.png'
+    };
+
+    if (e.data) {
+        try {
+            data = Object.assign(data, e.data.json());
+        } catch (err) {
+            data.body = e.data.text();
+        }
+    }
+
+    const options = {
+        body: data.body,
+        icon: data.icon || 'icons/icon-192.png',
+        badge: data.badge || 'icons/icon-192.png',
+        vibrate: [100, 50, 100],
+        data: {
+            url: data.url || '/portal/',
+            timestamp: data.timestamp || Date.now()
+        },
+        tag: data.tag || 'general_koperasi',
+        renotify: true
+    };
+
+    e.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+self.addEventListener('notificationclick', e => {
+    e.notification.close();
+    const targetUrl = e.notification.data?.url || '/portal/';
+    e.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+            for (let client of windowClients) {
+                if (client.url.includes('/portal/') && 'focus' in client) {
+                    return client.focus().then(() => {
+                        if ('navigate' in client && targetUrl) {
+                            return client.navigate(targetUrl);
+                        }
+                    });
+                }
+            }
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
+        })
+    );
 });

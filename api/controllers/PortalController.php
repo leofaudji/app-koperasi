@@ -1471,6 +1471,61 @@ switch ($id) {
         ]);
         break;
 
+    case 'push-vapid-key':
+        portalAuthCheck();
+        require_once __DIR__ . '/../config/WebPushHelper.php';
+        $helper = WebPushHelper::getInstance();
+        successResponse([
+            'public_key' => $helper->getPublicKey()
+        ]);
+        break;
+
+    case 'push-subscribe':
+        $anggotaId = portalAuthCheck();
+        require_once __DIR__ . '/../config/WebPushHelper.php';
+        $input = json_decode(file_get_contents('php://input'), true);
+        if (!$input) {
+            errorResponse('Data subscription tidak valid', 400);
+        }
+        $helper = WebPushHelper::getInstance();
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        $ok = $helper->subscribe($anggotaId, $input, $userAgent);
+        if ($ok) {
+            successResponse(['message' => 'Notifikasi web push berhasil diaktifkan']);
+        } else {
+            errorResponse('Gagal menyimpan langganan notifikasi', 400);
+        }
+        break;
+
+    case 'push-unsubscribe':
+        $anggotaId = portalAuthCheck();
+        require_once __DIR__ . '/../config/WebPushHelper.php';
+        $input = json_decode(file_get_contents('php://input'), true);
+        $endpoint = $input['endpoint'] ?? '';
+        $helper = WebPushHelper::getInstance();
+        if ($endpoint) {
+            $helper->unsubscribe($endpoint);
+        }
+        successResponse(['message' => 'Notifikasi berhasil dinonaktifkan']);
+        break;
+
+    case 'push-test':
+        $anggotaId = portalAuthCheck();
+        require_once __DIR__ . '/../config/WebPushHelper.php';
+        $helper = WebPushHelper::getInstance();
+        $res = $helper->sendToAnggota(
+            $anggotaId,
+            'Uji Coba Notifikasi 🔔',
+            'Sistem Web Push Koperasi aktif pada perangkat Anda. Notifikasi tagihan & pencairan siap diterima!',
+            '/portal/'
+        );
+        if ($res['success']) {
+            successResponse(['message' => "Notifikasi terkirim ke {$res['sent']} perangkat", 'details' => $res]);
+        } else {
+            errorResponse($res['message'] ?? 'Belum ada perangkat terdaftar untuk akun ini', 400);
+        }
+        break;
+
     default:
         errorResponse('Portal route tidak ditemukan', 404);
 }

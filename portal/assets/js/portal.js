@@ -440,7 +440,7 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
             }
 
             if (r.status === 401) return json;
-            if (!r.ok) return null;
+            if (!r.ok) return json || null;
             return json;
         } catch (e) {
             if (!navigator.onLine) this.showOfflineToast();
@@ -540,6 +540,14 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         // 2. System Initialization
         this.initIdleMonitor();
         this.initVisibilityCheck();
+
+        window.addEventListener('hashchange', () => {
+            if (!this.member) return;
+            const h = (window.location.hash || '').replace('#', '').trim();
+            if (['home', 'simpanan', 'pinjaman', 'rat', 'profil'].includes(h)) {
+                this.tab(h);
+            }
+        });
 
         document.getElementById('p-login-form').addEventListener('submit', e => { e.preventDefault(); this.login(); });
         const r = await this.api('portal/me');
@@ -647,7 +655,9 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         setTimeout(() => {
             splash.classList.add('opacity-0', 'scale-110');
             this.showApp();
-            this.tab('home');
+            const hashTab = (window.location.hash || '').replace('#', '').trim();
+            const validTabs = ['home', 'simpanan', 'pinjaman', 'rat', 'profil'];
+            this.tab(validTabs.includes(hashTab) ? hashTab : 'home');
             this.preloadViews();
             setTimeout(() => splash.remove(), 350);
         }, 750);
@@ -1101,7 +1111,9 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
             elImg.src = this.getAvatarUrl(this.member.nama);
         }
 
-        this.tab('home');
+        const hashTab = (window.location.hash || '').replace('#', '').trim();
+        const validTabs = ['home', 'simpanan', 'pinjaman', 'rat', 'profil'];
+        this.tab(validTabs.includes(hashTab) ? hashTab : 'home');
     },
 
     initTheme() {
@@ -1339,14 +1351,18 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
             pengumumanContainer.innerHTML = '';
         }
 
-        // Process Saldo
+        // Process Saldo (Calculate total regardless of breakdown DOM element)
+        if (Array.isArray(rSaldo?.data)) {
+            rSaldo.data.forEach(s => {
+                totalSimpanan += parseFloat(s.saldo || 0);
+            });
+        }
+
         const bd = document.getElementById('h-simpanan-breakdown');
-        if (bd) {
+        if (bd && Array.isArray(rSaldo?.data)) {
             bd.innerHTML = '';
             rSaldo.data.forEach(s => {
                 const val = parseFloat(s.saldo || 0);
-                totalSimpanan += val;
-
                 let icon = 'bi-wallet2 text-blue-500 bg-blue-50 dark:bg-blue-900/30';
                 if (s.nama.toLowerCase().includes('wajib')) icon = 'bi-shield-check text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30';
                 if (s.nama.toLowerCase().includes('sukarela')) icon = 'bi-piggy-bank text-orange-500 bg-orange-50 dark:bg-orange-900/30';
@@ -1367,17 +1383,21 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
             if (rSaldo.data.length === 0) bd.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">Belum ada simpanan</p>';
         }
 
-        // Process Pinjaman
+        // Process Pinjaman (Calculate total regardless of breakdown DOM element)
+        if (Array.isArray(rPinjaman?.data)) {
+            rPinjaman.data.forEach(p => {
+                if (p.status === 'cair') totalPinjaman += parseFloat(p.sisa_pinjaman || 0);
+            });
+        }
+
         const bdPin = document.getElementById('h-pinjaman-breakdown');
-        if (bdPin) {
+        if (bdPin && Array.isArray(rPinjaman?.data)) {
             bdPin.innerHTML = '';
             const pinList = rPinjaman.data;
             if (pinList.length === 0) {
                 bdPin.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">Belum ada pinjaman</p>';
             } else {
                 pinList.forEach(p => {
-                    if (p.status === 'cair') totalPinjaman += parseFloat(p.sisa_pinjaman || 0);
-
                     const isLunas = p.status === 'lunas';
                     const isCair = p.status === 'cair';
                     const badgeClass = isLunas
@@ -2133,6 +2153,9 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         if (themeToggle) {
             themeToggle.checked = document.documentElement.classList.contains('dark');
         }
+
+        // Sync Push Notification UI State
+        this.initPushNotificationUI();
     },
 
     showSecurity() {
@@ -4884,6 +4907,192 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
             const flipCard = document.querySelector('.flip-card');
             if (flipCard) flipCard.scrollIntoView({ behavior: 'smooth' });
         }, 300);
+    },
+
+    // ==========================================
+    // Web Push Notification Client (RFC 8291/8292)
+    // ==========================================
+    urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    },
+
+    async initPushNotificationUI() {
+        const toggle = document.getElementById('push-toggle-check');
+        const desc = document.getElementById('push-status-desc');
+        const testBtn = document.getElementById('push-test-btn');
+        if (!toggle) return;
+
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+            toggle.disabled = true;
+            if (desc) desc.textContent = 'Perangkat ini tidak mendukung Web Push';
+            return;
+        }
+
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            if (sub && Notification.permission === 'granted') {
+                toggle.checked = true;
+                if (desc) desc.textContent = 'Aktif (Menerima pengingat tagihan & pencairan)';
+                if (testBtn) testBtn.classList.remove('hidden');
+            } else {
+                toggle.checked = false;
+                if (desc) desc.textContent = 'Nonaktif (Ketuk untuk mengaktifkan)';
+                if (testBtn) testBtn.classList.add('hidden');
+            }
+        } catch (e) {
+            console.error('Check push status error:', e);
+        }
+    },
+
+    async togglePushNotification(enable) {
+        this.haptic('light');
+        const toggle = document.getElementById('push-toggle-check');
+        const desc = document.getElementById('push-status-desc');
+        const testBtn = document.getElementById('push-test-btn');
+
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+            if (toggle) toggle.checked = false;
+            Swal.fire({
+                icon: 'warning',
+                title: 'Tidak Didukung',
+                text: 'Perangkat atau browser Anda belum mendukung Web Push Notification.',
+                confirmButtonColor: '#2563eb'
+            });
+            return;
+        }
+
+        const reg = await navigator.serviceWorker.ready;
+
+        if (enable) {
+            let perm = Notification.permission;
+            if (perm === 'denied') {
+                if (toggle) toggle.checked = false;
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Izin Ditolak',
+                    text: 'Izin notifikasi telah diblokir di browser Anda. Buka Pengaturan Browser HP Anda untuk mengizinkan notifikasi aplikasi ini.',
+                    confirmButtonColor: '#2563eb'
+                });
+                return;
+            }
+
+            if (perm !== 'granted') {
+                perm = await Notification.requestPermission();
+                if (perm !== 'granted') {
+                    if (toggle) toggle.checked = false;
+                    return;
+                }
+            }
+
+            // Fetch VAPID Public Key from server
+            const r = await this.api('portal/push-vapid-key');
+            if (!r?.success || !r.data?.public_key) {
+                if (toggle) toggle.checked = false;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Menghubungkan',
+                    text: 'Gagal mengambil kunci otentikasi notifikasi dari server.',
+                    confirmButtonColor: '#2563eb'
+                });
+                return;
+            }
+
+            try {
+                // Subscribe via PushManager
+                const appServerKey = this.urlBase64ToUint8Array(r.data.public_key);
+                const sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: appServerKey
+                });
+
+                // Send subscription to server
+                const subJson = sub.toJSON();
+                const saveRes = await this.api('portal/push-subscribe', {
+                    method: 'POST',
+                    body: subJson
+                });
+
+                if (saveRes?.success) {
+                    if (desc) desc.textContent = 'Aktif (Menerima pengingat tagihan & pencairan)';
+                    if (testBtn) testBtn.classList.remove('hidden');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Notifikasi Aktif! 🔔',
+                        text: 'Anda akan menerima pengingat otomatis saat angsuran mendekati jatuh tempo dan saat pencairan pinjaman disetujui.',
+                        confirmButtonColor: '#2563eb'
+                    });
+                } else {
+                    throw new Error(saveRes?.message || 'Gagal menyimpan subscription');
+                }
+            } catch (err) {
+                console.error('Subscription error:', err);
+                if (toggle) toggle.checked = false;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Mengaktifkan',
+                    text: err.message || 'Terjadi kesalahan saat mendaftarkan notifikasi push.',
+                    confirmButtonColor: '#2563eb'
+                });
+            }
+        } else {
+            // Disable push notification
+            try {
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) {
+                    await this.api('portal/push-unsubscribe', {
+                        method: 'POST',
+                        body: { endpoint: sub.endpoint }
+                    });
+                    await sub.unsubscribe();
+                }
+                if (desc) desc.textContent = 'Nonaktif (Ketuk untuk mengaktifkan)';
+                if (testBtn) testBtn.classList.add('hidden');
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Notifikasi Dinonaktifkan',
+                    text: 'Pengingat notifikasi push telah dimatikan pada perangkat ini.',
+                    confirmButtonColor: '#2563eb'
+                });
+            } catch (err) {
+                console.error('Unsubscribe error:', err);
+            }
+        }
+    },
+
+    async testPushNotification() {
+        this.haptic('medium');
+        Swal.fire({
+            title: 'Mengirim Notifikasi...',
+            html: '<div class="py-3"><i class="bi bi-send animate-bounce text-3xl text-indigo-500"></i></div>',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            timer: 1500
+        });
+
+        const res = await this.api('portal/push-test', { method: 'POST' });
+        if (res?.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Terkirim! 🚀',
+                text: 'Notifikasi uji coba berhasil dikirim ke perangkat Anda. Cek bilah notifikasi ponsel Anda!',
+                confirmButtonColor: '#2563eb'
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Mengirim',
+                text: res?.message || 'Pastikan izin notifikasi browser telah aktif.',
+                confirmButtonColor: '#2563eb'
+            });
+        }
     },
 };
 

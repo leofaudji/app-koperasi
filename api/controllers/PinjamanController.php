@@ -1083,6 +1083,14 @@ switch ($method) {
 
                 $db->commit();
 
+                // Trigger Web Push Notification for Anggota
+                if ($statusApproval === 'cair') {
+                    try {
+                        require_once __DIR__ . '/../config/WebPushHelper.php';
+                        WebPushHelper::getInstance()->notifyPinjamanCair((int) $id);
+                    } catch (\Throwable $e) {}
+                }
+
                 // Clear caches
                 // Clear caches via central helper
                 clearCache(['member' => $pinjaman['anggota_id'], 'loan', 'finance', 'audit']);

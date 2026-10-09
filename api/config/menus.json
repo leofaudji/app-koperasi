@@ -420,6 +420,13 @@
                 "perm": "dashboard.view"
             },
             {
+                "id": 57,
+                "nama": "Web Push Notifikasi",
+                "icon": "ri-notification-badge-line",
+                "url": "#/web-push",
+                "perm": "dashboard.view"
+            },
+            {
                 "id": 50,
                 "nama": "Changelog",
                 "icon": "ri-git-repository-line",
