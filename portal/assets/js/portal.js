@@ -37,6 +37,50 @@ const Portal = {
     dataCache: {},
     loadedScripts: {},
 
+    // Client-Side Stale-While-Revalidate (SWR) Engine
+    getSwrKey(ep) {
+        const memberId = this.member?.id || 'guest';
+        const sanitized = String(ep).replace(/[^a-zA-Z0-9_-]/g, '_');
+        return `kop_swr_${memberId}_${sanitized}`;
+    },
+
+    getSwrCache(ep) {
+        try {
+            const key = this.getSwrKey(ep);
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed?.data !== undefined ? parsed.data : null;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    setSwrCache(ep, data) {
+        try {
+            const key = this.getSwrKey(ep);
+            localStorage.setItem(key, JSON.stringify({
+                timestamp: Date.now(),
+                data: data
+            }));
+        } catch (e) {
+            console.warn('SWR cache write skipped:', e);
+        }
+    },
+
+    clearSwrCache() {
+        try {
+            const toRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('kop_swr_')) {
+                    toRemove.push(k);
+                }
+            }
+            toRemove.forEach(k => localStorage.removeItem(k));
+        } catch (e) {}
+    },
+
     getAvatarUrl(name) {
         if (this.member && this.member.foto && this.member.foto.trim() !== '') {
             const f = this.member.foto.trim();
@@ -372,6 +416,7 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
 
             // Handle Unauthorized / Session Expired
             if (isUnauthorized && wasLoggedIn) {
+                this.clearSwrCache();
                 localStorage.removeItem('kop_was_logged_in');
                 this.member = null;
                 
@@ -566,6 +611,7 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         btn.disabled = false;
 
         if (r?.success) {
+            this.clearSwrCache();
             localStorage.setItem('kop_was_logged_in', 'true');
             this.member = r.data.anggota || r.data;
             this.pwaName = r.data.pwa_name || '';
@@ -626,6 +672,7 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         });
 
         if (result.isConfirmed) {
+            this.clearSwrCache();
             localStorage.removeItem('kop_was_logged_in');
             if (this.idleTimer) clearTimeout(this.idleTimer);
             await this.api('portal/logout', { method: 'POST' });
@@ -646,6 +693,7 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         this.idleTimer = setTimeout(async () => {
             if (this.member) {
                 // Perform real logout
+                this.clearSwrCache();
                 localStorage.removeItem('kop_was_logged_in');
                 this.member = null;
                 
@@ -1047,7 +1095,8 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
 
         if (elNama) elNama.textContent = this.member.nama;
         if (elNo) elNo.textContent = this.member.no_anggota;
-        if (elTgl) elTgl.textContent = 'Bersama Sejak ' + (this.member.tgl_gabung ? new Date(this.member.tgl_gabung).getFullYear() : '2026');
+        const tglAwal = this.parseDate(this.member.tgl_gabung || this.member.created_at);
+        if (elTgl) elTgl.textContent = 'Bersama Sejak ' + (tglAwal ? tglAwal.getFullYear() : '2026');
         if (elImg) {
             elImg.src = this.getAvatarUrl(this.member.nama);
         }
@@ -1114,61 +1163,17 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
 
     async loadDashboardData() {
         // Initialize text values
-        const displayName = this.member.nama;
+        const displayName = this.member?.nama || 'Anggota';
         const elNama = document.getElementById('h-nama');
         const elNo = document.getElementById('h-no');
         if (elNama) elNama.textContent = displayName;
-        if (elNo) elNo.textContent = this.member.no_anggota;
+        if (elNo) elNo.textContent = this.member?.no_anggota || '';
 
         // Set avatar with generated initial
         const img = document.getElementById('h-avatar');
         if (img) {
             img.src = this.getAvatarUrl(displayName);
         }
-
-        // Consolidated single-batch fetching logic for dashboard (with fallback)
-        let rSaldo, rPinjaman, rUpcoming, rNotif, rTagihan, rPengumuman, rRatWidget, rAktivitas;
-        const summary = await this.api('portal/dashboard-summary');
-        if (summary?.success && summary.data) {
-            const d = summary.data;
-            rSaldo = { success: true, data: d.saldo };
-            rPinjaman = { success: true, data: d.pinjaman };
-            rUpcoming = { success: true, data: d.upcoming };
-            rNotif = { success: true, data: d.notifications };
-            rTagihan = { success: true, data: d.tagihan };
-            rPengumuman = { success: true, data: d.pengumuman };
-            rRatWidget = { success: true, data: d.rat_widget };
-            rAktivitas = { success: true, data: d.aktivitas };
-        } else {
-            [rSaldo, rPinjaman, rUpcoming, rNotif, rTagihan, rPengumuman, rRatWidget, rAktivitas] = await Promise.all([
-                this.api('portal/saldo'),
-                this.api('portal/pinjaman'),
-                this.api('portal/angsuran-upcoming'),
-                this.api('portal/notifications'),
-                this.api('portal/tagihan-terdekat'),
-                this.api('portal/pengumuman'),
-                this.api('portal/rat-widget'),
-                this.api('portal/aktivitas-terbaru')
-            ]);
-        }
-        this.dataCache['dashboard'] = true;
-
-        /* Update Widget Musim RAT */
-        this.renderRatWidget(rRatWidget?.success ? rRatWidget.data : null);
-
-        /* Update Billing Card Widget */
-        if (rTagihan?.success) {
-            this.renderBillingCard(rTagihan.data);
-        }
-
-        /* Update Feed Aktivitas Terbaru */
-        this.renderRecentActivities(rAktivitas?.success ? rAktivitas.data : []);
-
-        // Muat Status Kesehatan & Transparansi Koperasi untuk banner
-        this.loadTransparansiBanner();
-
-        // Update Operational Cash Counter Status Bar
-        this.updateOperationalBar();
 
         // Update Dynamic Greeting (Home Tab)
         const greeting = this.getGreeting();
@@ -1179,12 +1184,86 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
             elGreetIcon.innerHTML = `<i class="bi ${greeting.icon}"></i>`;
         }
 
+        // 1. SWR STALE: Render cached dashboard immediately in 0ms if present
+        const cachedSummary = this.getSwrCache('portal/dashboard-summary');
+        if (cachedSummary) {
+            this.renderDashboardData(cachedSummary);
+            this.dataCache['dashboard'] = true;
+        }
+
+        // 2. REVALIDATE: Fetch fresh data from backend
+        let freshData = null;
+        const summary = await this.api('portal/dashboard-summary');
+        if (summary?.success && summary.data) {
+            freshData = summary.data;
+        } else {
+            // Fallback for backwards compatibility
+            const [rSaldo, rPinjaman, rUpcoming, rNotif, rTagihan, rPengumuman, rRatWidget, rAktivitas] = await Promise.all([
+                this.api('portal/saldo'),
+                this.api('portal/pinjaman'),
+                this.api('portal/angsuran-upcoming'),
+                this.api('portal/notifications'),
+                this.api('portal/tagihan-terdekat'),
+                this.api('portal/pengumuman'),
+                this.api('portal/rat-widget'),
+                this.api('portal/aktivitas-terbaru')
+            ]);
+            if (rSaldo?.success) {
+                freshData = {
+                    saldo: rSaldo.data || [],
+                    pinjaman: rPinjaman?.data || [],
+                    upcoming: rUpcoming?.data || [],
+                    notifications: rNotif?.data || [],
+                    tagihan: rTagihan?.data || null,
+                    pengumuman: rPengumuman?.data || [],
+                    rat_widget: rRatWidget?.data || null,
+                    aktivitas: rAktivitas?.data || []
+                };
+            }
+        }
+
+        if (freshData) {
+            this.setSwrCache('portal/dashboard-summary', freshData);
+            if (freshData.saldo) this.setSwrCache('portal/saldo', freshData.saldo);
+            if (freshData.pinjaman) this.setSwrCache('portal/pinjaman', freshData.pinjaman);
+            this.renderDashboardData(freshData);
+            this.dataCache['dashboard'] = true;
+        }
+    },
+
+    renderDashboardData(d) {
+        if (!d) return;
+
+        const rSaldo = { success: true, data: d.saldo || [] };
+        const rPinjaman = { success: true, data: d.pinjaman || [] };
+        const rUpcoming = { success: true, data: d.upcoming || [] };
+        const rNotif = { success: true, data: d.notifications || [] };
+        const rTagihan = { success: true, data: d.tagihan || null };
+        const rPengumuman = { success: true, data: d.pengumuman || [] };
+        const rRatWidget = { success: true, data: d.rat_widget || null };
+        const rAktivitas = { success: true, data: d.aktivitas || [] };
+
+        /* Update Widget Musim RAT */
+        this.renderRatWidget(rRatWidget.data);
+
+        /* Update Billing Card Widget */
+        if (rTagihan.data) {
+            this.renderBillingCard(rTagihan.data);
+        }
+
+        /* Update Feed Aktivitas Terbaru */
+        this.renderRecentActivities(rAktivitas.data);
+
+        // Muat Status Kesehatan & Transparansi Koperasi untuk banner
+        this.loadTransparansiBanner();
+
+        // Update Operational Cash Counter Status Bar
+        this.updateOperationalBar();
+
         // Update Notifications
-        // Base notifications from API
-        let rawNotifs = rNotif?.data || [];
+        let rawNotifs = rNotif.data || [];
         const readKeys = JSON.parse(localStorage.getItem('kop_notif_read') || '[]');
 
-        // Assign unique keys and filter unread
         this.notifications = rawNotifs.filter(n => {
             n.key = btoa(n.title + '|' + n.raw_date).replace(/=/g, '');
             return !readKeys.includes(n.key);
@@ -1198,7 +1277,7 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         // Notifikasi angsuran jatuh tempo
         const notifEl = document.getElementById('h-notif-angsuran');
         const notifList = document.getElementById('h-notif-list');
-        if (rUpcoming?.success && rUpcoming.data.length > 0 && notifEl && notifList) {
+        if (rUpcoming.data.length > 0 && notifEl && notifList) {
             notifList.innerHTML = rUpcoming.data.map(a => {
                 const hariLagi = parseInt(a.hari_lagi || 0);
                 const isHariIni = hariLagi === 0;
@@ -1223,20 +1302,14 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
 
         // Process Announcements (Pengumuman)
         const pengumumanContainer = document.getElementById('h-pengumuman-container');
-        if (rPengumuman?.success && rPengumuman.data.length > 0 && pengumumanContainer) {
+        if (rPengumuman.data.length > 0 && pengumumanContainer) {
             const iconMap = {
                 'info': '<i class="bi bi-info-circle-fill text-blue-500"></i>',
                 'warning': '<i class="bi bi-exclamation-triangle-fill text-amber-500"></i>',
                 'promo': '<i class="bi bi-stars text-emerald-500"></i>'
             };
-            const bgMap = {
-                'info': 'bg-blue-50 border-blue-100',
-                'warning': 'bg-amber-50 border-amber-100',
-                'promo': 'bg-emerald-50 border-emerald-100'
-            };
 
             pengumumanContainer.innerHTML = rPengumuman.data.map(p => {
-                // Create safe escaped strings for the onclick handler
                 const safeJudul = p.judul.replace(/\r?\n/g, ' ').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const safeKonten = p.konten.replace(/\r?\n/g, '<br>').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const swalIcon = p.tipe === 'promo' ? 'success' : (p.tipe === 'warning' ? 'warning' : 'info');
@@ -1267,10 +1340,9 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         }
 
         // Process Saldo
-        if (rSaldo?.success) {
-            const bd = document.getElementById('h-simpanan-breakdown');
+        const bd = document.getElementById('h-simpanan-breakdown');
+        if (bd) {
             bd.innerHTML = '';
-
             rSaldo.data.forEach(s => {
                 const val = parseFloat(s.saldo || 0);
                 totalSimpanan += val;
@@ -1296,13 +1368,12 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         }
 
         // Process Pinjaman
-        if (rPinjaman?.success) {
-            const bdPin = document.getElementById('h-pinjaman-breakdown');
-            if (bdPin) bdPin.innerHTML = '';
-
+        const bdPin = document.getElementById('h-pinjaman-breakdown');
+        if (bdPin) {
+            bdPin.innerHTML = '';
             const pinList = rPinjaman.data;
             if (pinList.length === 0) {
-                if (bdPin) bdPin.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">Belum ada pinjaman</p>';
+                bdPin.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">Belum ada pinjaman</p>';
             } else {
                 pinList.forEach(p => {
                     if (p.status === 'cair') totalPinjaman += parseFloat(p.sisa_pinjaman || 0);
@@ -1315,7 +1386,7 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
                     const badgeIcon = isLunas ? 'bi-check-circle-fill' : (isCair ? 'bi-clock-history' : 'bi-hourglass-split');
                     const sisa = parseFloat(p.sisa_pinjaman || 0);
 
-                    if (bdPin) bdPin.innerHTML += `
+                    bdPin.innerHTML += `
                     <div class="flex items-center justify-between p-3 bg-gray-50/50 dark:bg-obsidian-800/40 rounded-xl border border-gray-100 dark:border-obsidian-800 hover:border-rose-100 dark:hover:border-rose-900 hover:bg-white dark:hover:bg-obsidian-800 transition-all cursor-pointer" 
                         onclick="Portal.tab('pinjaman').then(() => setTimeout(() => Portal.openPinjamanDetail('${p.id}', '${p.no_pinjaman}', '${p.jenis_pinjaman}', ${p.jumlah || 0}, ${sisa}, ${isLunas}), 300))">
                         <div class="flex items-center gap-3">
@@ -1338,8 +1409,10 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
             }
         }
 
-        document.getElementById('h-total-simpanan').textContent = this.rp(totalSimpanan);
-        document.getElementById('h-total-pinjaman').textContent = this.rp(totalPinjaman);
+        const elTotSimp = document.getElementById('h-total-simpanan');
+        const elTotPinj = document.getElementById('h-total-pinjaman');
+        if (elTotSimp) elTotSimp.textContent = this.rp(totalSimpanan);
+        if (elTotPinj) elTotPinj.textContent = this.rp(totalPinjaman);
 
         // Ringkasan Aset
         const totalAset = totalSimpanan;
@@ -1364,7 +1437,6 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         if (elRasioLabel) elRasioLabel.textContent = rasio + '%';
         if (elAsetTime) elAsetTime.textContent = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
         if (elAsetBar) {
-            // Colour-code the bar: red below 50%, yellow 50-80%, green above 80%
             const barColor = rasio >= 80
                 ? 'bg-gradient-to-r from-emerald-400 to-teal-500'
                 : (rasio >= 50
@@ -1990,14 +2062,14 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
 
         // Load appropriate data with SWR (Stale-While-Revalidate)
         if (name === 'home') {
-            if (!this.dataCache['dashboard']) {
+            if (!this.dataCache['dashboard'] && !this.getSwrCache('portal/dashboard-summary')) {
                 this.showSkeletonDashboard();
             }
             await this.loadDashboardData();
         }
         else if (name === 'simpanan') {
             const container = document.getElementById('p-content-simpanan');
-            if (!this.dataCache['simpanan']) {
+            if (!this.dataCache['simpanan'] && !this.getSwrCache('portal/saldo')) {
                 this.showSkeletonSimpanan();
             }
             await this.loadSimpanan(container);
@@ -2005,7 +2077,7 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         }
         else if (name === 'pinjaman') {
             const container = document.getElementById('p-content-pinjaman');
-            if (!this.dataCache['pinjaman']) {
+            if (!this.dataCache['pinjaman'] && !this.getSwrCache('portal/pinjaman')) {
                 this.showSkeletonPinjaman();
             }
             await this.loadPinjaman(container);
@@ -2035,7 +2107,8 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         if (elPwa) elPwa.textContent = this.pwaName || 'Portal Anggota Koperasi';
 
         // Format tanggal bergabung menjadi tahun jika ada, default 2024
-        const tglGabung = this.member.created_at ? new Date(this.member.created_at).getFullYear() : '2024';
+        const dtGabung = this.parseDate(this.member.created_at || this.member.tgl_gabung);
+        const tglGabung = dtGabung ? dtGabung.getFullYear() : '2024';
         if (elTgl) elTgl.textContent = `${tglGabung}`;
 
         // Populate Institutional Legal Card
@@ -2334,24 +2407,41 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
     },
 
     async loadSimpanan(container) {
-        container.innerHTML = `<div class="space-y-3">${Array(3).fill().map(() => `
-            <div class="animate-pulse bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-gray-200 shrink-0"></div>
-                <div class="flex-1">
-                    <div class="h-3 bg-gray-200 rounded-full w-2/3 mb-2"></div>
-                    <div class="h-2 bg-gray-100 rounded-full w-1/3"></div>
-                </div>
-                <div class="h-4 bg-gray-200 rounded-full w-20 shrink-0"></div>
-            </div>`).join('')}</div>`;
+        if (!container) return;
+
+        // 1. SWR STALE: Render cached data immediately in 0ms
+        const cached = this.getSwrCache('portal/saldo');
+        if (cached && Array.isArray(cached)) {
+            this.renderSimpananList(container, cached);
+        } else {
+            container.innerHTML = `<div class="space-y-3">${Array(3).fill().map(() => `
+                <div class="animate-pulse bg-white dark:bg-obsidian-900 rounded-2xl border border-gray-100 dark:border-obsidian-800 p-4 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-obsidian-700 shrink-0"></div>
+                    <div class="flex-1">
+                        <div class="h-3 bg-gray-200 dark:bg-obsidian-700 rounded-full w-2/3 mb-2"></div>
+                        <div class="h-2 bg-gray-100 dark:bg-obsidian-800 rounded-full w-1/3"></div>
+                    </div>
+                    <div class="h-4 bg-gray-200 dark:bg-obsidian-700 rounded-full w-20 shrink-0"></div>
+                </div>`).join('')}</div>`;
+        }
+
+        // 2. REVALIDATE: Fetch latest from server
         const r = await this.api('portal/saldo');
-        if (!r?.success) return;
+        if (r?.success && r.data) {
+            this.setSwrCache('portal/saldo', r.data);
+            this.renderSimpananList(container, r.data);
+        }
+    },
+
+    renderSimpananList(container, data) {
+        if (!container || !Array.isArray(data)) return;
 
         // Populate summary
-        const totalSaldo = r.data.reduce((s, p) => s + parseFloat(p.saldo || 0), 0);
+        const totalSaldo = data.reduce((s, p) => s + parseFloat(p.saldo || 0), 0);
         const elTotal = document.getElementById('simp-total-saldo');
         if (elTotal) elTotal.textContent = this.rp(totalSaldo);
         const elCount = document.getElementById('simp-produk-count');
-        if (elCount) elCount.textContent = r.data.filter(p => parseFloat(p.saldo) > 0).length + ' Produk';
+        if (elCount) elCount.textContent = data.filter(p => parseFloat(p.saldo) > 0).length + ' Produk';
         const elTime = document.getElementById('simp-update-time');
         if (elTime) elTime.textContent = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -2362,7 +2452,7 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
             'partisipatif': 'bi-bank text-purple-500 bg-purple-50 border-purple-100 dark:bg-purple-900/30 dark:border-purple-800/30'
         };
 
-        container.innerHTML = r.data.length ? r.data.map((p, i) => {
+        container.innerHTML = data.length ? data.map((p, i) => {
             const lcNama = (p.nama || '').toLowerCase();
             const iconCls = iconMap[Object.keys(iconMap).find(k => lcNama.includes(k))] || 'bi-wallet2 text-purple-500 bg-purple-50 border-purple-100';
             const iconName = iconCls.split(' ')[0];
@@ -2543,29 +2633,46 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
     },
 
     async loadPinjaman(container) {
-        container.innerHTML = `<div class="space-y-4">${Array(2).fill().map(() => `
-            <div class="animate-pulse bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <div class="p-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
-                    <div>
-                        <div class="h-3 bg-gray-200 rounded-full w-32 mb-2"></div>
-                        <div class="h-2 bg-gray-100 rounded-full w-20"></div>
+        if (!container) return;
+
+        // 1. SWR STALE: Render cached data immediately in 0ms
+        const cached = this.getSwrCache('portal/pinjaman');
+        if (cached && Array.isArray(cached)) {
+            this.renderPinjamanList(container, cached);
+        } else {
+            container.innerHTML = `<div class="space-y-4">${Array(2).fill().map(() => `
+                <div class="animate-pulse bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div class="p-4 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                        <div>
+                            <div class="h-3 bg-gray-200 rounded-full w-32 mb-2"></div>
+                            <div class="h-2 bg-gray-100 rounded-full w-20"></div>
+                        </div>
+                        <div class="h-6 bg-gray-200 rounded-full w-14"></div>
                     </div>
-                    <div class="h-6 bg-gray-200 rounded-full w-14"></div>
-                </div>
-                <div class="p-4">
-                    <div class="grid grid-cols-2 gap-4 mb-3">
-                        <div><div class="h-2 bg-gray-100 rounded-full w-20 mb-2"></div><div class="h-4 bg-gray-200 rounded-full w-24"></div></div>
-                        <div class="text-right"><div class="h-2 bg-gray-100 rounded-full w-16 mb-2 ml-auto"></div><div class="h-4 bg-gray-200 rounded-full w-20 ml-auto"></div></div>
+                    <div class="p-4">
+                        <div class="grid grid-cols-2 gap-4 mb-3">
+                            <div><div class="h-2 bg-gray-100 rounded-full w-20 mb-2"></div><div class="h-4 bg-gray-200 rounded-full w-24"></div></div>
+                            <div class="text-right"><div class="h-2 bg-gray-100 rounded-full w-16 mb-2 ml-auto"></div><div class="h-4 bg-gray-200 rounded-full w-20 ml-auto"></div></div>
+                        </div>
+                        <div class="h-10 bg-gray-100 rounded-xl"></div>
                     </div>
-                    <div class="h-10 bg-gray-100 rounded-xl"></div>
-                </div>
-            </div>`).join('')}</div>`;
+                </div>`).join('')}</div>`;
+        }
+
+        // 2. REVALIDATE: Fetch latest from server
         const r = await this.api('portal/pinjaman');
-        if (!r?.success) return;
+        if (r?.success && r.data) {
+            this.setSwrCache('portal/pinjaman', r.data);
+            this.renderPinjamanList(container, r.data);
+        }
+    },
+
+    renderPinjamanList(container, data) {
+        if (!container || !Array.isArray(data)) return;
 
         // Separate lunas vs non-lunas
-        const lunasList = r.data.filter(p => p.status === 'lunas');
-        const aktifList = r.data.filter(p => p.status !== 'lunas');
+        const lunasList = data.filter(p => p.status === 'lunas');
+        const aktifList = data.filter(p => p.status !== 'lunas');
 
         // Header: hanya pinjaman status=cair yang masuk hitungan
         const aktifCair = aktifList.filter(p => p.status === 'cair');
@@ -3007,7 +3114,63 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
         if (this.currentTab === 'laporan') this.loadLaporan();
     },
 
-    fdate(d) { return d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'; },
+    parseDate(d) {
+        if (!d) return null;
+        if (d instanceof Date) return isNaN(d.getTime()) ? null : d;
+        if (typeof d === 'number') {
+            const dt = new Date(d);
+            return isNaN(dt.getTime()) ? null : dt;
+        }
+        if (typeof d !== 'string') return null;
+
+        let s = d.trim();
+        if (!s) return null;
+
+        // 1. MySQL DATETIME "YYYY-MM-DD HH:mm:ss" -> ganti spasi dengan "T" (Standar ISO 8601 Safari WebKit)
+        if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(s)) {
+            const iso = s.replace(/\s+/, 'T');
+            const dt = new Date(iso);
+            if (!isNaN(dt.getTime())) return dt;
+        }
+
+        // 2. Direct Date constructor
+        let dt = new Date(s);
+        if (!isNaN(dt.getTime())) return dt;
+
+        // 3. WebKit / Safari iOS Classic Fallback: format slash "YYYY/MM/DD HH:mm:ss"
+        const slashStr = s.replace(/-/g, '/').replace('T', ' ');
+        dt = new Date(slashStr);
+        if (!isNaN(dt.getTime())) return dt;
+
+        // 4. Regex manual extractor fallback (komponen numerik aman tanpa parsing engine bug)
+        const m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+        if (m) {
+            const y = parseInt(m[1], 10);
+            const mo = parseInt(m[2], 10) - 1;
+            const day = parseInt(m[3], 10);
+            const h = m[4] ? parseInt(m[4], 10) : 0;
+            const mi = m[5] ? parseInt(m[5], 10) : 0;
+            const sec = m[6] ? parseInt(m[6], 10) : 0;
+            dt = new Date(y, mo, day, h, mi, sec);
+            if (!isNaN(dt.getTime())) return dt;
+        }
+
+        return null;
+    },
+
+    fdate(d) {
+        const dt = this.parseDate(d);
+        if (!dt) return '-';
+        try {
+            return dt.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+        } catch (e) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const day = String(dt.getDate()).padStart(2, '0');
+            const month = months[dt.getMonth()];
+            const year = dt.getFullYear();
+            return `${day} ${month} ${year}`;
+        }
+    },
 
     async openSimpananDetail(jenisId, namaJenis, saldoJenis) {
         const modal = document.getElementById('simp-mutasi-modal');
@@ -3299,7 +3462,10 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
     },
 
     timeSince(date) {
-        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+        const dt = this.parseDate(date);
+        if (!dt) return 'baru saja';
+        const seconds = Math.floor((new Date() - dt) / 1000);
+        if (isNaN(seconds) || seconds < 0) return 'baru saja';
         let interval = seconds / 31536000;
         if (interval > 1) return Math.floor(interval) + "th";
         interval = seconds / 2592000;
@@ -3528,7 +3694,8 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
                 document.getElementById('p-lap-simpanan').textContent = this.rp(data.rincian_aset.simpanan);
                 document.getElementById('p-lap-shu').textContent = this.rp(data.rincian_aset.shu);
                 document.getElementById('p-lap-kewajiban').textContent = this.rp(data.total_kewajiban);
-                document.getElementById('p-lap-time').textContent = new Date(data.last_sync).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                const syncDt = this.parseDate(data.last_sync);
+                document.getElementById('p-lap-time').textContent = syncDt ? syncDt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
 
                 // Hitung Rasio Kesehatan
                 const total = data.total_aset + data.total_kewajiban;

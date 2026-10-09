@@ -4,6 +4,24 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [1.9.3] - 2026-10-09
+### Safari iOS & WebKit Date Compatibility Engine
+- **Universal Multi-Format Date Parser (`parseDate`)**:
+    - Memperbaiki isu tampilan `"Invalid Date"` dan `"NaN"` pada Safari iOS / WebKit (iPhone & iPad PWA mode).
+    - WebKit menolak format MySQL datetime dengan pemisah spasi (`YYYY-MM-DD HH:mm:ss`), berbeda dengan V8 (Chrome/Android) yang lebih toleran.
+    - Menambahkan parser cerdas berlapis dengan konversi otomatis ke standar ISO 8601 (`YYYY-MM-DDTHH:mm:ss`), fallback format slash (`YYYY/MM/DD`), serta ekstraksi komponen numerik tanggal manual.
+    - Mengintegrasikan parser baru pada `fdate()`, `timeSince()`, badge kartu anggota digital, sinkronisasi waktu laporan keuangan, dan histori transaksi.
+
+## [1.9.2] - 2026-10-09
+### Client-Side Stale-While-Revalidate (SWR) Engine
+- **Mesin Cache SWR Lokal Persisten (0ms Instant First-Render)**:
+    - Menerapkan arsitektur caching Stale-While-Revalidate (SWR) di sisi klien (`localStorage`) dengan isolasi kunci spesifik per akun anggota (`kop_swr_${memberId}_${endpoint}`).
+    - **Beranda Instan**: Saldo simpanan, status pinjaman, jadwal tagihan angsuran terdekat, banner transparansi, dan feed aktivitas tampil 0 milidetik seketika tanpa skeleton flicker saat aplikasi dibuka.
+    - **Revalidasi Latar Belakang (Silent Background Sync)**: Permintaan jaringan ke server berjalan di latar belakang secara asinkron; saat respon tiba, cache lokal dan tampilan DOM diperbarui dengan mulus tanpa mengganggu fokus/interaksi pengguna.
+    - **SWR Tab Simpanan & Pinjaman**: Tab Simpanan (`portal/saldo`) dan Pinjaman (`portal/pinjaman`) langsung merender data tersimpan saat diketuk; jika user sebelumnya telah memuat beranda, data saldo & pinjaman telah terisi di cache tanpa perlu request ulang.
+    - **Offline Read-Only Resilience**: Data keuangan terakhir tetap dapat dibuka dan ditinjau oleh anggota secara aman saat koneksi internet terputus atau sinyal seluler drop, dilengkapi toast notifikasi "Mode Offline".
+    - **Isolasi Keamanan & Auto-Eviction**: Seluruh cache SWR (`kop_swr_*`) dibersihkan secara otomatis saat anggota menekan "Keluar", saat sesi habis (401), maupun saat timeout idle 5 menit terpicu demi melindungi privasi data finansial anggota.
+
 ## [1.9.1] - 2026-10-09
 ### Performance & Speed Optimizations (Lightning Fast PWA)
 - **Eliminasi Artificial Delay (Startup 10x Lebih Cepat)**:
