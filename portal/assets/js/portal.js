@@ -1550,7 +1550,7 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
                     <div class="p-3 rounded-2xl bg-gradient-to-r from-emerald-50/90 to-teal-50/70 dark:from-emerald-950/40 dark:to-teal-950/30 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2.5 min-w-0">
                             <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 text-sm">
-                                <i class="bi bi-wallet-check"></i>
+                                <i class="bi bi-wallet2"></i>
                             </div>
                             <div class="min-w-0">
                                 <div class="flex items-center gap-1.5 flex-wrap">

@@ -72,10 +72,6 @@
             text-rendering: optimizeLegibility;
             font-feature-settings: "cv11" 1, "tnum" 1;
             -webkit-tap-highlight-color: transparent;
-            /* Native App Feel: Disable selection and callouts */
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-touch-callout: none;
             /* Prevent bounce scrolling on some browsers */
             overscroll-behavior-y: contain;
             /* Hide scrollbar by default for a clean app-like feel */
@@ -83,10 +79,10 @@
             -ms-overflow-style: none;
         }
 
-        /* Re-enable selection for inputs */
-        input, textarea {
-            user-select: text !important;
-            -webkit-user-select: text !important;
+        /* Re-enable selection for text and inputs */
+        body, input, textarea {
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         body::-webkit-scrollbar,
@@ -669,137 +665,124 @@
     <!-- Initial Professional Splash Screen -->
     <div id="initial-splash">
         <div class="flex flex-col items-center branding-appear">
-            <div class="w-32 h-32 mb-8 relative">
+            <div class="w-24 h-24 mb-6 relative">
                 <div
-                    class="absolute inset-0 bg-white/10 backdrop-blur-xl rounded-[2.5rem] rotate-6 scale-90 opacity-50">
-                </div>
-                <div
-                    class="absolute inset-0 bg-white/20 backdrop-blur-xl rounded-[2.5rem] -rotate-3 scale-95 opacity-80">
-                </div>
-                <div
-                    class="relative w-full h-full bg-white rounded-[2.5rem] shadow-2xl flex items-center justify-center overflow-hidden border border-white/50">
+                    class="w-full h-full bg-white dark:bg-slate-900 rounded-3xl shadow-xl flex items-center justify-center overflow-hidden border border-white/20 p-3">
                     <img id="splash-logo-img" src="{{LOGO_URL}}"
-                        class="w-20 h-20 object-contain p-2 transition-transform duration-700 hover:scale-110"
+                        class="w-16 h-16 object-contain"
                         onerror="this.onerror=null; this.src='../assets/images/favicon.png';">
                 </div>
             </div>
 
-            <div class="text-center">
-                <h1 class="text-3xl font-bold text-white tracking-tight mb-2">{{PWA_NAME}}</h1>
-                <div class="flex items-center justify-center gap-3">
-                    <span class="w-12 h-[1px] bg-white/20"></span>
-                    <span class="text-white/60 text-[10px] uppercase tracking-[0.2em] font-medium">Digital Portal</span>
-                    <span class="w-12 h-[1px] bg-white/20"></span>
-                </div>
+            <div class="text-center px-4">
+                <h1 class="text-2xl font-bold text-white tracking-tight mb-1.5">{{PWA_NAME}}</h1>
+                <p class="text-white/70 text-xs font-medium">Portal Layanan Mandiri Anggota</p>
             </div>
         </div>
 
-        <div class="absolute bottom-24 flex flex-col items-center gap-4">
+        <div class="absolute bottom-20 flex flex-col items-center gap-3">
             <span class="splash-loader"></span>
-            <p id="splash-loader-text" class="text-white/40 text-[9px] uppercase tracking-widest animate-pulse">
-                Initializing System...</p>
+            <p id="splash-loader-text" class="text-white/60 text-[11px] font-medium tracking-wide">
+                Memuat aplikasi...
+            </p>
         </div>
 
-        <!-- Financial Wisdom/Tips -->
-        <div class="absolute bottom-12 px-10 text-center branding-appear" style="animation-delay: 0.5s">
-            <p id="splash-tip" class="text-white/30 text-[10px] leading-relaxed italic font-medium max-w-[280px]"></p>
+        <!-- Tips / Informasi Singkat (Hidden if empty) -->
+        <div class="absolute bottom-8 px-8 text-center branding-appear opacity-0 pointer-events-none" style="animation-delay: 0.5s">
+            <p id="splash-tip" class="text-white/40 text-[10px] leading-relaxed italic font-medium max-w-[280px]"></p>
         </div>
     </div>
 
     <div class="mobile-container">
         <!-- Login -->
         <div id="portal-login"
-            class="min-h-screen flex flex-col items-center justify-center p-6 bg-[#F8FAFC] dark:bg-[#0B1120] relative overflow-hidden transition-colors duration-500 font-sans">
-
-            <!-- Minimal Geometric Background Elements (Standard Fintech) -->
-            <div class="absolute inset-0 overflow-hidden pointer-events-none flex justify-center items-center">
-                <!-- Soft top glow (Replaced blur with radial gradient for Safari performance) -->
-                <div
-                    class="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-500/10 to-transparent dark:from-blue-500/20 dark:to-transparent rounded-[100%]">
-                </div>
-                <!-- Grid pattern for structure -->
-                <div
-                    class="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px]">
-                </div>
-            </div>
+            class="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300 font-sans">
 
             <!-- Main Container -->
-            <div class="w-full max-w-[400px] relative z-10 flex flex-col items-center">
+            <div class="w-full max-w-[380px] relative z-10 flex flex-col items-center">
 
-                <!-- Corporate Fintech Branding -->
-                <div class="mb-8 text-center flex flex-col items-center w-full">
-                    <div
-                        class="w-16 h-16 bg-blue-600 dark:bg-blue-500 rounded-[18px] flex items-center justify-center mb-6 shadow-lg shadow-blue-600/20">
-                        <i class="bi bi-shield-check text-white text-3xl"></i>
+                <!-- Institutional Branding -->
+                <div class="mb-6 text-center flex flex-col items-center w-full">
+                    <div class="w-16 h-16 rounded-2xl bg-white dark:bg-slate-900 p-2.5 shadow-sm border border-slate-200/90 dark:border-slate-800 flex items-center justify-center mb-4 transition-transform hover:scale-105">
+                        <img src="{{LOGO_URL}}" alt="Logo Koperasi" class="w-full h-full object-contain"
+                            onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-full rounded-xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold\'><i class=\'bi bi-building\'></i></div>';">
                     </div>
-                    <h1 class="text-[28px] font-bold text-slate-900 dark:text-white tracking-tight mb-2">{{PWA_NAME}}
-                    </h1>
-                    <p class="text-[14px] text-slate-500 dark:text-slate-400 font-medium">Portal Keuangan Digital
-                        Anggota</p>
+                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight mb-1">{{PWA_NAME}}</h1>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Portal Layanan Mandiri Anggota</p>
                 </div>
 
                 <!-- Form Card -->
-                <div
-                    class="w-full bg-white dark:bg-[#1E293B] rounded-2xl p-8 shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-none border border-slate-200/60 dark:border-slate-700/50 relative">
-
-                    <form id="p-login-form" class="space-y-5">
+                <div class="w-full bg-white dark:bg-slate-900 rounded-2xl p-6 sm:p-7 shadow-sm border border-slate-200 dark:border-slate-800">
+                    <form id="p-login-form" class="space-y-4">
 
                         <!-- Error Alert -->
                         <div id="p-login-error"
-                            class="hidden bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 p-3 text-[13px] flex items-start gap-2.5 rounded-lg transition-all">
-                            <i class="bi bi-exclamation-circle-fill mt-0.5"></i>
-                            <span id="p-login-error-msg" class="font-medium"></span>
+                            class="hidden bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 px-3.5 py-3 text-xs flex items-start gap-2.5 rounded-xl">
+                            <i class="bi bi-exclamation-triangle-fill text-rose-500 shrink-0 mt-0.5"></i>
+                            <span id="p-login-error-msg" class="font-medium leading-relaxed"></span>
                         </div>
 
                         <!-- ID Input -->
-                        <div class="space-y-1.5 group">
-                            <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300">Nomor Anggota</label>
+                        <div class="space-y-1.5">
+                            <label for="p-no-anggota" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                Nomor Anggota
+                            </label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                    <i class="bi bi-person text-slate-400 dark:text-slate-500 text-[18px] group-focus-within:text-blue-600 dark:group-focus-within:text-blue-500 transition-colors"></i>
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
+                                    <i class="bi bi-person text-[18px]"></i>
                                 </div>
                                 <input type="tel" inputmode="numeric" pattern="[0-9]*" id="p-no-anggota"
-                                    class="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-slate-600 rounded-xl pl-10 pr-4 py-3 text-[15px] font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-500/10 outline-none transition-colors duration-200"
-                                    placeholder="Contoh: 0001" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" required
+                                    class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 outline-none transition-all duration-200"
+                                    placeholder="Contoh: 0001" autocomplete="username" autocorrect="off" autocapitalize="off" spellcheck="false" required
                                     oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                             </div>
                         </div>
 
                         <!-- Password Input -->
-                        <div class="space-y-1.5 group">
+                        <div class="space-y-1.5">
                             <div class="flex justify-between items-center">
-                                <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300">Kata Sandi</label>
+                                <label for="p-password" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                    Kata Sandi
+                                </label>
+                                <button type="button" onclick="showLoginHelp()" class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                                    Lupa sandi?
+                                </button>
                             </div>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                    <i class="bi bi-shield-lock text-slate-400 dark:text-slate-500 text-[18px] group-focus-within:text-blue-600 dark:group-focus-within:text-blue-500 transition-colors"></i>
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 dark:text-slate-500">
+                                    <i class="bi bi-lock text-[18px]"></i>
                                 </div>
                                 <input type="password" id="p-password" inputmode="numeric" pattern="[0-9]*"
-                                    class="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-slate-600 rounded-xl pl-10 pr-4 py-3 text-[15px] font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-600/10 dark:focus:ring-blue-500/10 outline-none transition-colors duration-200"
+                                    class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-11 py-2.5 text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-600/15 outline-none transition-all duration-200"
                                     placeholder="••••••••" autocomplete="current-password" required
                                     oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" title="Lihat/Sembunyikan sandi">
+                                    <i id="p-toggle-password-icon" class="bi bi-eye text-base"></i>
+                                </button>
                             </div>
                         </div>
 
                         <!-- Action Button -->
                         <button type="submit" id="p-login-btn"
-                            class="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white py-3.5 rounded-xl font-semibold text-[15px] transition-colors duration-200 mt-2 shadow-sm flex justify-center items-center gap-2">
+                            class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white py-3 rounded-xl font-semibold text-sm transition-all duration-200 mt-2 shadow-sm flex justify-center items-center gap-2">
                             <span>Masuk ke Portal</span>
+                            <i class="bi bi-arrow-right text-xs"></i>
                         </button>
                     </form>
                 </div>
 
-                <!-- Footer Text -->
-                <div class="mt-8 text-center flex flex-col items-center gap-3">
-                    <p class="text-[13px] text-slate-500 dark:text-slate-400">
-                        Default sandi: <span
-                            class="font-semibold text-slate-700 dark:text-slate-300 bg-slate-200/50 dark:bg-slate-800 px-2 py-1 rounded">DDMMYYYY</span>
+
+                <!-- Footer Resmi Koperasi -->
+                <div class="mt-6 text-center space-y-2">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Butuh bantuan login? 
+                        <button type="button" onclick="showLoginHelp()" class="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
+                            Pusat Bantuan
+                        </button>
                     </p>
-                    <div
-                        class="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-2">
-                        <i class="bi bi-lock-fill"></i>
-                        <span>Dilindungi oleh Enkripsi Bank-Grade 256-bit</span>
-                    </div>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">
+                        Sistem Informasi Koperasi Simpan Pinjam
+                    </p>
                 </div>
             </div>
         </div>
@@ -1020,6 +1003,47 @@
 
     <script>window.PORTAL_VERSION = '{{VERSION}}';</script>
     <script src="assets/js/portal.js?v={{VERSION}}"></script>
+    <script>
+        function togglePasswordVisibility() {
+            const input = document.getElementById('p-password');
+            const icon = document.getElementById('p-toggle-password-icon');
+            if (!input || !icon) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'bi bi-eye-slash text-base text-blue-600 dark:text-blue-400';
+            } else {
+                input.type = 'password';
+                icon.className = 'bi bi-eye text-base';
+            }
+        }
+
+        function showLoginHelp() {
+            if (typeof Swal === 'undefined') {
+                alert("Kata sandi awal adalah tanggal lahir 8 digit (DDMMYYYY). Jika lupa nomor anggota atau sandi, silakan hubungi pengurus koperasi.");
+                return;
+            }
+            Swal.fire({
+                title: 'Panduan Masuk Portal',
+                html: `
+                    <div class="text-left text-xs text-slate-600 dark:text-slate-300 space-y-3 pt-2">
+                        <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                            <p class="font-bold text-slate-800 dark:text-white mb-1"><i class="bi bi-key-fill text-amber-500 mr-1.5"></i> Kata Sandi Awal</p>
+                            <p class="leading-relaxed">Gunakan tanggal lahir Anda dengan format <strong>DDMMYYYY</strong> (contoh: tanggal 17 Agustus 1990 dimasukkan sebagai <strong>17081990</strong>).</p>
+                        </div>
+                        <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                            <p class="font-bold text-slate-800 dark:text-white mb-1"><i class="bi bi-person-vcard text-blue-500 mr-1.5"></i> Nomor Anggota</p>
+                            <p class="leading-relaxed">Nomor anggota tercantum pada buku simpanan fisik, kartu tanda anggota (KTA), atau slip pinjaman.</p>
+                        </div>
+                        <p class="text-slate-500 dark:text-slate-400 pt-1 leading-relaxed">
+                            Jika belum mengetahui nomor anggota atau lupa kata sandi yang telah diubah, silakan hubungi pengurus atau staf administrasi koperasi.
+                        </p>
+                    </div>
+                `,
+                confirmButtonText: 'Tutup',
+                confirmButtonColor: '#2563eb'
+            });
+        }
+    </script>
 
 </body>
 
