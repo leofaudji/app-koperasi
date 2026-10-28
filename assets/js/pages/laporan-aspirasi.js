@@ -27,6 +27,7 @@ const LaporanAspirasiPage = {
                     </div>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                    ${App.renderDensityToggle()}
                     <button onclick="LaporanAspirasiPage.exportPDF()"
                         class="bg-rose-50 text-rose-600 hover:bg-rose-100 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all">
                         <i class="ri-file-pdf-line text-base"></i> Cetak PDF
@@ -169,7 +170,7 @@ const LaporanAspirasiPage = {
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
+                    <table class="data-table w-full text-left text-xs">
                         <thead>
                             <tr class="bg-gray-50/75 border-b border-gray-100 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
                                 <th class="px-4 py-3.5 w-12 text-center">No</th>

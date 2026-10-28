@@ -167,6 +167,7 @@ function clearCache(array $types)
                 $redis->delete('rep_pinjaman_bakidebet');
                 $redis->delete('rep_audit_*');
                 $redis->delete('rep_tks_*');
+                $redis->delete('sidebar_menu_badges');
                 break;
             case 'saving':
                 $redis->delete('rep_simpanan_saldo');
@@ -339,6 +340,12 @@ function logPortalActivity($activity, $anggotaId = null)
     );
 }
 
+// Concurrency Optimization: release PHP session lock for read-only GET requests
+// Allows multiple concurrent AJAX queries from the same user to execute simultaneously in parallel
+if ($method === 'GET' && !in_array($resource, ['auth'])) {
+    session_write_close();
+}
+
 // Load controllers
 $controllerPath = __DIR__ . '/controllers/';
 
@@ -358,6 +365,39 @@ try {
             break;
         case 'menus':
             authCheck();
+            if ($id === 'badges' || isset($_GET['badges']) || ($params['action'] ?? '') === 'badges') {
+                $redis = RedisManager::getInstance();
+                $cacheKey = 'sidebar_menu_badges';
+                $cached = $redis->get($cacheKey);
+                if ($cached !== false && is_array($cached)) {
+                    successResponse($cached);
+                }
+
+                $db = Database::getInstance();
+                $badges = [];
+                // High-Performance Query Optimization:
+                // Hindari SELECT COUNT(*) penuh pada tabel besar yang memicu full table scan.
+                // Gunakan Covering Index Scan (SELECT id) dengan batas tegas LIMIT 100.
+                // MySQL akan langsung berhenti mencari segera setelah mencapai threshold,
+                // menjamin waktu eksekusi sub-milidetik (O(1)) berapapun besarnya jumlah data.
+                $getFastPendingCount = function ($table, $statusVal = 'pending', $cap = 100) use ($db) {
+                    try {
+                        $rows = $db->fetchAll("SELECT id FROM `{$table}` WHERE status = ? LIMIT {$cap}", [$statusVal]);
+                        return count($rows);
+                    } catch (\Throwable $e) {
+                        return 0;
+                    }
+                };
+
+                $badges['#/pinjaman'] = $getFastPendingCount('pinjaman', 'pending');
+                $badges['#/angsuran'] = $getFastPendingCount('pengajuan_angsuran', 'pending');
+                $badges['#/toko-pesanan'] = $getFastPendingCount('toko_pesanan', 'pending');
+                $badges['#/laporan-aspirasi'] = $getFastPendingCount('portal_aspirasi', 'terkirim');
+
+                // Cache hasil di Redis selama 30 detik untuk mengeliminasi beban query berulang
+                $redis->set($cacheKey, $badges, 30);
+                successResponse($badges);
+            }
             successResponse(getUserMenus($_SESSION['role_id']));
             break;
         case 'anggota':

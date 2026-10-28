@@ -20,7 +20,10 @@
                         primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' },
                         accent: { 50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#5eead4', 400: '#2dd4bf', 500: '#14b8a6', 600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a' }
                     },
-                    fontFamily: { sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'] }
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+                    }
                 }
             }
         };
@@ -80,19 +83,25 @@
         });
     </script>
 
+    <!-- Preconnect & DNS-Prefetch for External CDNs (Zero-Latency Handshake) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
     <!-- Remix Icons -->
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
-    <!-- Google Font: Plus Jakarta Sans -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    <!-- Google Font: Plus Jakarta Sans & JetBrains Mono (Fintech Monospaced Tabular Figures) -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <!-- jsPDF & AutoTable -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <!-- QRCode.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- jsPDF, AutoTable & QRCode (Deferred to avoid blocking initial render) -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <!-- Flatpickr (Date Picker DD-MM-YYYY) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -425,19 +434,26 @@
 
         <!-- Sidebar: Cloudflare-inspired -->
         <aside id="sidebar"
-            class="fixed lg:sticky top-0 left-0 z-50 h-screen w-[220px] bg-white border-r border-gray-200 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col shadow-xl lg:shadow-none">
+            class="fixed lg:sticky top-0 left-0 z-50 h-screen w-[220px] bg-white border-r border-gray-200 transform -translate-x-full lg:translate-x-0 transition-all duration-300 ease-in-out flex flex-col shadow-xl lg:shadow-none">
             <!-- Logo Section -->
-            <div class="flex items-center gap-2.5 px-4 h-12 border-b border-gray-100 flex-shrink-0">
-                <img src="assets/images/logo.svg" class="w-7 h-7" alt="Logo">
-                <div class="leading-none flex-1">
-                    <h1 class="text-gray-900 font-bold text-[11px] tracking-tight uppercase">Koperasi</h1>
-                    <p class="text-[8px] text-gray-400 font-medium">Simpan Pinjam</p>
+            <div class="flex items-center gap-2 px-3.5 h-12 border-b border-gray-100 flex-shrink-0 justify-between">
+                <div class="flex items-center gap-2.5 overflow-hidden sidebar-brand">
+                    <img src="assets/images/logo.svg" class="w-7 h-7 flex-shrink-0" alt="Logo">
+                    <div class="leading-none flex-1 truncate sidebar-brand-text">
+                        <h1 class="text-gray-900 font-bold text-[11px] tracking-tight uppercase" id="sidebar-koperasi-name">Koperasi</h1>
+                        <p class="text-[8px] text-gray-400 font-medium">Simpan Pinjam</p>
+                    </div>
                 </div>
+                <button onclick="App.toggleCompactSidebar()" id="btn-toggle-compact"
+                    class="hidden lg:flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all flex-shrink-0"
+                    title="Lipat Sidebar (Mode Ramping)">
+                    <i class="ri-sidebar-fold-line text-sm" id="icon-toggle-compact"></i>
+                </button>
             </div>
 
             <!-- Search Section -->
-            <div class="px-4 py-1.5 border-b border-gray-100 flex-shrink-0">
-                <div class="relative">
+            <div class="px-4 py-1.5 border-b border-gray-100 flex-shrink-0 sidebar-search-wrapper">
+                <div class="relative" onclick="App.isCompactSidebar && App.toggleSearch()">
                     <i class="ri-search-line absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]"></i>
                     <input type="text" id="sidebar-search" placeholder="Cari..." oninput="App.filterMenu(this.value)"
                         class="w-full pl-7 pr-2 py-1 text-[10px] bg-gray-50 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-500/20 focus:border-primary-400 placeholder:text-gray-400 transition-all font-medium">
@@ -450,21 +466,21 @@
             </nav>
 
             <!-- User Section -->
-            <div class="px-4 py-3 border-t border-gray-100 flex-shrink-0">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-bold text-xs"
+            <div class="px-3.5 py-3 border-t border-gray-100 flex-shrink-0 sidebar-user-wrapper">
+                <div class="flex items-center gap-2.5 sidebar-user-box">
+                    <div class="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0"
                         id="user-avatar">A</div>
-                    <div class="flex-1 min-w-0">
+                    <div class="flex-1 min-w-0 sidebar-user-info">
                         <p class="text-gray-800 text-xs font-semibold truncate" id="user-name">Admin</p>
                         <p class="text-gray-400 text-[0.6rem] font-medium" id="user-role">Administrator</p>
                     </div>
                     <button onclick="App.logout()"
-                        class="p-1.5 hover:bg-gray-100 rounded-md transition text-gray-400 hover:text-red-500"
+                        class="p-1.5 hover:bg-gray-100 rounded-md transition text-gray-400 hover:text-red-500 sidebar-logout-btn"
                         title="Logout">
                         <i class="ri-logout-box-r-line text-base"></i>
                     </button>
                 </div>
-                <div class="mt-2 flex justify-center">
+                <div class="mt-2 flex justify-center sidebar-version-wrapper">
                     <a href="#/changelog" id="sidebar-version"
                         class="text-[9px] font-bold text-primary-600 bg-primary-50 px-1 py-0 rounded transition-colors">{{APP_VERSION}}</a>
                 </div>
@@ -476,9 +492,14 @@
             <!-- Topbar -->
             <header
                 class="sticky top-0 z-30 h-16 bg-white/80 backdrop-blur-xl border-b border-gray-200/80 flex items-center justify-between px-4 lg:px-6 shadow-sm">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2.5">
                     <button onclick="App.toggleSidebar()" class="lg:hidden p-2 hover:bg-gray-100 rounded-xl transition">
                         <i class="ri-menu-line text-xl text-gray-600"></i>
+                    </button>
+                    <button onclick="App.toggleCompactSidebar()" id="topbar-compact-btn"
+                        class="hidden lg:flex p-2 hover:bg-gray-100 text-gray-500 hover:text-gray-800 rounded-xl transition items-center justify-center"
+                        title="Toggle Mode Ramping Sidebar">
+                        <i class="ri-layout-left-line text-lg" id="topbar-compact-icon"></i>
                     </button>
                     <div>
                         <h2 id="page-title" class="text-lg font-semibold text-gray-800">Dashboard</h2>
@@ -497,7 +518,28 @@
                         </kbd>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1.5 sm:gap-2">
+                    <!-- Mode Kerapatan Tabel (Padat vs Nyaman) -->
+                    <button id="topbar-density-btn" onclick="App.toggleTableDensity()" 
+                        class="p-2.5 hover:bg-gray-100 text-gray-500 hover:text-primary-600 rounded-xl transition-all"
+                        title="Mode Kerapatan Tabel (Padat / Nyaman)">
+                        <i class="ri-table-line text-xl" id="topbar-density-icon"></i>
+                    </button>
+
+                    <!-- Kalkulator Kasir & Simulasi Angsuran -->
+                    <button id="topbar-calc-btn" onclick="App.toggleCalculator()" 
+                        class="p-2.5 hover:bg-gray-100 text-gray-500 hover:text-primary-600 rounded-xl transition-all"
+                        title="Kalkulator Kasir & Simulasi Angsuran (Alt + C)">
+                        <i class="ri-calculator-line text-xl"></i>
+                    </button>
+
+                    <!-- Suara Konfirmasi Transaksi (Audio Feedback) -->
+                    <button id="topbar-audio-btn" onclick="App.toggleAudio()" 
+                        class="p-2.5 hover:bg-gray-100 text-gray-500 hover:text-emerald-600 rounded-xl transition-all"
+                        title="Suara Konfirmasi Transaksi">
+                        <i class="ri-volume-up-line text-xl" id="topbar-audio-icon"></i>
+                    </button>
+
                     <!-- Notification Bell for Bendahara / Admin -->
                     <div class="relative" id="notif-bell-wrapper">
                         <button id="notif-bell-btn" onclick="App.toggleNotifDropdown()" 
@@ -613,6 +655,35 @@
         </div>
     </div>
 
+    <!-- Slide-Over Drawer Inspection Container (Panel Samping Non-Destruktif) -->
+    <div id="drawer-container" class="fixed inset-0 z-[85] hidden pointer-events-none transition-all duration-300">
+        <!-- Subtle Backdrop -->
+        <div id="drawer-backdrop" class="absolute inset-0 bg-slate-900/35 backdrop-blur-[2px] opacity-0 transition-opacity duration-300 pointer-events-auto" onclick="App.closeDrawer()"></div>
+        
+        <!-- Slide Panel from Right Edge -->
+        <div id="drawer-panel" class="absolute top-0 right-0 h-full w-full max-w-xl md:max-w-2xl bg-white shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 ease-out pointer-events-auto z-10 border-l border-slate-200">
+            <!-- Header bar with Title, Nav, & Close -->
+            <div id="drawer-header" class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div id="drawer-header-left" class="flex items-center gap-3 min-w-0">
+                    <!-- Title & badge injected here -->
+                </div>
+                <div id="drawer-header-right" class="flex items-center gap-2 shrink-0">
+                    <!-- Navigation and close button injected here -->
+                </div>
+            </div>
+
+            <!-- Scrollable Content Body -->
+            <div id="drawer-content" class="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+                <!-- Content injected here -->
+            </div>
+
+            <!-- Optional Footer Bar -->
+            <div id="drawer-footer" class="px-6 py-3.5 border-t border-slate-100 bg-white flex items-center justify-between shrink-0">
+                <!-- Footer actions injected here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Omni-Search Modal -->
     <div id="omni-search-modal" class="fixed inset-0 z-[110] hidden opacity-0 transition-all duration-300">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onclick="App.toggleSearch()"></div>
@@ -651,8 +722,188 @@
         </div>
     </div>
 
+    <!-- Floating Financial & Teller Calculator Modal -->
+    <div id="calculator-modal" class="fixed inset-0 z-[120] hidden opacity-0 transition-all duration-300">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="App.toggleCalculator()"></div>
+        <div class="absolute right-3 bottom-3 sm:right-6 sm:bottom-6 w-full max-w-sm sm:max-w-md">
+            <div class="bg-white rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden transform transition-all scale-95" id="calculator-content">
+                <!-- Calculator Header -->
+                <div class="bg-slate-900 px-5 py-4 text-white flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-primary-500/20 border border-primary-400/30 flex items-center justify-center text-primary-400">
+                            <i class="ri-calculator-line text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold tracking-tight">Kalkulator Kasir & Simulasi</h3>
+                            <p class="text-[10px] text-slate-400">Peralatan Bantu Operasional Petugas</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="App.toggleCalculator()" class="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors" title="Tutup (Esc)">
+                            <i class="ri-close-line text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab Selector -->
+                <div class="flex border-b border-slate-100 bg-slate-50/80 text-xs font-bold p-1 gap-1">
+                    <button onclick="App.calcSetTab('cash')" id="calc-tab-cash" 
+                        class="flex-1 py-2 px-3 rounded-xl bg-white shadow-sm text-primary-600 flex items-center justify-center gap-1.5 transition-all">
+                        <i class="ri-money-dollar-circle-line"></i> Hitung Kasir & Kembalian
+                    </button>
+                    <button onclick="App.calcSetTab('loan')" id="calc-tab-loan" 
+                        class="flex-1 py-2 px-3 rounded-xl text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5 transition-all">
+                        <i class="ri-percent-line"></i> Simulasi Angsuran
+                    </button>
+                </div>
+
+                <!-- Tab 1: Cash & Change Calculator -->
+                <div id="calc-view-cash" class="p-4 sm:p-5 space-y-3.5">
+                    <!-- Display Screen -->
+                    <div class="bg-slate-900 rounded-2xl p-4 text-right shadow-inner border border-slate-800">
+                        <div class="text-[11px] font-mono text-slate-400 h-4 truncate" id="calc-formula"></div>
+                        <div class="text-2xl font-bold font-mono text-white tracking-tight break-all" id="calc-display">0</div>
+                        <div class="text-[10px] text-primary-400 font-medium truncate mt-1 text-left" id="calc-terbilang">Nol Rupiah</div>
+                    </div>
+
+                    <!-- Quick Cash Addition Chips -->
+                    <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">+ Cepat:</span>
+                        <button onclick="App.calcAddNominal(50000)" class="px-2 py-1 bg-slate-100 hover:bg-primary-50 hover:text-primary-600 rounded-lg text-xs font-bold text-slate-600 transition-colors">+50rb</button>
+                        <button onclick="App.calcAddNominal(100000)" class="px-2 py-1 bg-slate-100 hover:bg-primary-50 hover:text-primary-600 rounded-lg text-xs font-bold text-slate-600 transition-colors">+100rb</button>
+                        <button onclick="App.calcAddNominal(500000)" class="px-2 py-1 bg-slate-100 hover:bg-primary-50 hover:text-primary-600 rounded-lg text-xs font-bold text-slate-600 transition-colors">+500rb</button>
+                        <button onclick="App.calcAddNominal(1000000)" class="px-2 py-1 bg-slate-100 hover:bg-primary-50 hover:text-primary-600 rounded-lg text-xs font-bold text-slate-600 transition-colors">+1jt</button>
+                        <button onclick="App.calcCopyResult()" class="ml-auto px-2.5 py-1 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors" title="Salin Nominal">
+                            <i class="ri-file-copy-line"></i> Salin
+                        </button>
+                    </div>
+
+                    <!-- Keypad Grid -->
+                    <div class="grid grid-cols-4 gap-1.5 sm:gap-2">
+                        <button onclick="App.calcAction('C')" class="p-2.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-sm transition-colors">C</button>
+                        <button onclick="App.calcAction('backspace')" class="p-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold text-sm transition-colors"><i class="ri-delete-back-2-line"></i></button>
+                        <button onclick="App.calcAction('%')" class="p-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold text-sm transition-colors">%</button>
+                        <button onclick="App.calcAction('/')" class="p-2.5 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold text-base transition-colors">÷</button>
+
+                        <button onclick="App.calcAction('7')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">7</button>
+                        <button onclick="App.calcAction('8')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">8</button>
+                        <button onclick="App.calcAction('9')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">9</button>
+                        <button onclick="App.calcAction('*')" class="p-2.5 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold text-base transition-colors">×</button>
+
+                        <button onclick="App.calcAction('4')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">4</button>
+                        <button onclick="App.calcAction('5')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">5</button>
+                        <button onclick="App.calcAction('6')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">6</button>
+                        <button onclick="App.calcAction('-')" class="p-2.5 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold text-base transition-colors">−</button>
+
+                        <button onclick="App.calcAction('1')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">1</button>
+                        <button onclick="App.calcAction('2')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">2</button>
+                        <button onclick="App.calcAction('3')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">3</button>
+                        <button onclick="App.calcAction('+')" class="p-2.5 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100 font-bold text-base transition-colors">+</button>
+
+                        <button onclick="App.calcAction('0')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">0</button>
+                        <button onclick="App.calcAction('000')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-sm transition-colors">000</button>
+                        <button onclick="App.calcAction('.')" class="p-2.5 rounded-xl bg-slate-50 text-slate-800 hover:bg-slate-100 font-bold text-base transition-colors">,</button>
+                        <button onclick="App.calcAction('=')" class="p-2.5 rounded-xl bg-primary-600 text-white hover:bg-primary-700 font-bold text-lg shadow-md shadow-primary-500/20 transition-colors">=</button>
+                    </div>
+
+                    <!-- Hitung Kembalian Kasir -->
+                    <div class="border-t border-slate-100 pt-3 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-700 flex items-center gap-1">
+                                <i class="ri-exchange-dollar-line text-emerald-600"></i> Hitung Uang Kembalian
+                            </span>
+                            <button onclick="App.calcApplyDisplayToTagihan()" class="text-[10px] text-primary-600 hover:underline font-bold">
+                                Pakai Hasil di Atas
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-semibold block mb-0.5">Total Tagihan (Rp)</label>
+                                <input type="number" id="calc-tagihan" placeholder="0" oninput="App.calcHitungKembalian()"
+                                    class="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-primary-500">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-400 font-semibold block mb-0.5">Uang Diterima (Rp)</label>
+                                <input type="number" id="calc-diterima" placeholder="0" oninput="App.calcHitungKembalian()"
+                                    class="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-primary-500">
+                            </div>
+                        </div>
+                        <div id="calc-kembalian-box" class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-emerald-800">Uang Kembalian:</span>
+                            <span id="calc-kembalian-text" class="text-sm font-bold font-mono text-emerald-700">Rp 0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Loan Installment Quick Simulation -->
+                <div id="calc-view-loan" class="p-4 sm:p-5 space-y-3.5 hidden">
+                    <div class="space-y-2.5 text-xs">
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-700 block mb-1">Plafon Pinjaman Diajukan</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">Rp</span>
+                                <input type="number" id="calc-loan-plafon" placeholder="Contoh: 5000000" oninput="App.calcHitungSimulasi()"
+                                    class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-primary-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="text-[11px] font-bold text-slate-700 block mb-1">Jangka Waktu (Bulan)</label>
+                                <input type="number" id="calc-loan-tenor" value="10" min="1" max="120" oninput="App.calcHitungSimulasi()"
+                                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-primary-500">
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-bold text-slate-700 block mb-1">Bunga (% per bulan)</label>
+                                <input type="number" id="calc-loan-bunga" value="1.5" step="0.1" oninput="App.calcHitungSimulasi()"
+                                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-primary-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Simulation Result Cards -->
+                    <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 text-white space-y-2.5 shadow-md">
+                        <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
+                            <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Angsuran per Bulan</span>
+                            <span id="calc-sim-angsuran" class="text-base font-bold font-mono text-emerald-400">Rp 0</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-[11px]">
+                            <div>
+                                <span class="text-slate-400 block text-[9px]">Pokok / bln:</span>
+                                <span id="calc-sim-pokok" class="font-mono font-bold text-slate-200">Rp 0</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block text-[9px]">Bunga / bln:</span>
+                                <span id="calc-sim-bunga" class="font-mono font-bold text-amber-300">Rp 0</span>
+                            </div>
+                        </div>
+                        <div class="border-t border-slate-700/60 pt-2 flex items-center justify-between text-xs">
+                            <span class="text-slate-400">Total Pengembalian:</span>
+                            <span id="calc-sim-total" class="font-bold font-mono text-white">Rp 0</span>
+                        </div>
+                    </div>
+
+                    <button onclick="App.calcCopySimulasi()" class="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-md shadow-primary-500/20">
+                        <i class="ri-file-copy-line"></i> Salin Rincian Simulasi Pinjaman
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core SPA Engine -->
     <script src="assets/js/app.js?v={{APP_VERSION}}"></script>
 
+    <!-- Failsafe: Pastikan splash screen otomatis tertutup jika jaringan lambat -->
+    <script>
+        setTimeout(function () {
+            var splash = document.getElementById('splash-screen');
+            if (splash && !splash.classList.contains('hidden')) {
+                splash.classList.add('opacity-0', 'invisible');
+                setTimeout(function () { splash.classList.add('hidden'); }, 600);
+            }
+        }, 3500);
+    </script>
 
 </body>
 

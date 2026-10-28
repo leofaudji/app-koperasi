@@ -16,6 +16,7 @@ const MonitoringSimpananWajibPage = {
                     <p class="text-xs text-gray-400 mt-1">Monitoring status pembayaran simpanan pokok & wajib bulanan</p>
                 </div>
                 <div class="flex items-center gap-2">
+                    ${App.renderDensityToggle()}
                     <button onclick="MonitoringSimpananWajibPage.export('pdf')" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 border border-red-100 shadow-sm">
                         <i class="ri-file-pdf-line"></i> PDF
                     </button>

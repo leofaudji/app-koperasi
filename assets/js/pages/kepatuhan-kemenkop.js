@@ -389,21 +389,16 @@ const KepatuhanKemenkopPage = {
         const doc = new jsPDF('p', 'mm', 'a4');
 
         const title = 'LAPORAN EVALUASI KEPATUHAN KEMENKOP UKM';
-        App.drawPDFHeader(doc, title);
-        App.drawPDFFooter(doc);
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Tahun Evaluasi: ${d.tahun}  |  Standar: Permenkop UKM No. 2/2024 & Permenkop UKM No. 9/2020`, 14, 44);
+        const subtitle = `Tahun Evaluasi: ${d.tahun}  |  Standar: Permenkop UKM No. 2/2024 & Permenkop UKM No. 9/2020`;
+        const headerBottomY = App.drawPDFHeader(doc, title, { subtitle });
 
         const cards = [
-            { label: 'Tingkat KUK', value: `KUK ${kuk.level}` },
-            { label: 'Total Aset', value: App.formatRupiah(nr.total_aset) },
-            { label: 'Modal Sendiri', value: App.formatRupiah(nr.modal_sendiri) },
-            { label: 'Sisa Hasil Usaha', value: App.formatRupiah(phu.shu) }
+            { label: 'Tingkat KUK', value: `KUK ${kuk.level}`, color: 'indigo' },
+            { label: 'Total Aset', value: App.formatRupiah(nr.total_aset), color: 'blue' },
+            { label: 'Modal Sendiri', value: App.formatRupiah(nr.modal_sendiri), color: 'emerald' },
+            { label: 'Sisa Hasil Usaha', value: App.formatRupiah(phu.shu), color: 'rose' }
         ];
-        const curY = App.drawPDFSummaryCards(doc, cards, 48);
+        const curY = App.drawPDFSummaryCards(doc, cards, headerBottomY + 2);
 
         // Tabel I: 7 Indikator Kepatuhan Prudensial
         const bodyPrudensial = [
@@ -489,10 +484,19 @@ const KepatuhanKemenkopPage = {
             },
             margin: { left: 14, right: 14, top: 46, bottom: 20 },
             didDrawPage: () => {
-                App.drawPDFHeader(doc, title);
-                App.drawPDFFooter(doc);
+                App.drawPDFHeader(doc, title, { subtitle });
             }
         });
+
+        // Signatures block
+        App.drawPDFSignatures(doc, doc.lastAutoTable.finalY + 6, { title, subtitle });
+
+        // Two-Pass Page Numbering & Footer Drawing for Absolute Accuracy
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            App.drawPDFFooter(doc, { currentPage: i, totalPages });
+        }
 
         window.open(doc.output('bloburl'), '_blank');
     },

@@ -17,6 +17,7 @@ const LaporanMutasiAngsuranPage = {
                     <p class="text-xs text-gray-400 mt-1">Histori pembayaran angsuran pinjaman</p>
                 </div>
                 <div class="flex items-center gap-2">
+                    ${App.renderDensityToggle()}
                     <button onclick="LaporanMutasiAngsuranPage.export('pdf')" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 border border-red-100">
                         <i class="ri-file-pdf-line"></i> PDF
                     </button>
@@ -34,7 +35,10 @@ const LaporanMutasiAngsuranPage = {
             <div class="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 mb-6">
                 <div class="flex flex-col sm:flex-row items-end gap-4">
                     <div class="flex-1 w-full">
-                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Periode Transaksi</label>
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5 ml-1">
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Periode Transaksi</label>
+                            ${App.renderDateChips({ callback: 'LaporanMutasiAngsuranPage.setPreset', flatpickrId: 'lma-date-range' })}
+                        </div>
                         <div class="relative">
                             <input type="text" id="lma-date-range" class="bg-white border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5 shadow-sm" placeholder="Pilih Periode">
                             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -67,6 +71,36 @@ const LaporanMutasiAngsuranPage = {
         this.metode = '';
         this.initFilters();
         this.load();
+    },
+
+    setPreset(preset) {
+        const now = moment();
+        let startD, endD;
+        if (preset === 'today') {
+            startD = now.format('YYYY-MM-DD');
+            endD = now.format('YYYY-MM-DD');
+        } else if (preset === '7days') {
+            startD = moment().subtract(6, 'days').format('YYYY-MM-DD');
+            endD = now.format('YYYY-MM-DD');
+        } else if (preset === 'month' || preset === 'thisMonth') {
+            startD = moment().startOf('month').format('YYYY-MM-DD');
+            endD = moment().endOf('month').format('YYYY-MM-DD');
+        } else if (preset === 'last_month' || preset === 'lastMonth') {
+            startD = moment().subtract(1, 'month').startOf('month').format('YYYY-MM-DD');
+            endD = moment().subtract(1, 'month').endOf('month').format('YYYY-MM-DD');
+        } else if (preset === 'year' || preset === 'thisYear') {
+            startD = moment().startOf('year').format('YYYY-MM-DD');
+            endD = moment().endOf('year').format('YYYY-MM-DD');
+        }
+        if (startD && endD) {
+            this.from = startD;
+            this.to = endD;
+            const fpEl = document.getElementById('lma-date-range');
+            if (fpEl && fpEl._flatpickr) {
+                fpEl._flatpickr.setDate([startD, endD], false);
+            }
+            this.load();
+        }
     },
 
     initFilters() {
@@ -173,6 +207,21 @@ const LaporanMutasiAngsuranPage = {
             </table>
         </div>`;
         document.getElementById('lma-table-container').innerHTML = html;
+
+        if (data.length > 0) {
+            const totalPokok = data.reduce((s, r) => s + parseFloat(r.pokok || 0), 0);
+            const totalBunga = data.reduce((s, r) => s + parseFloat(r.bunga || 0), 0);
+            const totalBayar = data.reduce((s, r) => s + parseFloat(r.total || 0), 0);
+            App.attachStickySummary({
+                table: '#lma-table-container table',
+                title: 'Total Mutasi Angsuran',
+                items: [
+                    { label: 'Pokok (+)', value: App.formatRupiah(totalPokok), color: 'emerald' },
+                    { label: 'Jasa Pinjaman', value: App.formatRupiah(totalBunga), color: 'amber' },
+                    { label: 'Total Angsuran Masuk', value: App.formatRupiah(totalBayar), color: 'primary' }
+                ]
+            });
+        }
     },
 
     getColumns() {

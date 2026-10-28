@@ -94,6 +94,7 @@ const AuditPage = {
                         <p class="text-sm text-gray-500">Memastikan total saldo di modul sama dengan saldo di Neraca (GL)</p>
                     </div>
                     <div class="flex items-center gap-2">
+                        ${App.renderDensityToggle()}
                         <button onclick="AuditPage.exportComprehensivePDF()" class="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-sm shadow-primary-100 mr-2">
                             <i class="ri-file-list-3-line text-lg"></i> Laporan Komprehensif
                         </button>
@@ -107,7 +108,7 @@ const AuditPage = {
                 </div>
 
                 <div class="table-responsive">
-                    <table class="w-full text-sm">
+                    <table class="data-table w-full text-sm">
                         <thead>
                             <tr class="bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-widest border-b border-gray-100">
                                 <th class="px-4 py-3 text-left">Kategori</th>
@@ -269,6 +270,7 @@ const AuditPage = {
                         <p class="text-sm text-gray-500">Riwayat perubahan data transaksi koperasi</p>
                     </div>
                     <div class="flex items-center gap-2 w-full sm:w-auto">
+                        ${App.renderDensityToggle()}
                         <div class="relative flex-1 sm:w-64">
                             <i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             <input type="text" value="${this.searchLog}" 
@@ -283,7 +285,7 @@ const AuditPage = {
                 </div>
 
                 <div class="table-responsive">
-                    <table class="w-full text-sm">
+                    <table class="data-table w-full text-sm">
                         <thead>
                             <tr class="bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-widest border-b border-gray-100">
                                 <th class="px-4 py-3 text-left">Waktu</th>

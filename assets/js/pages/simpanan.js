@@ -40,8 +40,12 @@ const SimpananPage = {
                         <span class="text-gray-400 text-xs">s/d</span>
                         <input type="date" id="simp-filter-sampai" value="${sampai}" onchange="SimpananPage.loadList(SimpananPage.container)" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 bg-white" title="Sampai Tanggal">
                     </div>
+                    <div class="hidden xl:block">
+                        ${App.renderDateChips({ fromId: 'simp-filter-dari', toId: 'simp-filter-sampai', callback: 'SimpananPage.loadList(SimpananPage.container)' })}
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
+                    ${App.renderDensityToggle()}
                     <button onclick="SimpananPage.export('pdf')" class="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF"><i class="ri-file-pdf-line text-lg"></i></button>
                     <button onclick="SimpananPage.export('csv')" class="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title="Export CSV"><i class="ri-file-excel-line text-lg"></i></button>
                     ${App.hasPerm('simpanan.create') ? '<button onclick="SimpananPage.form()" class="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-emerald-500/25 ml-2"><i class="ri-add-line"></i> Transaksi Baru</button>' : ''}
@@ -65,8 +69,9 @@ const SimpananPage = {
                                 <button onclick="App.toggleRowDropdown(this)" class="row-dropdown-trigger p-1 px-2.5 text-gray-500 hover:text-gray-700 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1">
                                     Aksi <i class="ri-arrow-down-s-line"></i>
                                 </button>
-                                <div class="row-dropdown-menu hidden absolute right-0 mt-1 w-32 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-fadeIn">
-                                    <button onclick="App.printReceipt('simpanan', ${s.id})" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-1.5"><i class="ri-printer-line text-sm"></i> Struk</button>
+                                <div class="row-dropdown-menu hidden absolute right-0 mt-1 w-36 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-fadeIn">
+                                    <button onclick="App.showThermalReceiptPreview('simpanan', ${s.id})" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-1.5"><i class="ri-receipt-line text-sm"></i> Preview Struk</button>
+                                    <button onclick="App.printReceipt('simpanan', ${s.id})" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5"><i class="ri-printer-line text-sm"></i> Cetak Langsung</button>
                                     <button onclick="SimpananPage.form({ editId: ${s.id} })" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-primary-600 hover:bg-primary-50 transition-colors flex items-center gap-1.5"><i class="ri-edit-line text-sm"></i> Koreksi</button>
                                     <button onclick="SimpananPage.confirmReverse(${s.id}, '${s.no_transaksi}')" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1.5"><i class="ri-arrow-go-back-line text-sm"></i> Reversal</button>
                                 </div>
@@ -81,30 +86,37 @@ const SimpananPage = {
         </div>`;
     },
     async form(options = {}) {
-        const ktRes = await App.api('kode-transaksi');
-        const kodeList = ktRes?.data || [];
-        const defaultJenisCode = options.defaultJenisCode || this.defaultJenisCode || '';
-        const jenisLabel = defaultJenisCode === 'SW' ? 'Simpanan Wajib' : defaultJenisCode === 'SP' ? 'Simpanan Pokok' : defaultJenisCode === 'SS' ? 'Simpanan Sukarela' : '';
-        
-        let accounts = [];
-        const resAkun = await App.api('keuangan/akun');
-        if (resAkun?.success) {
-            accounts = resAkun.data;
-        }
-
         const isEdit = !!options.editId;
-        let trx = null;
-        if (isEdit) {
-            const editRes = await App.api('simpanan/' + options.editId);
-            if (editRes?.success) {
-                trx = editRes.data;
-            } else {
-                App.toast('Gagal memuat data transaksi', 'error');
-                return;
-            }
+        const needsLoading = isEdit || !App._apiCache['kode-transaksi'] || !App._apiCache['keuangan/akun'];
+        if (needsLoading) {
+            App.openModalLoading(isEdit ? 'Memuat Data Koreksi Simpanan...' : 'Menyiapkan Form Transaksi Simpanan...');
         }
 
-        App.openModal(`<div class="p-6">
+        try {
+            // Parallel fetch & use client cache for master data
+            const [ktRes, resAkun, editRes] = await Promise.all([
+                App.cachedApi('kode-transaksi'),
+                App.cachedApi('keuangan/akun'),
+                isEdit ? App.api('simpanan/' + options.editId) : Promise.resolve(null)
+            ]);
+
+            const kodeList = ktRes?.data || [];
+            const accounts = resAkun?.success ? resAkun.data : [];
+            const defaultJenisCode = options.defaultJenisCode || this.defaultJenisCode || '';
+            const jenisLabel = defaultJenisCode === 'SW' ? 'Simpanan Wajib' : defaultJenisCode === 'SP' ? 'Simpanan Pokok' : defaultJenisCode === 'SS' ? 'Simpanan Sukarela' : '';
+            
+            let trx = null;
+            if (isEdit) {
+                if (editRes?.success) {
+                    trx = editRes.data;
+                } else {
+                    App.closeModal();
+                    App.toast('Gagal memuat data transaksi', 'error');
+                    return;
+                }
+            }
+
+            App.openModal(`<div class="p-6">
             <h3 class="text-lg font-bold text-gray-800 mb-6"><i class="ri-exchange-funds-line text-emerald-500 mr-2"></i>${isEdit ? `Koreksi Data Transaksi: ${trx.no_transaksi}` : 'Transaksi Simpanan'}</h3>
             ${jenisLabel && !isEdit ? `<div class="rounded-2xl border border-primary-100 bg-primary-50 text-primary-700 px-4 py-3 mb-4 text-sm">Mode shortcut: <strong>${jenisLabel}</strong>. Pilih rekening anggota yang memiliki jenis simpanan ini.</div>` : ''}
             <form id="simp-form" class="space-y-4">
@@ -139,7 +151,7 @@ const SimpananPage = {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Kode Transaksi *</label>
-                        <select id="sf-kode" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500">
+                        <select id="sf-kode" data-icon="ri-exchange-line" data-search-placeholder="Cari kode transaksi (misal: ST, TR)..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
                             ${kodeList.map(k => `<option value="${k.id}" data-dk="${k.dk}" ${isEdit && k.id == trx.kode_transaksi_id ? 'selected' : ''}>${k.kode} - ${k.nama} (${k.dk === 'D' ? 'Debit/Masuk' : 'Kredit/Keluar'})</option>`).join('')}
                         </select>
                     </div>
@@ -325,7 +337,12 @@ const SimpananPage = {
             } else {
                 App.toast(res?.message || 'Gagal menyimpan transaksi', 'error');
             }
-        };;
+        };
+        } catch (err) {
+            console.error('Error in SimpananPage.form:', err);
+            App.closeModal();
+            App.toast('Terjadi kesalahan saat menyiapkan form simpanan', 'error');
+        }
     },
 
     selectAccountByIndex(idx) {

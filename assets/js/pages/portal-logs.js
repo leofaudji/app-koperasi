@@ -23,6 +23,7 @@ const PortalLogsPage = {
                             class="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm w-full focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
                             value="${this.filters.search}">
                     </div>
+                    ${App.renderDensityToggle()}
                     <button onclick="PortalLogsPage.load()" class="bg-white border border-gray-200 text-gray-600 hover:text-primary-600 p-2.5 rounded-xl transition-all shadow-sm active:scale-95">
                         <i class="ri-refresh-line"></i>
                     </button>
@@ -212,7 +213,7 @@ const PortalLogsPage = {
     renderTable() {
         const html = `
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            <table class="data-table w-full text-sm">
                 <thead>
                     <tr class="bg-gray-50 text-gray-500 font-medium">
                         <th class="px-6 py-4 text-left">Waktu</th>

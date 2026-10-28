@@ -82,6 +82,7 @@ const AkhirTahunPage = {
         // Auto-select akun SHU jika ada
         const shuAkun = modalAkuns.find(a => a.nama.toLowerCase().includes('shu') || a.nama.toLowerCase().includes('laba'));
         if (shuAkun) sel.value = shuAkun.id;
+        App.searchableSelect(sel, { icon: 'ri-scales-3-line', placeholder: 'Pilih akun tujuan SHU...' });
     },
 
     async preview() {

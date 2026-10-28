@@ -71,25 +71,54 @@ Tersedia skrip utilitas berbasis Command Line Interface (CLI) di root direktori 
 ### 4.4 `fix_historical_data.php`
 - **Tujuan**: Menyeimbangkan data pembukuan historis hasil impor / migrasi dari aplikasi lama yang belum memiliki jurnal saldo awal seimbang.
 
+### 4.5 `db_migration_production_indexes.php` & `production_indexes.sql`
+- **Tujuan**: Menambahkan indeks performa tinggi pada kolom-kolom query kritis di database produksi untuk mempercepat pemfilteran, sorting, dan pagination data transaksi besar.
+- **Tabel & Indeks Sasaran**:
+  - `pinjaman`: `idx_pinjaman_status` (`status`), `idx_pinjaman_tgl_cair` (`tgl_pencairan`).
+  - `angsuran`: `idx_angsuran_status` (`status`), `idx_angsuran_tgl_bayar` (`tgl_bayar`), `idx_angsuran_tgl_jatuh_tempo` (`tgl_jatuh_tempo`).
+  - `simpanan`: `idx_simpanan_tgl_trx` (`tgl_transaksi`).
+  - `anggota`: `idx_anggota_nama` (`nama`), `idx_anggota_status` (`status`).
+- **Karakteristik Keamanan**:
+  - Bersifat idempoten; memeriksa `SHOW INDEX FROM table` sebelum menambahkan indeks baru, sehingga aman dijalankan berulang kali via CLI (`php db_migration_production_indexes.php`) maupun browser.
+  - Menyertakan berkas kueri SQL mentah `production_indexes.sql` untuk dieksekusi secara langsung melalui antarmuka phpMyAdmin, DBeaver, atau HeidiSQL.
+
 ---
 
-## 5. Prosedur Standar Migrasi Skema Database
+## 5. Konfigurasi Kompresi Web Server & Caching Aset Browser (`.htaccess`)
 
-Setiap pembaruan skema database (tabel baru atau kolom baru) wajib mengikuti pola file migrasi modular mandiri (contoh: `db_migration_v2.1.6.php`, `db_migration_v2.1.7.php`, `db_migration_pengajuan_angsuran.php`):
+Untuk mencapai skor performa tinggi (*Core Web Vitals*) dan memangkas waktu pemuatan dashboard:
+
+1. **Kompresi Jaringan `mod_deflate` (Gzip)**:
+   - Mengompresi seluruh muatan teks dan skrip dinamis sebelum dikirimkan ke browser:
+     - `text/html`, `text/css`, `text/plain`, `text/xml`
+     - `application/javascript`, `application/x-javascript`
+     - `application/json`, `application/xml`
+     - `image/svg+xml`, `font/woff`, `font/woff2`
+   - Menghasilkan pengurangan ukuran muatan payload jaringan sebesar 70% – 80%.
+2. **Header Masa Berlaku Aset `mod_expires` (Browser Cache)**:
+   - Menginstruksikan browser untuk menyimpan aset statis (gambar, logo koperasi, favicon, font) dalam cache lokal selama 1 bulan hingga 1 tahun.
+3. **Pelepasan Sesi PHP Bersamaan (Non-Blocking Concurrency)**:
+   - Endpoint `GET` read-only melepaskan kunci berkas sesi melalui `session_write_close()` sebelum controller mengeksekusi kueri, mengeliminasi fenomena *request serialization blocking* pada lalu lintas pengguna multi-tab/multi-request simultan.
+
+---
+
+## 6. Prosedur Standar Migrasi Skema Database
+
+Setiap pembaruan skema database (tabel baru atau kolom baru) wajib mengikuti pola file migrasi modular mandiri (contoh: `db_migration_v2.1.6.php`, `db_migration_production_indexes.php`, `db_migration_pengajuan_angsuran.php`):
 1. **Prinsip Idempoten**: Skrip migrasi dapat dijalankan berulang kali tanpa merusak struktur atau menghasilkan error (`SHOW COLUMNS`, `IF NOT EXISTS`).
 2. **Pengecekan Tipe Data**: Memeriksa apakah kolom sudah ada dan apakah tipe datanya sesuai sebelum mengeksekusi `ALTER TABLE`.
 3. **Pemberitahuan Konsol**: Menampilkan output baris status (`[OK]`, `[INFO]`, `[ERROR]`) yang jelas pada terminal CLI.
 
 ---
 
-## 6. Prosedur Operasional Standar (SOP) Deployment Rilis Baru
+## 7. Prosedur Operasional Standar (SOP) Deployment Rilis Baru
 
 Saat merilis versi baru ke server produksi:
 1. **Pencadangan Penuh**: Jalankan backup database `.sql` dan arsipkan file kode program.
 2. **Pembaruan Kode**: Lakukan penarikan kode (*git pull*) ke repositori server produksi.
-3. **Eksekusi Migrasi Database**: Jalankan skrip migrasi versi terkait melalui terminal:
+3. **Eksekusi Migrasi Database & Indeks**: Jalankan skrip migrasi versi terkait melalui terminal:
    ```bash
-   php db_migration_v2.1.X.php
+   php db_migration_production_indexes.php
    ```
 4. **Pembersihan Cache Redis**:
    ```bash
@@ -100,4 +129,4 @@ Saat merilis versi baru ke server produksi:
    - Naikkan nomor versi pada `portal/version.json`.
 6. **Verifikasi Audit Saldo**:
    - Buka menu **Audit Saldo** (`#/audit`) dan pastikan Skor Kesehatan Audit mencapai **100% (Sehat)** dengan **Selisih Saldo Rp 0,00**.
-7. **Sinkronisasi PRD**: Pastikan seluruh berkas terkait di folder `docs/prd/` dan berkas `CHANGELOG.md` telah diperbarui sesuai perubahan yang dirilis.
+7. **Sinkronisasi PRD & Dokumentasi**: Pastikan seluruh berkas terkait di folder `docs/prd/` dan berkas `CHANGELOG.md` telah diperbarui sesuai perubahan yang dirilis.

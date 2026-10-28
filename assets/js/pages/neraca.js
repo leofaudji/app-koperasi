@@ -165,6 +165,7 @@ const NeracaPage = {
                     <button onclick="NeracaPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors">Tampilkan</button>
                 </div>
                 <div class="flex items-center gap-2">
+                    ${App.renderDensityToggle()}
                     ${App.hasPerm('keuangan.jurnal') ? `
                     <button onclick="NeracaPage.importForm()" class="bg-white border border-gray-200 hover:border-primary-500 hover:text-primary-600 text-gray-600 px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all" title="Import Saldo Awal CSV">
                         <i class="ri-file-upload-line"></i> Import Saldo Awal

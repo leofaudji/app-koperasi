@@ -81,11 +81,8 @@ const ArusKasPage = {
 
                     <!-- Quick Preset & Export Buttons -->
                     <div class="flex flex-wrap items-center gap-2">
-                        <div class="inline-flex rounded-xl bg-gray-100 p-1 text-xs font-medium" id="ak-preset-container">
-                            <button data-ak-preset="bulan_ini" onclick="ArusKasPage.setPreset('bulan_ini')" class="px-3 py-1.5 rounded-lg hover:bg-white transition-all text-gray-600">Bulan Ini</button>
-                            <button data-ak-preset="tahun_ini" onclick="ArusKasPage.setPreset('tahun_ini')" class="px-3 py-1.5 rounded-lg bg-white text-primary-700 font-semibold shadow-xs">Tahun Ini</button>
-                            <button data-ak-preset="tahun_lalu" onclick="ArusKasPage.setPreset('tahun_lalu')" class="px-3 py-1.5 rounded-lg hover:bg-white transition-all text-gray-600">Tahun Lalu</button>
-                        </div>
+                        ${App.renderDateChips({ fromId: 'ak-dari', toId: 'ak-sampai', callback: 'ArusKasPage.load()', chips: ['thisMonth', 'lastMonth', 'thisYear', 'lastYear'] })}
+                        ${App.renderDensityToggle()}
                         <button onclick="ArusKasPage.exportPDF()"
                             class="bg-rose-50 text-rose-600 hover:bg-rose-100 px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all" title="Download / Cetak PDF">
                             <i class="ri-file-pdf-line text-base"></i> Cetak PDF
@@ -116,66 +113,22 @@ const ArusKasPage = {
         // Initialize flatpickr on date inputs
         if (typeof App.initDatepicker === 'function') {
             App.initDatepicker('#ak-dari', {
-                defaultDate: defaultDariDMY,
-                onChange: () => {
-                    ArusKasPage.activePreset = null;
-                    ArusKasPage.updatePresetButtons();
-                }
+                defaultDate: defaultDariDMY
             });
             App.initDatepicker('#ak-sampai', {
-                defaultDate: defaultSampaiDMY,
-                onChange: () => {
-                    ArusKasPage.activePreset = null;
-                    ArusKasPage.updatePresetButtons();
-                }
+                defaultDate: defaultSampaiDMY
             });
         }
 
-        // Add manual input change listeners to clear preset highlight if user types a custom date
-        document.getElementById('ak-dari')?.addEventListener('input', () => {
-            this.activePreset = null;
-            this.updatePresetButtons();
-        });
-        document.getElementById('ak-sampai')?.addEventListener('input', () => {
-            this.activePreset = null;
-            this.updatePresetButtons();
-        });
-
-        this.updatePresetButtons();
         await this.load();
     },
 
     setPreset(preset) {
-        this.activePreset = preset;
-        this.updatePresetButtons();
-
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
-        let dariDMY = '', sampaiDMY = '';
-
-        if (preset === 'bulan_ini') {
-            dariDMY = `01-${m}-${y}`;
-            sampaiDMY = `${String(lastDay).padStart(2, '0')}-${m}-${y}`;
-        } else if (preset === 'tahun_ini') {
-            dariDMY = `01-01-${y}`;
-            sampaiDMY = `31-12-${y}`;
-        } else if (preset === 'tahun_lalu') {
-            dariDMY = `01-01-${y - 1}`;
-            sampaiDMY = `31-12-${y - 1}`;
-        }
-
-        const dariEl = document.getElementById('ak-dari');
-        const sampaiEl = document.getElementById('ak-sampai');
-
-        if (dariEl?._flatpickr) dariEl._flatpickr.setDate(dariDMY);
-        else if (dariEl) dariEl.value = dariDMY;
-
-        if (sampaiEl?._flatpickr) sampaiEl._flatpickr.setDate(sampaiDMY);
-        else if (sampaiEl) sampaiEl.value = sampaiDMY;
-
-        this.load();
+        let normPreset = preset;
+        if (preset === 'bulan_ini') normPreset = 'thisMonth';
+        if (preset === 'tahun_ini') normPreset = 'thisYear';
+        if (preset === 'tahun_lalu') normPreset = 'lastYear';
+        App.applyDatePreset(normPreset, 'ak-dari', 'ak-sampai', 'ArusKasPage.load()');
     },
 
     async load() {
@@ -504,6 +457,18 @@ const ArusKasPage = {
                 </div>
             </div>
         </div>`;
+
+        if (d) {
+            App.attachStickySummary({
+                table: '#ak-content',
+                title: 'Ringkasan Arus Kas',
+                items: [
+                    { label: 'Kas Operasi', value: this.formatRupiah(op.bersih), color: op.bersih >= 0 ? 'emerald' : 'rose' },
+                    { label: 'Kenaikan Bersih', value: this.formatRupiah(d.kenaikan_bersih), color: d.kenaikan_bersih >= 0 ? 'emerald' : 'rose' },
+                    { label: 'Saldo Akhir Aktual', value: this.formatRupiah(d.saldo_akhir_aktual), color: 'primary' }
+                ]
+            });
+        }
     },
 
     exportPDF() {
@@ -517,13 +482,8 @@ const ArusKasPage = {
         const pw = doc.internal.pageSize.getWidth();
 
         const title = 'LAPORAN ARUS KAS (CASH FLOW)';
-        App.drawPDFHeader(doc, title);
-        App.drawPDFFooter(doc);
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Periode: ${App.formatDate(d.periode.dari)} s/d ${App.formatDate(d.periode.sampai)}  |  Standar: SAK EP / Koperasi`, 14, 44);
+        const subtitle = `Periode: ${App.formatDate(d.periode.dari)} s/d ${App.formatDate(d.periode.sampai)}  |  Standar: SAK EP / Koperasi`;
+        const headerBottomY = App.drawPDFHeader(doc, title, { subtitle });
 
         const op = d.operasi;
         const inv = d.investasi;
@@ -532,12 +492,12 @@ const ArusKasPage = {
         const totalKeluar = (op.keluar.total || 0) + (inv.keluar.total || 0) + (pend.keluar.total || 0);
 
         const cards = [
-            { label: 'Saldo Kas Awal', value: App.formatRupiah(d.saldo_awal) },
-            { label: 'Total Kas Masuk', value: App.formatRupiah(totalMasuk) },
-            { label: 'Total Kas Keluar', value: App.formatRupiah(totalKeluar) },
-            { label: 'Kenaikan Bersih', value: App.formatRupiah(d.kenaikan_bersih) }
+            { label: 'Saldo Kas Awal', value: App.formatRupiah(d.saldo_awal), color: 'blue' },
+            { label: 'Total Kas Masuk', value: App.formatRupiah(totalMasuk), color: 'emerald' },
+            { label: 'Total Kas Keluar', value: App.formatRupiah(totalKeluar), color: 'rose' },
+            { label: 'Kenaikan Bersih', value: App.formatRupiah(d.kenaikan_bersih), color: 'indigo' }
         ];
-        const curY = App.drawPDFSummaryCards(doc, cards, 48);
+        const curY = App.drawPDFSummaryCards(doc, cards, headerBottomY + 2);
 
         const tableBody = [];
 
@@ -594,10 +554,19 @@ const ArusKasPage = {
             },
             margin: { left: 14, right: 14, top: 46, bottom: 20 },
             didDrawPage: () => {
-                App.drawPDFHeader(doc, title);
-                App.drawPDFFooter(doc);
+                App.drawPDFHeader(doc, title, { subtitle });
             }
         });
+
+        // Signatures block
+        App.drawPDFSignatures(doc, doc.lastAutoTable.finalY + 4, { title });
+
+        // Two-Pass Page Numbering & Footer Drawing for Absolute Accuracy
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            App.drawPDFFooter(doc, { currentPage: i, totalPages });
+        }
 
         window.open(doc.output('bloburl'), '_blank');
     },

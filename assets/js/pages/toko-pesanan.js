@@ -250,13 +250,16 @@ const TokoPesananPage = {
                         <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
                         <h3 class="font-bold text-gray-900 text-sm">Daftar Antrean Pesanan Masuk</h3>
                     </div>
-                    <span id="label-total-rows" class="text-xs font-bold text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200">
-                        0 Data Ditemukan
-                    </span>
+                    <div class="flex items-center gap-2">
+                        ${App.renderDensityToggle()}
+                        <span id="label-total-rows" class="text-xs font-bold text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200">
+                            0 Data Ditemukan
+                        </span>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
+                    <table class="data-table w-full text-left text-xs">
                         <thead>
                             <tr class="bg-gray-50/80 border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider text-[10px]">
                                 <th class="px-4 py-3.5 w-12 text-center whitespace-nowrap">#</th>

@@ -99,6 +99,7 @@ const PerubahanEkuitasPage = {
 
                     <!-- Export Actions -->
                     <div class="flex items-center gap-2">
+                        ${App.renderDensityToggle()}
                         <button onclick="PerubahanEkuitasPage.exportPDF()"
                             class="bg-rose-50 text-rose-600 hover:bg-rose-100 px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs" title="Download Format RAT (PDF Landscape)">
                             <i class="ri-file-pdf-line text-sm"></i> Cetak PDF
@@ -418,7 +419,7 @@ const PerubahanEkuitasPage = {
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full text-xs">
+                <table class="data-table w-full text-xs">
                     <thead>
                         <tr class="bg-gray-100/70 text-gray-700 border-b border-gray-200">
                             <th class="py-3 px-4 text-left font-bold w-12">Kode</th>
@@ -525,7 +526,7 @@ const PerubahanEkuitasPage = {
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full text-xs">
+                <table class="data-table w-full text-xs">
                     <thead>
                         <tr class="bg-gray-100/70 text-gray-700 border-b border-gray-200">
                             <th class="py-2.5 px-4 text-left font-bold w-1/4">Pos Mutasi Ekuitas</th>
@@ -610,24 +611,18 @@ const PerubahanEkuitasPage = {
         const ph = doc.internal.pageSize.getHeight();
 
         const title = 'LAPORAN PERUBAHAN EKUITAS (STATEMENT OF CHANGES IN EQUITY)';
-        App.drawPDFHeader(doc, title);
-        App.drawPDFFooter(doc);
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 116, 139);
         const subTitle = `Tahun Buku: ${d.tahun} (${d.periode.tgl_awal} s/d ${d.periode.tgl_akhir})  |  Standar: SAK EP & Permenkop UKM No. 2 Tahun 2024`;
-        doc.text(subTitle, 14, 44);
+        const headerBottomY = App.drawPDFHeader(doc, title, { subtitle: subTitle });
 
         // Summary Cards
         const cards = [
-            { label: 'Modal Awal (1 Jan)', value: App.formatRupiah(r.total_modal_awal) },
-            { label: 'Total Penambahan (+)', value: '+' + App.formatRupiah(r.total_penambahan) },
-            { label: 'Total Pengurangan (-)', value: r.total_pengurangan > 0 ? '-' + App.formatRupiah(r.total_pengurangan) : 'Rp 0' },
-            { label: 'Modal Akhir (31 Des)', value: App.formatRupiah(r.total_modal_akhir) },
-            { label: 'Rekonsiliasi Neraca', value: r.is_balanced ? 'MATCH 100%' : 'SELISIH ' + App.formatRupiah(r.selisih_neraca) }
+            { label: 'Modal Awal (1 Jan)', value: App.formatRupiah(r.total_modal_awal), color: 'blue' },
+            { label: 'Total Penambahan (+)', value: '+' + App.formatRupiah(r.total_penambahan), color: 'emerald' },
+            { label: 'Total Pengurangan (-)', value: r.total_pengurangan > 0 ? '-' + App.formatRupiah(r.total_pengurangan) : 'Rp 0', color: 'rose' },
+            { label: 'Modal Akhir (31 Des)', value: App.formatRupiah(r.total_modal_akhir), color: 'indigo' },
+            { label: 'Rekonsiliasi Neraca', value: r.is_balanced ? 'MATCH 100%' : 'SELISIH ' + App.formatRupiah(r.selisih_neraca), color: r.is_balanced ? 'emerald' : 'amber' }
         ];
-        const curY = App.drawPDFSummaryCards(doc, cards, 48);
+        const curY = App.drawPDFSummaryCards(doc, cards, headerBottomY + 2);
 
         // Build Table Rows
         const head = [[
@@ -702,8 +697,7 @@ const PerubahanEkuitasPage = {
                 }
             },
             didDrawPage: () => {
-                App.drawPDFHeader(doc, title);
-                App.drawPDFFooter(doc);
+                App.drawPDFHeader(doc, title, { subtitle: subTitle });
             }
         });
 
@@ -714,9 +708,8 @@ const PerubahanEkuitasPage = {
         let sigY = finalY;
         if (availableSpace < 35) {
             doc.addPage();
-            App.drawPDFHeader(doc, title);
-            App.drawPDFFooter(doc);
-            sigY = 50;
+            App.drawPDFHeader(doc, title, { subtitle: subTitle });
+            sigY = 48;
         }
 
         const namaKetua = App.settings?.ketua_koperasi?.value || 'Ketua Koperasi';
@@ -751,6 +744,13 @@ const PerubahanEkuitasPage = {
         doc.text('Bendahara / Keuangan', 14 + (colW * 2) + (colW * 0.5), sigY + 4, { align: 'center' });
         doc.text(namaBendahara, 14 + (colW * 2) + (colW * 0.5), sigY + 24, { align: 'center' });
         doc.line(14 + (colW * 2) + (colW * 0.2), sigY + 25, 14 + (colW * 2) + (colW * 0.8), sigY + 25);
+
+        // Two-Pass Page Numbering & Footer Drawing for Absolute Accuracy
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            App.drawPDFFooter(doc, { currentPage: i, totalPages });
+        }
 
         window.open(doc.output('bloburl'), '_blank');
     },

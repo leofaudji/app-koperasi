@@ -26,37 +26,44 @@ const JurnalPage = {
         this.data = res.data;
 
         this.container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
-            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-                <div class="flex flex-col sm:flex-row gap-3 flex-1 w-full lg:w-auto">
-                    <div class="relative flex-1">
-                        <i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                        <input type="text" id="jrn-search" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500" placeholder="Cari no. bukti atau keterangan..." value="${search}">
+            <div class="flex flex-col gap-4 mb-6">
+                <!-- Baris 1: Filter Preset Waktu Cepat & Pengatur Kerapatan -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-gray-100">
+                    ${App.renderDateChips({ fromId: 'jrn-dari', toId: 'jrn-sampai', callback: 'JurnalPage.load()' })}
+                    <div class="flex items-center gap-2">
+                        ${App.renderDensityToggle()}
+                        <button onclick="JurnalPage.showForm()" class="bg-primary-50 text-primary-600 hover:bg-primary-100 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1">
+                            <i class="ri-add-line"></i> Tambah Jurnal
+                        </button>
+                        <div class="flex gap-1 shrink-0">
+                            <button onclick="JurnalPage.export('pdf')" class="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF">
+                                <i class="ri-file-pdf-line text-lg"></i>
+                            </button>
+                            <button onclick="JurnalPage.export('csv')" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title="Export CSV">
+                                <i class="ri-file-excel-line text-lg"></i>
+                            </button>
+                        </div>
                     </div>
-                    <select id="jrn-tipe" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                </div>
+
+                <!-- Baris 2: Pencarian, Tipe Jurnal & Input Tanggal -->
+                <div class="flex flex-col lg:flex-row gap-3 flex-1 w-full items-center">
+                    <div class="relative flex-1 w-full">
+                        <i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="jrn-search" class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500" placeholder="Cari no. bukti atau keterangan..." value="${search}" onkeyup="if(event.key==='Enter')JurnalPage.load()">
+                    </div>
+                    <select id="jrn-tipe" class="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-primary-500 w-full sm:w-auto">
                         <option value="">Semua Tipe</option>
                         <option value="simpanan" ${tipe === 'simpanan' ? 'selected' : ''}>Simpanan</option>
                         <option value="pinjaman" ${tipe === 'pinjaman' ? 'selected' : ''}>Pinjaman</option>
                         <option value="angsuran" ${tipe === 'angsuran' ? 'selected' : ''}>Angsuran</option>
                         <option value="manual" ${tipe === 'manual' ? 'selected' : ''}>Jurnal Keuangan</option>
                     </select>
-                    <input type="text" id="jrn-dari" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Dari">
-                    <input type="text" id="jrn-sampai" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Sampai">
-                    <button onclick="JurnalPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors">
+                    <input type="text" id="jrn-dari" class="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full sm:w-auto" placeholder="Dari" value="${dariUI}">
+                    <input type="text" id="jrn-sampai" class="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full sm:w-auto" placeholder="Sampai" value="${sampaiUI}">
+                    <button onclick="JurnalPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors shrink-0 w-full sm:w-auto">
                         <i class="ri-search-line mr-1"></i> Filter
                     </button>
-                </div>
-                <div class="flex items-center gap-2 w-full lg:w-auto">
-                    <button onclick="JurnalPage.showForm()" class="bg-primary-50 text-primary-600 hover:bg-primary-100 px-4 py-2.5 rounded-xl text-sm font-bold flex-1 lg:flex-none transition-all">
-                        <i class="ri-add-line mr-1"></i> Tambah Jurnal
-                    </button>
-                    <div class="flex gap-1">
-                        <button onclick="JurnalPage.export('pdf')" class="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF">
-                            <i class="ri-file-pdf-line text-xl"></i>
-                        </button>
-                        <button onclick="JurnalPage.export('csv')" class="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title="Export CSV">
-                            <i class="ri-file-excel-line text-xl"></i>
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -145,97 +152,115 @@ const JurnalPage = {
     paginate(p) { this.load(p); },
 
     async showForm(options = {}) {
-        if (this.akuns.length === 0) {
-            const res = await App.api('keuangan/akun');
-            if (res?.success) this.akuns = res.data;
-        }
-
         const isEdit = !!options.editId;
         this.currentEditId = options.editId || null;
-        let trx = null;
 
-        if (isEdit) {
-            const resEdit = await App.api('keuangan/jurnal/' + options.editId);
-            if (resEdit?.success) {
-                trx = resEdit.data;
-            } else {
-                App.toast('Gagal memuat detail jurnal', 'error');
-                return;
-            }
+        if (isEdit || this.akuns.length === 0) {
+            App.openModalLoading(isEdit ? 'Memuat Data Jurnal...' : 'Menyiapkan Form Jurnal...', 'max-w-4xl');
         }
 
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn';
-        modal.innerHTML = `
-            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col scale-in">
-                <div class="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <div>
-                        <h3 class="text-xl font-bold text-gray-800">${isEdit ? 'Koreksi Jurnal Manual' : 'Tambah Jurnal Manual'}</h3>
-                        <p class="text-sm text-gray-500">${isEdit ? `Koreksi data jurnal ${trx.no_bukti}` : 'Buat entri jurnal umum baru'}</p>
-                    </div>
-                    <button onclick="this.closest('.fixed').remove()" class="p-2 hover:bg-white rounded-xl transition-colors"><i class="ri-close-line text-2xl text-gray-400"></i></button>
-                </div>
-                
-                <form id="form-jurnal" class="flex-1 overflow-auto p-8 space-y-6">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        try {
+            const [resAkun, resEdit] = await Promise.all([
+                this.akuns.length === 0 ? App.cachedApi('keuangan/akun') : Promise.resolve({ success: true, data: this.akuns }),
+                isEdit ? App.api('keuangan/jurnal/' + options.editId) : Promise.resolve(null)
+            ]);
+
+            if (resAkun?.success && Array.isArray(resAkun.data)) {
+                this.akuns = resAkun.data;
+            }
+
+            if (!this.akuns || this.akuns.length === 0) {
+                App.closeModal();
+                App.toast('Gagal memuat daftar bagan akun (COA)', 'error');
+                return;
+            }
+
+            let trx = null;
+            if (isEdit) {
+                if (resEdit?.success) {
+                    trx = resEdit.data;
+                } else {
+                    App.closeModal();
+                    App.toast('Gagal memuat detail jurnal', 'error');
+                    return;
+                }
+            }
+
+            const modalHtml = `
+                <div class="p-6 sm:p-8">
+                    <div class="pb-5 border-b border-gray-100 flex justify-between items-center mb-6">
                         <div>
-                            <label class="block text-sm font-bold text-gray-600 mb-2">Tanggal Transaksi</label>
-                            <input type="text" id="jrn-tgl" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500" required>
+                            <h3 class="text-xl font-bold text-gray-800">${isEdit ? 'Koreksi Jurnal Manual' : 'Tambah Jurnal Manual'}</h3>
+                            <p class="text-sm text-gray-500">${isEdit ? `Koreksi data jurnal ${trx?.no_bukti || ''}` : 'Buat entri jurnal umum baru'}</p>
                         </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-600 mb-2">Keterangan</label>
-                            <input type="text" id="jrn-ket" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Misal: Biaya Listrik & Air Jan 2026" required value="${isEdit ? trx.keterangan || '' : ''}">
+                        <button type="button" onclick="App.closeModal()" class="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-gray-600"><i class="ri-close-line text-2xl"></i></button>
+                    </div>
+                    
+                    <form id="form-jurnal" class="space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-600 mb-2">Tanggal Transaksi</label>
+                                <input type="text" id="jrn-tgl" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-600 mb-2">Keterangan</label>
+                                <input type="text" id="jrn-ket" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Misal: Biaya Listrik & Air Jan 2026" required value="${isEdit ? (trx?.keterangan || '') : ''}">
+                            </div>
                         </div>
+
+                        <div class="border border-gray-100 rounded-2xl overflow-hidden">
+                            <table class="w-full text-sm" id="table-entry">
+                                <thead>
+                                    <tr class="bg-gray-50">
+                                        <th class="px-4 py-3 text-left font-bold text-gray-500">Akun</th>
+                                        <th class="px-4 py-3 text-right font-bold text-gray-500 w-40">Debit</th>
+                                        <th class="px-4 py-3 text-right font-bold text-gray-500 w-40">Kredit</th>
+                                        <th class="px-4 py-3 text-center w-12"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50" id="entry-rows">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                                <tfoot class="bg-gray-50/50 font-bold">
+                                    <tr>
+                                        <td class="px-4 py-4">
+                                            <button type="button" onclick="JurnalPage.addRow()" class="text-primary-600 hover:text-primary-700 font-bold flex items-center gap-1">
+                                                <i class="ri-add-circle-line text-lg"></i> Tambah Baris
+                                            </button>
+                                        </td>
+                                        <td class="px-4 py-4 text-right" id="total-debit">Rp 0</td>
+                                        <td class="px-4 py-4 text-right" id="total-kredit">Rp 0</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <div id="balance-alert" class="hidden bg-red-50 text-red-600 p-4 rounded-xl text-center font-bold text-sm border border-red-100">
+                            <i class="ri-error-warning-line mr-1"></i> Jurnal tidak seimbang! Total Debit harus sama dengan Total Kredit.
+                        </div>
+                    </form>
+
+                    <div class="pt-5 border-t border-gray-100 flex justify-end gap-3 mt-6">
+                        <button type="button" onclick="App.closeModal()" class="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors">Batal</button>
+                        <button type="button" onclick="JurnalPage.save()" id="btn-save-jurnal" class="bg-primary-600 hover:bg-primary-700 text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary-200 transition-all">${isEdit ? 'Simpan Koreksi' : 'Simpan Jurnal'}</button>
                     </div>
+                </div>`;
 
-                    <div class="border border-gray-100 rounded-2xl">
-                        <table class="w-full text-sm" id="table-entry">
-                            <thead>
-                                <tr class="bg-gray-50">
-                                    <th class="px-4 py-3 text-left font-bold text-gray-500">Akun</th>
-                                    <th class="px-4 py-3 text-right font-bold text-gray-500 w-40">Debit</th>
-                                    <th class="px-4 py-3 text-right font-bold text-gray-500 w-40">Kredit</th>
-                                    <th class="px-4 py-3 text-center w-12"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50" id="entry-rows">
-                                <!-- Dynamic rows -->
-                            </tbody>
-                            <tfoot class="bg-gray-50/50 font-bold">
-                                <tr>
-                                    <td class="px-4 py-4">
-                                        <button type="button" onclick="JurnalPage.addRow()" class="text-primary-600 hover:text-primary-700 font-bold flex items-center gap-1">
-                                            <i class="ri-add-circle-line text-lg"></i> Tambah Baris
-                                        </button>
-                                    </td>
-                                    <td class="px-4 py-4 text-right" id="total-debit">Rp 0</td>
-                                    <td class="px-4 py-4 text-right" id="total-kredit">Rp 0</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-
-                    <div id="balance-alert" class="hidden bg-red-50 text-red-600 p-4 rounded-xl text-center font-bold text-sm border border-red-100">
-                        <i class="ri-error-warning-line mr-1"></i> Jurnal tidak seimbang! Total Debit harus sama dengan Total Kredit.
-                    </div>
-                </form>
-
-                <div class="px-8 py-5 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
-                    <button onclick="this.closest('.fixed').remove()" class="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors">Batal</button>
-                    <button type="button" onclick="JurnalPage.save()" id="btn-save-jurnal" class="bg-primary-600 hover:bg-primary-700 text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-primary-200 transition-all">${isEdit ? 'Simpan Koreksi' : 'Simpan Jurnal'}</button>
-                </div>
-            </div>`;
-
-        document.body.appendChild(modal);
-        App.initDatepicker('#jrn-tgl', { defaultDate: isEdit ? App.formatDate(trx.tgl_transaksi) : App.todayISO() });
-        
-        if (isEdit && trx.details && trx.details.length) {
-            trx.details.forEach(d => this.addRow(d));
-            this.calcBalance();
-        } else {
-            this.addRow();
-            this.addRow();
+            App.openModal(modalHtml, 'max-w-4xl');
+            App.initDatepicker('#jrn-tgl', { defaultDate: isEdit && trx?.tgl_transaksi ? App.formatDate(trx.tgl_transaksi) : App.todayDMY() });
+            
+            if (isEdit && trx?.details && trx.details.length) {
+                trx.details.forEach(d => this.addRow(d));
+                this.calcBalance();
+            } else {
+                this.addRow();
+                this.addRow();
+            }
+        } catch (err) {
+            console.error('Error in JurnalPage.showForm:', err);
+            App.closeModal();
+            App.toast('Terjadi kesalahan saat menyiapkan form jurnal', 'error');
         }
     },
 
@@ -387,7 +412,7 @@ const JurnalPage = {
 
         if (res?.success) {
             App.toast(res.message, 'success');
-            document.querySelector('.fixed').remove();
+            App.closeModal();
             this.load();
         } else {
             App.toast(res?.message || 'Gagal menyimpan jurnal', 'error');

@@ -81,79 +81,88 @@ const RolesPage = {
     },
 
     async form(id = null) {
-        // Fetch all menus and permissions
-        const menuData = await App.api('roles/menus');
-        const allMenus = menuData?.data || [];
+        if (!App._apiCache['roles/menus']) {
+            App.openModalLoading('Menyiapkan Pengaturan Role & Hak Akses...');
+        }
+        try {
+            // Fetch all menus and permissions with cache
+            const menuData = await App.cachedApi('roles/menus');
+            const allMenus = menuData?.data || [];
 
-        this._menus = allMenus;
+            this._menus = allMenus;
 
-        // Build the menu tree checkbox form
-        const parentMenus = allMenus.filter(m => !m.parent_id);
+            // Build the menu tree checkbox form
+            const parentMenus = allMenus.filter(m => !m.parent_id);
 
-        let menuHtml = '';
-        parentMenus.forEach(parent => {
-            const children = allMenus.filter(c => c.parent_id === parent.id);
+            let menuHtml = '';
+            parentMenus.forEach(parent => {
+                const children = allMenus.filter(c => c.parent_id === parent.id);
 
-            menuHtml += `<div class="border border-gray-100 rounded-xl overflow-hidden">
-                <div class="flex items-center gap-3 px-4 py-3 bg-gray-50/80 cursor-pointer hover:bg-gray-100 transition" onclick="RolesPage.toggleMenuGroup(${parent.id})">
-                    <input type="checkbox" class="rf-menu rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
-                        data-menu-id="${parent.id}" data-permission-id="${parent.permission_id || ''}"
-                        ${parent.permission_id ? '' : 'data-parent-only="true"'}
-                        onchange="RolesPage.onParentCheck(this, ${parent.id})"
-                        onclick="event.stopPropagation()">
-                    <i class="${parent.icon} text-gray-500"></i>
-                    <span class="font-medium text-gray-700 text-sm">${parent.nama}</span>
-                    ${children.length > 0 ? `<i class="ri-arrow-down-s-line ml-auto text-gray-400 menu-group-arrow-${parent.id} transition-transform"></i>` : ''}
-                </div>`;
+                menuHtml += `<div class="border border-gray-100 rounded-xl overflow-hidden">
+                    <div class="flex items-center gap-3 px-4 py-3 bg-gray-50/80 cursor-pointer hover:bg-gray-100 transition" onclick="RolesPage.toggleMenuGroup(${parent.id})">
+                        <input type="checkbox" class="rf-menu rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
+                            data-menu-id="${parent.id}" data-permission-id="${parent.permission_id || ''}"
+                            ${parent.permission_id ? '' : 'data-parent-only="true"'}
+                            onchange="RolesPage.onParentCheck(this, ${parent.id})"
+                            onclick="event.stopPropagation()">
+                        <i class="${parent.icon} text-gray-500"></i>
+                        <span class="font-medium text-gray-700 text-sm">${parent.nama}</span>
+                        ${children.length > 0 ? `<i class="ri-arrow-down-s-line ml-auto text-gray-400 menu-group-arrow-${parent.id} transition-transform"></i>` : ''}
+                    </div>`;
 
-            if (children.length > 0) {
-                menuHtml += `<div id="menu-group-${parent.id}" class="hidden divide-y divide-gray-50 bg-white">`;
-                children.forEach(child => {
-                    menuHtml += `<label class="flex items-center gap-3 px-4 py-2.5 pl-12 hover:bg-gray-50 transition cursor-pointer">
-                        <input type="checkbox" class="rf-menu rf-child-${parent.id} rounded text-primary-600 focus:ring-primary-500"
-                            data-menu-id="${child.id}" data-permission-id="${child.permission_id || ''}" data-parent-id="${parent.id}"
-                            onchange="RolesPage.onChildCheck(${parent.id})">
-                        <i class="${child.icon} text-gray-400 text-sm"></i>
-                        <span class="text-sm text-gray-600">${child.nama}</span>
-                    </label>`;
-                });
+                if (children.length > 0) {
+                    menuHtml += `<div id="menu-group-${parent.id}" class="hidden divide-y divide-gray-50 bg-white">`;
+                    children.forEach(child => {
+                        menuHtml += `<label class="flex items-center gap-3 px-4 py-2.5 pl-12 hover:bg-gray-50 transition cursor-pointer">
+                            <input type="checkbox" class="rf-menu rf-child-${parent.id} rounded text-primary-600 focus:ring-primary-500"
+                                data-menu-id="${child.id}" data-permission-id="${child.permission_id || ''}" data-parent-id="${parent.id}"
+                                onchange="RolesPage.onChildCheck(${parent.id})">
+                            <i class="${child.icon} text-gray-400 text-sm"></i>
+                            <span class="text-sm text-gray-600">${child.nama}</span>
+                        </label>`;
+                    });
+                    menuHtml += '</div>';
+                }
                 menuHtml += '</div>';
-            }
-            menuHtml += '</div>';
-        });
+            });
 
-        App.openModal(`<div class="p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-6"><i class="ri-shield-star-line text-primary-500 mr-2"></i>${id ? 'Edit' : 'Tambah'} Role</h3>
-            <form id="role-form" class="space-y-5">
-                <input type="hidden" id="rf-id" value="${id || ''}">
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-sm font-medium text-gray-600 mb-1">Nama Role *</label>
-                    <input type="text" id="rf-nama" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" required></div>
-                    <div><label class="block text-sm font-medium text-gray-600 mb-1">Keterangan</label>
-                    <input type="text" id="rf-ket" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"></div>
-                </div>
-                <div>
-                    <div class="flex items-center justify-between mb-3">
-                        <label class="block text-sm font-semibold text-gray-700">Akses Menu</label>
-                        <div class="flex gap-2">
-                            <button type="button" onclick="RolesPage.checkAll(true)" class="text-xs text-primary-600 hover:text-primary-700 font-medium">Pilih Semua</button>
-                            <span class="text-gray-300">|</span>
-                            <button type="button" onclick="RolesPage.checkAll(false)" class="text-xs text-gray-500 hover:text-gray-700 font-medium">Hapus Semua</button>
+            App.openModal(`<div class="p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-6"><i class="ri-shield-star-line text-primary-500 mr-2"></i>${id ? 'Edit' : 'Tambah'} Role</h3>
+                <form id="role-form" class="space-y-5">
+                    <input type="hidden" id="rf-id" value="${id || ''}">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium text-gray-600 mb-1">Nama Role *</label>
+                        <input type="text" id="rf-nama" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500" required></div>
+                        <div><label class="block text-sm font-medium text-gray-600 mb-1">Keterangan</label>
+                        <input type="text" id="rf-ket" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"></div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <label class="block text-sm font-semibold text-gray-700">Akses Menu</label>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="RolesPage.checkAll(true)" class="text-xs text-primary-600 hover:text-primary-700 font-medium">Pilih Semua</button>
+                                <span class="text-gray-300">|</span>
+                                <button type="button" onclick="RolesPage.checkAll(false)" class="text-xs text-gray-500 hover:text-gray-700 font-medium">Hapus Semua</button>
+                            </div>
+                        </div>
+                        <div class="space-y-2 max-h-[50vh] overflow-auto rounded-xl border border-gray-100 p-3 bg-gray-50/30">
+                            ${menuHtml}
                         </div>
                     </div>
-                    <div class="space-y-2 max-h-[50vh] overflow-auto rounded-xl border border-gray-100 p-3 bg-gray-50/30">
-                        ${menuHtml}
+                    <div class="flex justify-end gap-3 pt-4 border-t">
+                        <button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 transition">Batal</button>
+                        <button type="submit" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium transition">Simpan</button>
                     </div>
-                </div>
-                <div class="flex justify-end gap-3 pt-4 border-t">
-                    <button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 transition">Batal</button>
-                    <button type="submit" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium transition">Simpan</button>
-                </div>
-            </form>
-        </div>`);
+                </form>
+            </div>`);
 
-        if (id) await this.loadRoleForm(id);
-        document.getElementById('role-form').onsubmit = e => { e.preventDefault(); this.save(); };
+            if (id) await this.loadRoleForm(id);
+            document.getElementById('role-form').onsubmit = e => { e.preventDefault(); this.save(); };
+        } catch (err) {
+            console.error('Error in RolesPage.form:', err);
+            App.closeModal();
+            App.toast('Terjadi kesalahan saat menyiapkan form role', 'error');
+        }
     },
 
     toggleMenuGroup(parentId) {

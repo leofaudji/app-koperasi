@@ -49,6 +49,7 @@ const JasaPartisipatifPage = {
                 </div>
                 
                 <div id="action-area" class="hidden flex items-center gap-3">
+                    ${App.renderDensityToggle()}
                     <button onclick="JasaPartisipatifPage.exportPDF()" class="px-5 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 transition-all flex items-center gap-2 active:scale-95">
                         <i class="ri-file-pdf-line text-rose-500 text-lg"></i> PDF
                     </button>
@@ -80,7 +81,7 @@ const JasaPartisipatifPage = {
             <!-- Table Area -->
             <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="data-table w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-slate-50/50 border-b border-slate-100">
                                 <th class="px-8 py-5 w-10"><input type="checkbox" id="select-all-posting" onchange="JasaPartisipatifPage.toggleSelectAll(this.checked)" class="w-5 h-5 rounded-lg border-slate-300 text-primary-600 focus:ring-primary-500"></th>

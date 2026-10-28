@@ -22,6 +22,7 @@ const Pengumuman = {
                         </button>
                     </div>
                     <div class="flex items-center gap-2">
+                        ${App.renderDensityToggle()}
                         ${App.hasPerm('pengumuman.create') ? `
                         <button id="btn-add" class="bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-primary-500/25 transition-all">
                             <i class="ri-add-line"></i> Buat Pengumuman
@@ -136,61 +137,70 @@ const Pengumuman = {
         let title = 'Buat Pengumuman Baru';
         let row = { judul: '', konten: '', tipe: 'info', is_active: 1 };
 
-        if (id) {
-            title = 'Edit Pengumuman';
-            const res = await App.api(`pengumuman/${id}`);
-            if (res && res.success) {
-                row = res.data;
-            } else {
-                return;
+        try {
+            if (id) {
+                title = 'Edit Pengumuman';
+                App.openModalLoading('Memuat Data Pengumuman...');
+                const res = await App.api(`pengumuman/${id}`);
+                if (res && res.success) {
+                    row = res.data;
+                } else {
+                    App.closeModal();
+                    App.toast('Gagal memuat data pengumuman', 'error');
+                    return;
+                }
             }
-        }
 
-        const html = `
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-lg font-bold text-gray-800">${title}</h3>
-                    <button onclick="App.closeModal()" class="text-gray-400 hover:text-gray-600 transition-colors"><i class="ri-close-line text-2xl"></i></button>
+            const html = `
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-bold text-gray-800">${title}</h3>
+                        <button onclick="App.closeModal()" class="text-gray-400 hover:text-gray-600 transition-colors"><i class="ri-close-line text-2xl"></i></button>
+                    </div>
+                    <form id="form-pengumuman" onsubmit="Pengumuman.save(event, ${id})">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Judul Pengumuman</label>
+                                <input type="text" id="f_judul" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all" value="${row.judul}" required autofocus>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Isi Pesan / Konten</label>
+                                <textarea id="f_konten" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none h-32 resize-none transition-all" required placeholder="Tulis pesan pengumuman di sini...">${row.konten}</textarea>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipe Pesan</label>
+                                    <select id="f_tipe" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all">
+                                        <option value="info" ${row.tipe === 'info' ? 'selected' : ''}>ℹ️ Info (Biru)</option>
+                                        <option value="warning" ${row.tipe === 'warning' ? 'selected' : ''}>⚠️ Warning (Kuning)</option>
+                                        <option value="promo" ${row.tipe === 'promo' ? 'selected' : ''}>🏷️ Promo (Hijau)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Status Penayangan</label>
+                                    <select id="f_is_active" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all">
+                                        <option value="1" ${row.is_active == 1 ? 'selected' : ''}>Aktif (Tampil di Portal)</option>
+                                        <option value="0" ${row.is_active == 0 ? 'selected' : ''}>Nonaktif (Sembunyikan)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                            <button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm hover:bg-gray-50 transition-colors">Batal</button>
+                            <button type="submit" class="bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-primary-500/25 transition-all" id="btn-save">
+                                <i class="ri-save-3-line"></i> Simpan
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <form id="form-pengumuman" onsubmit="Pengumuman.save(event, ${id})">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Judul Pengumuman</label>
-                            <input type="text" id="f_judul" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all" value="${row.judul}" required autofocus>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Isi Pesan / Konten</label>
-                            <textarea id="f_konten" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none h-32 resize-none transition-all" required placeholder="Tulis pesan pengumuman di sini...">${row.konten}</textarea>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Tipe Pesan</label>
-                                <select id="f_tipe" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all">
-                                    <option value="info" ${row.tipe === 'info' ? 'selected' : ''}>ℹ️ Info (Biru)</option>
-                                    <option value="warning" ${row.tipe === 'warning' ? 'selected' : ''}>⚠️ Warning (Kuning)</option>
-                                    <option value="promo" ${row.tipe === 'promo' ? 'selected' : ''}>🏷️ Promo (Hijau)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Status Penayangan</label>
-                                <select id="f_is_active" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all">
-                                    <option value="1" ${row.is_active == 1 ? 'selected' : ''}>Aktif (Tampil di Portal)</option>
-                                    <option value="0" ${row.is_active == 0 ? 'selected' : ''}>Nonaktif (Sembunyikan)</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
-                        <button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm hover:bg-gray-50 transition-colors">Batal</button>
-                        <button type="submit" class="bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-primary-500/25 transition-all" id="btn-save">
-                            <i class="ri-save-3-line"></i> Simpan
-                        </button>
-                    </div>
-                </form>
-            </div>
-        `;
+            `;
 
-        App.openModal(html);
+            App.openModal(html);
+        } catch (err) {
+            console.error('Error in Pengumuman.showModal:', err);
+            App.closeModal();
+            App.toast('Terjadi kesalahan saat memuat pengumuman', 'error');
+        }
     },
 
     save: async function (e, id) {

@@ -227,6 +227,7 @@ const AgunanPage = {
                     <option value="aktif">Aktif</option>
                     <option value="dikembalikan">Dikembalikan</option>
                 </select>
+                ${App.renderDensityToggle()}
                 <button onclick="AgunanPage.exportPDF()"
                     class="flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium rounded-xl transition">
                     <i class="ri-file-pdf-line"></i> PDF
@@ -408,7 +409,7 @@ const AgunanPage = {
 
         rp('agunan-table', `
         <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+            <table class="data-table w-full text-sm">
                 <thead>
                     <tr class="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
                         <th class="px-4 py-3 text-left w-10">No</th>
@@ -460,11 +461,13 @@ const AgunanPage = {
         _selectedPinjaman = null;
 
         let data = {};
-        if (id) {
-            const res = await App.api(`agunan/${id}`);
-            if (!res?.success) { App.toast('Gagal memuat data', 'error'); return; }
-            data = res.data;
-        }
+        try {
+            if (id) {
+                App.openModalLoading('Memuat Data Agunan...');
+                const res = await App.api(`agunan/${id}`);
+                if (!res?.success) { App.closeModal(); App.toast('Gagal memuat data', 'error'); return; }
+                data = res.data;
+            }
 
         // Initial tipe
         const initTipe = data.tipe_agunan || 'SHM';
@@ -534,7 +537,8 @@ const AgunanPage = {
                         Tipe Agunan <span class="text-red-500">*</span>
                     </label>
                     <select id="ag-tipe_agunan" onchange="AgunanPage.onTipeChange(this.value)"
-                        class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/30">
+                        data-icon="ri-shield-line" data-search-placeholder="Cari jenis agunan (BPKB, SHM, dll)..."
+                        class="searchable-select w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl">
                         ${tipeOpts}
                     </select>
                 </div>
@@ -591,6 +595,11 @@ const AgunanPage = {
         // Setup autocomplete if add mode
         if (!id) {
             this._setupPinjamanSearch();
+        }
+        } catch (err) {
+            console.error('Error in AgunanPage.openModal:', err);
+            App.closeModal();
+            App.toast('Terjadi kesalahan saat memuat data agunan', 'error');
         }
     },
 

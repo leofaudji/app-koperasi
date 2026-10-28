@@ -28,46 +28,50 @@ const LabaRugiPage = {
         const d = this.data;
 
         this.container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
-            <div class="flex flex-col gap-4 mb-8">
-                <div class="flex flex-col md:flex-row md:items-end gap-3 md:gap-4">
-                    <div class="w-full md:w-auto">
-                        <label class="block text-xs font-semibold text-gray-400 mb-1">Dari</label>
-                        <input type="text" id="lr-dari" class="w-full md:w-auto border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Dari">
+            <div class="flex flex-col gap-4 mb-6">
+                <!-- Baris 1: Filter Preset Waktu Cepat & Pengatur Kerapatan -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-gray-100">
+                    ${App.renderDateChips({ fromId: 'lr-dari', toId: 'lr-sampai', callback: 'LabaRugiPage.load()' })}
+                    <div class="flex items-center gap-2">
+                        ${App.renderDensityToggle()}
+                        ${App.hasPerm('keuangan.jurnal') ? `
+                        <button onclick="LabaRugiPage.importForm()" class="bg-white border border-gray-200 hover:border-primary-500 hover:text-primary-600 text-gray-600 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all">
+                            <i class="ri-file-upload-line"></i> Import Saldo Awal
+                        </button>
+                        ` : ''}
+                        <div class="flex gap-1 shrink-0">
+                            <button onclick="LabaRugiPage.export('pdf')" class="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF">
+                                <i class="ri-file-pdf-line text-lg"></i>
+                            </button>
+                            <button onclick="LabaRugiPage.export('csv')" class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title="Export CSV">
+                                <i class="ri-file-excel-line text-lg"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="w-full md:w-auto">
-                        <label class="block text-xs font-semibold text-gray-400 mb-1">Sampai</label>
-                        <input type="text" id="lr-sampai" class="w-full md:w-auto border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Sampai">
+                </div>
+
+                <!-- Baris 2: Input Rentang Tanggal & Toggle Mode -->
+                <div class="flex flex-col md:flex-row md:items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="lr-dari" class="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="Dari" value="${dariUI}">
+                        <span class="text-xs text-gray-400 font-bold">s/d</span>
+                        <input type="text" id="lr-sampai" class="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="Sampai" value="${sampaiUI}">
                     </div>
                     <!-- Toggle Mode -->
                     <div class="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-full md:w-auto">
-                        <label class="flex items-center gap-1.5 px-3 py-2 rounded-lg cursor-pointer text-sm font-semibold transition-all flex-1 md:flex-initial
+                        <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer text-xs font-semibold transition-all flex-1 md:flex-initial
                             ${this.mode === 'sebelum' ? 'bg-white shadow text-amber-700' : 'text-gray-500 hover:text-gray-700'}">
                             <input type="radio" name="lr-mode" value="sebelum" ${this.mode === 'sebelum' ? 'checked' : ''} class="hidden" onchange="LabaRugiPage.load()">
-                            <i class="ri-time-line"></i> <span class="hidden sm:inline">Sebelum</span>
+                            <i class="ri-time-line"></i> <span>Sebelum Tutup</span>
                         </label>
-                        <label class="flex items-center gap-1.5 px-3 py-2 rounded-lg cursor-pointer text-sm font-semibold transition-all flex-1 md:flex-initial
+                        <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer text-xs font-semibold transition-all flex-1 md:flex-initial
                             ${this.mode === 'sesudah' ? 'bg-white shadow text-emerald-700' : 'text-gray-500 hover:text-gray-700'}">
                             <input type="radio" name="lr-mode" value="sesudah" ${this.mode === 'sesudah' ? 'checked' : ''} class="hidden" onchange="LabaRugiPage.load()">
-                            <i class="ri-checkbox-circle-line"></i> <span class="hidden sm:inline">Sesudah</span>
+                            <i class="ri-checkbox-circle-line"></i> <span>Sesudah Tutup</span>
                         </label>
                     </div>
-                    <button onclick="LabaRugiPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors w-full md:w-auto">Tampilkan</button>
-                </div>
-                
-                <div class="flex flex-col md:flex-row gap-2 md:justify-end">
-                    ${App.hasPerm('keuangan.jurnal') ? `
-                    <button onclick="LabaRugiPage.importForm()" class="bg-white border border-gray-200 hover:border-primary-500 hover:text-primary-600 text-gray-600 px-5 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all">
-                        <i class="ri-file-upload-line"></i> Import Saldo Awal
-                    </button>
-                    ` : ''}
-                    <button onclick="LabaRugiPage.export('pdf')" class="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF">
-                        <i class="ri-file-pdf-line text-xl"></i>
-                    </button>
-                    <button onclick="LabaRugiPage.export('csv')" class="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title="Export CSV">
-                        <i class="ri-file-excel-line text-xl"></i>
-                    </button>
-                    <button onclick="window.print()" class="p-2.5 text-gray-400 hover:bg-gray-50 rounded-xl transition-colors" title="Cetak">
-                        <i class="ri-printer-line text-xl"></i>
+                    <button onclick="LabaRugiPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors w-full md:w-auto shrink-0">
+                        <i class="ri-search-line mr-1"></i> Tampilkan
                     </button>
                 </div>
             </div>

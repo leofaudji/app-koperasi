@@ -16,7 +16,8 @@ const RekeningSimpananPage = {
                         <h3 class="font-semibold text-gray-800">Data Rekening</h3>
                         <p class="text-xs text-gray-400 mt-1">Total ${res.pagination.total} rekening terdaftar</p>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex items-center gap-2">
+                        ${App.renderDensityToggle()}
                         <button onclick="RekeningSimpananPage.export('pdf')" class="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF"><i class="ri-file-pdf-line text-lg"></i></button>
                         <button onclick="RekeningSimpananPage.export('csv')" class="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title="Export CSV"><i class="ri-file-excel-line text-lg"></i></button>
                         <button onclick="RekeningSimpananPage.form()" class="bg-primary-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm hover:shadow-primary-200 transition-all ml-2">
@@ -68,10 +69,14 @@ const RekeningSimpananPage = {
     },
 
     async form() {
-        const jenisRes = await App.api('jenis-simpanan');
-        const jenisOpts = (jenisRes?.data || []).map(j => `<option value="${j.id}">${j.nama} (${j.kode_numerik || '--'})</option>`).join('');
+        if (!App._apiCache['jenis-simpanan']) {
+            App.openModalLoading('Menyiapkan Form Rekening Baru...');
+        }
+        try {
+            const jenisRes = await App.cachedApi('jenis-simpanan');
+            const jenisOpts = (jenisRes?.data || []).map(j => `<option value="${j.id}">${j.nama} (${j.kode_numerik || '--'})</option>`).join('');
 
-        App.openModal(`
+            App.openModal(`
             <div class="p-6">
                 <div class="flex items-center gap-3 mb-6">
                     <div class="w-10 h-10 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center">
@@ -96,9 +101,8 @@ const RekeningSimpananPage = {
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Jenis Simpanan</label>
-                        <select id="rsf-jenis" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all" required>
-                            <option value="">-- Pilih Jenis --</option>
+                        <select id="rsf-jenis" data-icon="ri-wallet-3-line" data-search-placeholder="Cari jenis simpanan..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" required>
+                            <option value="">-- Pilih Jenis Simpanan --</option>
                             ${jenisOpts}
                         </select>
                     </div>
@@ -187,6 +191,11 @@ const RekeningSimpananPage = {
                 App.toast(r?.message || 'Gagal membuat rekening', 'error');
             }
         };
+        } catch (err) {
+            console.error('Error in RekeningSimpananPage.form:', err);
+            App.closeModal();
+            App.toast('Terjadi kesalahan saat menyiapkan form rekening', 'error');
+        }
     },
 
     selectMemberByIndex(idx) {

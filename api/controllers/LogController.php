@@ -25,27 +25,57 @@ switch ($id) {
         if (!$anggotaId)
             errorResponse('ID Anggota wajib diisi');
 
-        // Menggabungkan berbagai log aktivitas anggota
-        $sql = "
-            (SELECT 'security' as type, activity as title, CONCAT(COALESCE(platform,''), ' · ', COALESCE(browser,'')) as detail, created_at 
-             FROM portal_logs WHERE anggota_id = ?)
-            UNION ALL
-            (SELECT 'profile' as type, action as title, CONCAT('Audit: ', table_name, ' (ID:', record_id, ')') as detail, created_at 
-             FROM audit_logs WHERE table_name = 'anggota' AND record_id = ?)
-            UNION ALL
-            (SELECT 'finance' as type, CONCAT('Simpanan: ', js.nama) as title, s.no_transaksi as detail, s.created_at 
-             FROM simpanan s JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id 
-             WHERE s.anggota_id = ?)
-            UNION ALL
-            (SELECT 'finance' as type, 'Pencairan Pinjaman' as title, p.no_pinjaman as detail, p.created_at 
-             FROM pinjaman p WHERE p.anggota_id = ? AND p.status IN ('cair', 'lunas'))
-            UNION ALL
-            (SELECT 'finance' as type, 'Pembayaran Angsuran' as title, a.no_transaksi as detail, a.created_at 
-             FROM angsuran a JOIN pinjaman p ON a.pinjaman_id = p.id 
-             WHERE p.anggota_id = ? AND a.status != 'belum')
-            ORDER BY created_at DESC LIMIT 30";
+        // Menggabungkan berbagai log aktivitas anggota secara aman tanpa konflik collation SQL
+        $activities = [];
 
-        $activities = $db->fetchAll($sql, [$anggotaId, $anggotaId, $anggotaId, $anggotaId, $anggotaId]);
+        // 1. Portal security logs
+        $portal = $db->fetchAll(
+            "SELECT 'security' as type, activity as title, CONCAT(COALESCE(platform,''), ' · ', COALESCE(browser,'')) as detail, created_at 
+             FROM portal_logs WHERE anggota_id = ? ORDER BY created_at DESC LIMIT 15",
+            [$anggotaId]
+        );
+        $activities = array_merge($activities, $portal);
+
+        // 2. Audit logs (profil anggota)
+        $audit = $db->fetchAll(
+            "SELECT 'profile' as type, action as title, CONCAT('Audit: ', table_name, ' (ID:', record_id, ')') as detail, created_at 
+             FROM audit_logs WHERE table_name = 'anggota' AND record_id = ? ORDER BY created_at DESC LIMIT 15",
+            [$anggotaId]
+        );
+        $activities = array_merge($activities, $audit);
+
+        // 3. Simpanan
+        $simpanan = $db->fetchAll(
+            "SELECT 'finance' as type, CONCAT('Simpanan: ', js.nama) as title, s.no_transaksi as detail, s.created_at 
+             FROM simpanan s JOIN jenis_simpanan js ON s.jenis_simpanan_id = js.id 
+             WHERE s.anggota_id = ? ORDER BY s.created_at DESC LIMIT 15",
+            [$anggotaId]
+        );
+        $activities = array_merge($activities, $simpanan);
+
+        // 4. Pinjaman (pencairan)
+        $pinjaman = $db->fetchAll(
+            "SELECT 'finance' as type, 'Pencairan Pinjaman' as title, p.no_pinjaman as detail, p.created_at 
+             FROM pinjaman p WHERE p.anggota_id = ? AND p.status IN ('cair', 'lunas') ORDER BY p.created_at DESC LIMIT 15",
+            [$anggotaId]
+        );
+        $activities = array_merge($activities, $pinjaman);
+
+        // 5. Angsuran
+        $angsuran = $db->fetchAll(
+            "SELECT 'finance' as type, 'Pembayaran Angsuran' as title, a.no_transaksi as detail, a.created_at 
+             FROM angsuran a JOIN pinjaman p ON a.pinjaman_id = p.id 
+             WHERE p.anggota_id = ? AND a.status != 'belum' ORDER BY a.created_at DESC LIMIT 15",
+            [$anggotaId]
+        );
+        $activities = array_merge($activities, $angsuran);
+
+        // Urutkan berdasarkan waktu created_at terbaru
+        usort($activities, function($a, $b) {
+            return strcmp($b['created_at'] ?? '', $a['created_at'] ?? '');
+        });
+
+        $activities = array_slice($activities, 0, 30);
         successResponse($activities);
         break;
 

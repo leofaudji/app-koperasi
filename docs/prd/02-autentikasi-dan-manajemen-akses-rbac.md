@@ -72,7 +72,12 @@ Modul ini mengatur otentikasi identitas, manajemen sesi yang aman, kontrol otori
 | **Pengumuman** | `pengumuman.view` | Kelola Pengumuman | Menerbitkan pengumuman ke portal anggota |
 | **Pengaturan** | `settings.edit` | Pengaturan Aplikasi | Mengubah identitas koperasi, logo, & tema |
 
-### 3.3 Menu Navigasi Dinamis
+### 3.3 Relaksasi Akses Baca Operasional vs Mutasi Master (COA Bagan Akun)
+Untuk menjamin kelancaran alur operasional kasir dan staf pembukuan:
+- **Izin Baca Bagan Akun (`GET /api/keuangan/akun`)**: Dibuka untuk seluruh staf dan petugas terautentikasi. Hal ini diperlukan agar form dan modal transaksi (Jurnal Umum, Kas Masuk/Keluar, Mutasi Kas, Setoran/Penarikan Simpanan, Pencairan Pinjaman, Pembayaran Angsuran, Biaya Pinjaman) dapat memuat daftar dropdown akun lawan/kas tanpa memicu penolakan `403 Forbidden`.
+- **Izin Mutasi Master Data (`keuangan.akun`)**: Diberlakukan ketat khusus pada endpoint mutasi (`POST`, `PUT`, `DELETE`) master akun COA untuk mencegah modifikasi bagan akun oleh pengguna non-administrator.
+
+### 3.4 Menu Navigasi Dinamis
 - Daftar menu diatur dalam berkas `api/config/menus.json`.
 - Saat frontend memanggil endpoint `/api/menus`, sistem memfilter menu berdasarkan permission yang dimiliki oleh `role_id` pengguna yang sedang login.
 - Item menu yang tidak memiliki permission terkait otomatis disembunyikan dari antarmuka sidebar.
@@ -97,7 +102,24 @@ Setiap kali terjadi modifikasi data sensitif (misalnya koreksi transaksi simpana
 
 ---
 
-## 5. Spesifikasi Endpoint API Autentikasi & RBAC
+## 5. Standar Interaksi UI & Modal Global Terpadu (UX Safety Standards)
+
+1. **Sistem Modal Terpadu (Unified Modal Lifecycle)**:
+   - Seluruh modal form dan konfirmasi wajib memanfaatkan arsitektur global `App.openModal()` dan `App.closeModal()` yang beroperasi di dalam `#modal-container` (`z-[90]`). Dilarang membuat kontainer overlay ad-hoc yang dapat saling menimpa (*z-index conflict*).
+   - **Instant Skeleton Loading (`App.openModalLoading`)**: Modal terbuka seketika (0 ms) dengan animasi placeholder berkedip halus saat data latar belakang dimuat.
+   - **Dukungan Tombol ESC Keyboard**: Menekan tombol `Escape (Esc)` seketika membatalkan dan menutup modal aktif.
+   - **Non-Blocking Error Handling**: Seluruh penarikan data asinkron pada pembukaan modal dilindungi blok `try ... catch`. Jika koneksi terputus atau API gagal, modal otomatis ditutup bersih (`App.closeModal()`) dan menampilkan notifikasi toast peringatan, mencegah layar terkunci/membeku (*non-freezing screen*).
+2. **Efek Sentuhan Haptic Ripple & Feedback Penekanan**:
+   - Diterapkan efek gelombang sentuhan (*water ripple animation* 550ms) pada seluruh tombol aksi dan navigasi tab.
+   - Dilengkapi mikro-interaksi penekanan (*active press-down scale* `active:scale-[0.97]`) untuk umpan balik instan 0 ms.
+3. **Double-Click Protection & Auto-Spinner Loading**:
+   - Helper `App.btnLoading(button, text)` otomatis menyematkan spinner animasi halus (`.btn-spinner`) dan menonaktifkan tombol submit form saat pengiriman data berlangsung.
+   - Mencegah insiden duplikasi transaksi finansial atau submit ganda akibat klik ganda yang cepat oleh pengguna.
+   - Helper `App.btnReset(button)` otomatis mengembalikan kondisi tombol jika validasi form gagal atau respon server diterima.
+
+---
+
+## 6. Spesifikasi Endpoint API Autentikasi & RBAC
 
 | Method | Endpoint | Fungsi | Hak Akses |
 | :--- | :--- | :--- | :--- |

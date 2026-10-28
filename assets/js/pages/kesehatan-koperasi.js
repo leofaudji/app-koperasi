@@ -417,14 +417,8 @@ const KesehatanKoperasiPage = {
         const bgRGB = hexToRgb(theme.p[50] || '#eef2ff');
 
         // Draw dynamic headers and footers on the first page
-        App.drawPDFHeader(doc, title);
-        App.drawPDFFooter(doc);
-
-        // Metadata Subtitle cleanly aligned below title
-        doc.setFontSize(7.5); 
-        doc.setFont('helvetica', 'normal'); 
-        doc.setTextColor(100, 116, 139); // slate-500
-        doc.text(`Tahun Buku Penilaian: ${d.tahun}  |  Rujukan: Permenkop UKM No. 9/2020 jo. Permenkop UKM No. 2/2024 & No. 8/2023 (KKPKK)`, 14, 44);
+        const subTitle = `Tahun Buku Penilaian: ${d.tahun}  |  Rujukan: Permenkop UKM No. 9/2020 jo. Permenkop UKM No. 2/2024 & No. 8/2023 (KKPKK)`;
+        App.drawPDFHeader(doc, title, { subtitle: subTitle });
 
         // Color coding based on official predicate
         const sColor = d.predikat_kode === 'sehat' ? [16, 185, 129] // Emerald
@@ -659,10 +653,19 @@ const KesehatanKoperasiPage = {
             alternateRowStyles: { fillColor: [248, 250, 252] },
             margin: { left: 14, right: 14, top: 48, bottom: 20 },
             didDrawPage: (data) => {
-                App.drawPDFHeader(doc, title);
-                App.drawPDFFooter(doc);
+                App.drawPDFHeader(doc, title, { subtitle: subTitle });
             }
         });
+
+        // Signatures block
+        App.drawPDFSignatures(doc, doc.lastAutoTable.finalY + 6, { title, subtitle: subTitle });
+
+        // Two-Pass Page Numbering & Footer Drawing for Absolute Accuracy
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            App.drawPDFFooter(doc, { currentPage: i, totalPages });
+        }
 
         window.open(doc.output('bloburl'), '_blank');
     }

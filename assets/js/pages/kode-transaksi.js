@@ -7,8 +7,11 @@ const KodeTransaksiPage = {
         if (!res?.success) return;
         this._list = res.data;
         container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
-            <div class="flex justify-between mb-6"><h3 class="font-semibold text-gray-800">Daftar Kode Transaksi</h3>
-            ${App.hasPerm('simpanan.setting') ? '<button onclick="KodeTransaksiPage.form()" class="bg-primary-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><i class="ri-add-line"></i> Tambah</button>' : ''}</div>
+            <div class="flex justify-between items-center mb-6"><h3 class="font-semibold text-gray-800">Daftar Kode Transaksi</h3>
+            <div class="flex items-center gap-2">
+                ${App.renderDensityToggle()}
+                ${App.hasPerm('simpanan.setting') ? '<button onclick="KodeTransaksiPage.form()" class="bg-primary-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><i class="ri-add-line"></i> Tambah</button>' : ''}
+            </div></div>
             <div class="table-wrapper"><table class="data-table w-full text-sm"><thead><tr class="bg-gray-50"><th class="px-4 py-3 text-left font-medium text-gray-500">Kode</th><th class="px-4 py-3 text-left font-medium text-gray-500">Nama</th><th class="px-4 py-3 text-center font-medium text-gray-500">D/K</th><th class="px-4 py-3 text-left font-medium text-gray-500">Akun Debit</th><th class="px-4 py-3 text-left font-medium text-gray-500">Akun Kredit</th><th class="px-4 py-3 text-center font-medium text-gray-500">Aksi</th></tr></thead>
             <tbody>${res.data.map(k => `<tr class="border-t border-gray-50"><td class="px-4 py-3 font-mono font-bold">${k.kode}</td><td class="px-4 py-3 font-medium">${k.nama}</td><td class="px-4 py-3 text-center">${App.dkBadge(k.dk)}</td>
             <td class="px-4 py-3">${k.akun_debit_kode ? `<span class="font-mono text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">${k.akun_debit_kode}</span> ${k.akun_debit_nama}` : '<span class="text-gray-400 text-xs">Dari Jenis Simpanan</span>'}</td>
@@ -31,10 +34,10 @@ const KodeTransaksiPage = {
             <div><label class="block text-sm font-medium text-gray-600 mb-1">Deskripsi</label><input type="text" id="ktf-desc" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"></div>
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="block text-sm font-medium text-gray-600 mb-1"><i class="ri-arrow-left-down-line text-emerald-500"></i> Akun Debit</label>
-                <select id="ktf-akun-debit" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="">-- Dari Jenis Simpanan --</option>${akunOpts}</select>
+                <select id="ktf-akun-debit" data-icon="ri-arrow-left-down-line" data-search-placeholder="Cari akun debit (nama / kode)..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="">-- Dari Jenis Simpanan --</option>${akunOpts}</select>
                 <p class="text-xs text-gray-400 mt-1">Akun yang di-debit saat transaksi</p></div>
                 <div><label class="block text-sm font-medium text-gray-600 mb-1"><i class="ri-arrow-right-up-line text-red-500"></i> Akun Kredit</label>
-                <select id="ktf-akun-kredit" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="">-- Dari Jenis Simpanan --</option>${akunOpts}</select>
+                <select id="ktf-akun-kredit" data-icon="ri-arrow-right-up-line" data-search-placeholder="Cari akun kredit (nama / kode)..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="">-- Dari Jenis Simpanan --</option>${akunOpts}</select>
                 <p class="text-xs text-gray-400 mt-1">Akun yang di-kredit saat transaksi</p></div>
             </div>
             <div class="flex justify-end gap-3 pt-4 border-t"><button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm">Batal</button><button type="submit" class="px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-medium">Simpan</button></div></form></div>`);
@@ -45,8 +48,10 @@ const KodeTransaksiPage = {
                 document.getElementById('ktf-nama').value = r.data.nama;
                 document.getElementById('ktf-dk').value = r.data.dk;
                 document.getElementById('ktf-desc').value = r.data.deskripsi || '';
-                document.getElementById('ktf-akun-debit').value = r.data.akun_debit_id || '';
-                document.getElementById('ktf-akun-kredit').value = r.data.akun_kredit_id || '';
+                const debEl = document.getElementById('ktf-akun-debit');
+                const kreEl = document.getElementById('ktf-akun-kredit');
+                if (debEl) { debEl.value = r.data.akun_debit_id || ''; debEl.dispatchEvent(new Event('change')); }
+                if (kreEl) { kreEl.value = r.data.akun_kredit_id || ''; kreEl.dispatchEvent(new Event('change')); }
             }
         });
 

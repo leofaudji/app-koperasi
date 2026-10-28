@@ -117,7 +117,53 @@ Jika kasir keliru memproses pembayaran angsuran:
 
 ---
 
-## 9. Spesifikasi Endpoint API Angsuran
+## 9. Widget Kalender Jatuh Tempo Finansial & Proyeksi Arus Kas (Due-Dates Tracker)
+
+Untuk meningkatkan efektivitas penagihan, manajemen likuiditas kas masuk, dan mitigasi risiko pembiayaan sejak dini:
+
+### 9.1 Visualisasi Grid Kalender Bulanan (Monthly Calendar Grid)
+- **Navigasi Waktu Fleksibel**: Pengguna dapat berpindah antar bulan (*Previous*, *Next*, dan *Today*) untuk memantau beban jatuh tempo angsuran historis maupun proyeksi bulan mendatang.
+- **Indikator Status & Beban Harian**:
+  - Setiap sel tanggal pada grid kalender menampilkan jumlah debitur yang jatuh tempo dan akumulasi total nominal kewajiban ($\sum \text{Pokok} + \sum \text{Bunga}$).
+  - **Pewarnaan Dinamis Berbasis Risiko**:
+    - 🔴 **Overdue (Terlambat)**: Badge merah dengan animasi denyut (*pulsing red beacon*) untuk tagihan yang telah melampaui tanggal jatuh tempo namun belum terbayar.
+    - 🔵 **Due Today (Hari Ini)**: Badge biru indigo tegas dengan border kontras untuk tagihan yang jatuh tempo tepat pada hari ini.
+    - ⚪ **Upcoming (Mendatang)**: Badge slate/netral untuk tagihan yang akan datang dalam bulan berjalan.
+- **Interaksi Klik Sel**: Mengklik tanggal tertentu pada kalender langsung memfokuskan daftar rincian debitur yang jatuh tempo pada tanggal tersebut.
+
+### 9.2 Proyeksi Arus Kas Masuk Harian (Projected Cash Inflow)
+- Widget menyajikan metrik proyeksi likuiditas kas masuk (*Projected Inflow*) harian dan bulanan.
+- Bendahara dan manajer kas dapat memproyeksikan kecukupan kas operasional harian berdasarkan jadwal komitmen pelunasan cicilan oleh anggota.
+
+### 9.3 Tampilan Ganda (Dual-View: Kalender & Daftar Prioritas)
+- **Mode Kalender**: Tampilan spasial sebulan penuh untuk melihat distribusi kepadatan tanggal jatuh tempo anggota.
+- **Mode Daftar Prioritas (Priority List View)**: Tampilan daftar linear yang dipilah secara tegas menjadi:
+  1. *Kategori Darurat*: Tagihan Menunggak (*Overdue*) dengan kalkulasi hari keterlambatan.
+  2. *Kategori Hari Ini*: Tagihan yang wajib ditagih/diterima kasir hari ini (*Due Today*).
+  3. *Kategori 7 Hari Mendatang*: Tagihan yang mendekati tanggal jatuh tempo (*Approaching Due*).
+
+### 9.4 Generator Pengingat WhatsApp Resmi 1-Klik (1-Click WhatsApp Reminder)
+- Setiap baris tagihan dilengkapi tombol aksi cepat pengingat WhatsApp (`wa.me`).
+- Menghasilkan draf pesan konfirmasi resmi terpersonalisasi secara otomatis:
+  ```text
+  Yth. Bpk/Ibu [Nama Anggota] ([No. Anggota]),
+  Mengingatkan tagihan angsuran pinjaman Koperasi Anda:
+  - No. Pinjaman : [No. Pinjaman]
+  - Angsuran Ke  : [X] dari [N]
+  - Jatuh Tempo  : [Tgl Jatuh Tempo]
+  - Tagihan Pokok: Rp [Nominal Pokok]
+  - Bunga Jasa   : Rp [Nominal Bunga]
+  - Denda        : Rp [Nominal Denda]
+  - Total Bayar  : Rp [Total Tagihan]
+  
+  Pembayaran dapat dilakukan di meja kasir koperasi atau transfer ke rekening resmi koperasi.
+  Terima kasih atas kerja samanya.
+  ```
+- Nomor telepon anggota dinormalisasi otomatis ke format internasional standar Indonesia (`628...`).
+
+---
+
+## 10. Spesifikasi Endpoint API Angsuran & Kalender Jatuh Tempo
 
 | Method | Endpoint | Fungsi | Hak Akses |
 | :--- | :--- | :--- | :--- |
@@ -128,3 +174,5 @@ Jika kasir keliru memproses pembayaran angsuran:
 | `POST` | `/api/angsuran/reverse` | Reversal pembatalan transaksi pembayaran angsuran | `angsuran.create` |
 | `PUT` | `/api/angsuran/{id}` | Koreksi data transaksi angsuran & catat audit log | `angsuran.create` |
 | `GET` | `/api/angsuran/kartu/{id}` | Mengambil data lengkap kartu angsuran per pinjaman | `pinjaman.view` |
+| `GET` | `/api/dashboard/due-calendar` | Mengambil kalender jatuh tempo bulanan, proyeksi kas, & prioritas tagihan (`?month=YYYY-MM`) | `pinjaman.view` / `angsuran.view` |
+

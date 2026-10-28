@@ -22,7 +22,10 @@ const RATPage = {
                 <div class="flex items-center gap-3 flex-1">
                     <h3 class="text-lg font-bold text-gray-800">Daftar Sesi RAT</h3>
                 </div>
-                ${App.hasPerm('rat.manage') ? '<button onclick="RATPage.form()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-primary-500/25 transition-all"><i class="ri-add-line"></i> Buat Sesi Baru</button>' : ''}
+                <div class="flex items-center gap-2">
+                    ${App.renderDensityToggle()}
+                    ${App.hasPerm('rat.manage') ? '<button onclick="RATPage.form()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-primary-500/25 transition-all"><i class="ri-add-line"></i> Buat Sesi Baru</button>' : ''}
+                </div>
             </div>
             <div class="table-wrapper">
                 <table class="data-table w-full text-sm">

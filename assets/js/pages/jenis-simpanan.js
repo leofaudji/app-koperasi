@@ -7,8 +7,11 @@ const JenisSimpananPage = {
         if (!res?.success) return;
         this._list = res.data;
         container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
-            <div class="flex justify-between mb-6"><h3 class="font-semibold text-gray-800">Daftar Jenis Simpanan</h3>
-            ${App.hasPerm('simpanan.setting') ? '<button onclick="JenisSimpananPage.form()" class="bg-primary-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><i class="ri-add-line"></i> Tambah</button>' : ''}</div>
+            <div class="flex justify-between items-center mb-6"><h3 class="font-semibold text-gray-800">Daftar Jenis Simpanan</h3>
+            <div class="flex items-center gap-2">
+                ${App.renderDensityToggle()}
+                ${App.hasPerm('simpanan.setting') ? '<button onclick="JenisSimpananPage.form()" class="bg-primary-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><i class="ri-add-line"></i> Tambah</button>' : ''}
+            </div></div>
             <div class="table-wrapper"><table class="data-table w-full text-sm"><thead><tr class="bg-gray-50"><th class="px-4 py-3 text-left font-medium text-gray-500">Kode</th><th class="px-4 py-3 text-left font-medium text-gray-500">JS</th><th class="px-4 py-3 text-left font-medium text-gray-500">Nama</th><th class="px-4 py-3 text-right font-medium text-gray-500">Bunga (%)</th><th class="px-4 py-3 text-center font-medium text-gray-500">Wajib</th><th class="px-4 py-3 text-left font-medium text-gray-500">Akun COA</th><th class="px-4 py-3 text-center font-medium text-gray-500">Aksi</th></tr></thead>
             <tbody>${res.data.map(j => `<tr class="border-t border-gray-50"><td class="px-4 py-3 font-mono">${j.kode}</td><td class="px-4 py-3 font-mono text-primary-600 font-bold">${j.kode_numerik || '--'}</td><td class="px-4 py-3 font-medium">${j.nama}</td><td class="px-4 py-3 text-right">${j.bunga_persen}%</td><td class="px-4 py-3 text-center">${j.is_wajib ? '<span class="badge badge-success">Ya</span>' : '<span class="badge badge-warning">Tidak</span>'}</td>
             <td class="px-4 py-3">${j.akun_kode ? `<span class="font-mono text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${j.akun_kode}</span> ${j.akun_nama}` : '<span class="text-gray-400">-</span>'}</td>
@@ -31,7 +34,7 @@ const JenisSimpananPage = {
             <div><label class="block text-sm font-medium text-gray-600 mb-1">Bunga (%)</label> <input type="number" id="jsf-bunga" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" step="0.01" value="0"></div>
             <div><label class="block text-sm font-medium text-gray-600 mb-1">Wajib</label><select id="jsf-wajib" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="0">Tidak</option><option value="1">Ya</option></select></div></div>
             <div><label class="block text-sm font-medium text-gray-600 mb-1">Akun COA (Kewajiban)</label>
-            <select id="jsf-akun" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="">-- Pilih Akun --</option>${akunOpts}</select>
+            <select id="jsf-akun" data-icon="ri-book-2-line" data-search-placeholder="Cari akun kewajiban COA..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="">-- Pilih Akun COA --</option>${akunOpts}</select>
             <p class="text-xs text-gray-400 mt-1">Akun kewajiban di neraca untuk jenis simpanan ini (misal: Simpanan Anggota)</p></div>
             <div><label class="block text-sm font-medium text-gray-600 mb-1">Keterangan</label><input type="text" id="jsf-ket" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"></div>
             <div class="flex justify-end gap-3 pt-4 border-t"><button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm">Batal</button><button type="submit" class="px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-medium">Simpan</button></div></form></div>`);
@@ -43,7 +46,11 @@ const JenisSimpananPage = {
                 document.getElementById('jsf-nama').value = r.data.nama;
                 document.getElementById('jsf-bunga').value = r.data.bunga_persen;
                 document.getElementById('jsf-wajib').value = r.data.is_wajib;
-                document.getElementById('jsf-akun').value = r.data.akun_id || '';
+                const akunEl = document.getElementById('jsf-akun');
+                if (akunEl) {
+                    akunEl.value = r.data.akun_id || '';
+                    akunEl.dispatchEvent(new Event('change'));
+                }
                 document.getElementById('jsf-ket').value = r.data.keterangan || '';
             }
         });

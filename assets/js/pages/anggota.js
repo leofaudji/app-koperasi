@@ -30,7 +30,9 @@ const AnggotaPage = {
                         <option value="keluar" ${status === 'keluar' ? 'selected' : ''}>Keluar</option>
                     </select>
 
-                    <button onclick="AnggotaPage.loadList(document.getElementById('app-content'))" class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2.5 rounded-xl mr-2"><i class="ri-refresh-line"></i></button>
+                    <button onclick="AnggotaPage.loadList(document.getElementById('app-content'))" class="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2.5 rounded-xl mr-1"><i class="ri-refresh-line"></i></button>
+
+                    ${App.renderDensityToggle()}
 
                     <button onclick="AnggotaPage.export('pdf')" class="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF">
                         <i class="ri-file-pdf-line text-xl"></i>
@@ -56,7 +58,8 @@ const AnggotaPage = {
                         <td class="px-4 py-3 text-gray-500">${App.formatDate(a.tgl_daftar)}</td>
                         <td class="px-4 py-3 text-center">${App.statusBadge(a.status)}</td>
                         <td class="px-4 py-3 text-center"><div class="flex justify-center gap-1">
-                            <a href="#/anggota/${a.id}" class="p-1.5 hover:bg-blue-50 rounded-lg text-blue-500" title="Detail"><i class="ri-eye-line"></i></a>
+                            <button onclick="App.inspectAnggota(${a.id})" class="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-600 transition-colors" title="Inspeksi Samping (Slide-Over Drawer)"><i class="ri-side-bar-line"></i></button>
+                            <a href="#/anggota/${a.id}" class="p-1.5 hover:bg-blue-50 rounded-lg text-blue-500" title="Detail Lengkap"><i class="ri-eye-line"></i></a>
                             ${App.hasPerm('anggota.edit') ? `<button onclick="AnggotaPage.form(${a.id})" class="p-1.5 hover:bg-amber-50 rounded-lg text-amber-500" title="Edit"><i class="ri-edit-line"></i></button>` : ''}
                             ${App.hasPerm('anggota.delete') ? `<button onclick="AnggotaPage.del(${a.id})" class="p-1.5 hover:bg-red-50 rounded-lg text-red-400" title="Hapus"><i class="ri-delete-bin-line"></i></button>` : ''}
                         </div></td></tr>`).join('')}
@@ -101,6 +104,9 @@ const AnggotaPage = {
                     Kembali
                 </button>
                 <div class="flex items-center gap-2">
+                    <button onclick="App.showMemberNotes(${a.id}, '${a.nama.replace(/'/g, "\\'")}')" class="bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm" title="Catatan Khusus Petugas (Memo Internal)">
+                        <i class="ri-sticky-note-line text-amber-600"></i> Catatan Memo
+                    </button>
                     ${App.hasPerm('anggota.edit') ? `
                     <button onclick="AnggotaPage.form(${a.id})" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm">
                         <i class="ri-edit-line"></i> Edit Profil

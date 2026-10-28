@@ -102,6 +102,7 @@ const SHUPage = {
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="font-bold text-gray-800">Preview Pembagian SHU ${data.tahun}</h3>
                     <div class="flex items-center gap-2">
+                        ${App.renderDensityToggle()}
                         <button onclick="SHUPage.export('pdf')" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Export PDF">
                             <i class="ri-file-pdf-line text-lg"></i>
                         </button>
@@ -116,7 +117,7 @@ const SHUPage = {
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <table class="data-table w-full text-sm">
                         <thead>
                             <tr class="text-left text-gray-400 border-b border-gray-50">
                                 <th class="pb-3 pl-2">Anggota</th>

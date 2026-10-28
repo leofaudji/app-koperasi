@@ -15,7 +15,10 @@ const UsersPage = {
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                 <div class="relative flex-1 max-w-md"><i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                 <input type="text" id="usr-search" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm" placeholder="Cari user..." value="${search}" onkeyup="if(event.key==='Enter')UsersPage.loadList(UsersPage.container)"></div>
-                ${App.hasPerm('user.create') ? '<button onclick="UsersPage.form()" class="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><i class="ri-add-line"></i> Tambah User</button>' : ''}
+                <div class="flex items-center gap-2">
+                    ${App.renderDensityToggle()}
+                    ${App.hasPerm('user.create') ? '<button onclick="UsersPage.form()" class="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2"><i class="ri-add-line"></i> Tambah User</button>' : ''}
+                </div>
             </div>
             <div class="table-wrapper"><table class="data-table w-full text-sm">
                 <thead><tr class="bg-gray-50"><th class="px-4 py-3 text-left font-medium text-gray-500">Username</th><th class="px-4 py-3 text-left font-medium text-gray-500">Nama</th><th class="px-4 py-3 text-left font-medium text-gray-500">Role</th><th class="px-4 py-3 text-center font-medium text-gray-500">Status</th><th class="px-4 py-3 text-left font-medium text-gray-500">Login Terakhir</th><th class="px-4 py-3 text-center font-medium text-gray-500">Aksi</th></tr></thead>
@@ -40,7 +43,7 @@ const UsersPage = {
                 <div><label class="block text-sm font-medium text-gray-600 mb-1">${id ? 'Password (kosongkan jika tidak diubah)' : 'Password *'}</label><input type="password" id="uf-password" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" ${id ? '' : 'required'}></div>
                 <div><label class="block text-sm font-medium text-gray-600 mb-1">Nama Lengkap *</label><input type="text" id="uf-nama" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" required></div>
                 <div><label class="block text-sm font-medium text-gray-600 mb-1">Email</label><input type="email" id="uf-email" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"></div>
-                <div><label class="block text-sm font-medium text-gray-600 mb-1">Role *</label><select id="uf-role" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">${(this._roles || []).map(r => `<option value="${r.id}">${r.nama}</option>`).join('')}</select></div>
+                <div><label class="block text-sm font-medium text-gray-600 mb-1">Role *</label><select id="uf-role" data-icon="ri-shield-user-line" data-search-placeholder="Cari role pengguna..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">${(this._roles || []).map(r => `<option value="${r.id}">${r.nama}</option>`).join('')}</select></div>
                 <div><label class="block text-sm font-medium text-gray-600 mb-1">Status</label><select id="uf-active" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="1">Aktif</option><option value="0">Nonaktif</option></select></div>
             </div>
             <div class="flex justify-end gap-3 pt-4 border-t"><button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm">Batal</button><button type="submit" class="px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-medium">Simpan</button></div>
@@ -48,7 +51,17 @@ const UsersPage = {
         if (id) this.loadForm(id);
         document.getElementById('usr-form').onsubmit = e => { e.preventDefault(); this.save(); };
     },
-    async loadForm(id) { const r = await App.api('users/' + id); if (!r?.success) return; const u = r.data; document.getElementById('uf-username').value = u.username; document.getElementById('uf-nama').value = u.nama_lengkap; document.getElementById('uf-email').value = u.email || ''; document.getElementById('uf-role').value = u.role_id; document.getElementById('uf-active').value = u.is_active; },
+    async loadForm(id) { 
+        const r = await App.api('users/' + id); 
+        if (!r?.success) return; 
+        const u = r.data; 
+        document.getElementById('uf-username').value = u.username; 
+        document.getElementById('uf-nama').value = u.nama_lengkap; 
+        document.getElementById('uf-email').value = u.email || ''; 
+        const roleEl = document.getElementById('uf-role');
+        if (roleEl) { roleEl.value = u.role_id; roleEl.dispatchEvent(new Event('change')); }
+        document.getElementById('uf-active').value = u.is_active; 
+    },
     async save() { const id = document.getElementById('uf-id').value; const body = { username: document.getElementById('uf-username').value, nama_lengkap: document.getElementById('uf-nama').value, email: document.getElementById('uf-email').value, role_id: document.getElementById('uf-role').value, is_active: document.getElementById('uf-active').value }; const pw = document.getElementById('uf-password').value; if (pw) body.password = pw; const r = await App.api(id ? `users/${id}` : 'users', { method: id ? 'PUT' : 'POST', body }); if (r?.success) { App.closeModal(); App.toast(r.message, 'success'); this.loadList(this.container); } else App.toast(r?.message || 'Gagal', 'error'); },
     async del(id, name) { if (!name && this._users) { const found = this._users.find(x => x.id == id); if (found) name = found.username; } const ok = await App.confirm('Hapus User', `Yakin ingin menghapus user "${name || ''}"?`); if (!ok) return; const r = await App.api(`users/${id}`, { method: 'DELETE' }); if (r?.success) { App.toast(r.message, 'success'); this.loadList(this.container); } else App.toast(r?.message || 'Gagal', 'error'); }
 };

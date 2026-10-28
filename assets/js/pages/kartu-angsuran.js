@@ -169,6 +169,27 @@ const KartuAngsuranPage = {
                 <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-20 translate-x-20"></div>
                 <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-white/5 rounded-full"></div>
 
+                ${p.status === 'lunas' ? `
+                    <div class="absolute top-3 right-6 sm:top-5 sm:right-16 z-20 pointer-events-none">
+                        ${App.renderRubberStamp({
+                            type: 'lunas',
+                            size: 'lg',
+                            title: 'LUNAS',
+                            sub: p.tgl_lunas ? App.formatDate(p.tgl_lunas) : 'KASIR KOPERASI',
+                            class: 'shadow-xl'
+                        })}
+                    </div>
+                ` : (p.status === 'cair' ? `
+                    <div class="absolute top-3 right-6 sm:top-4 sm:right-12 z-20 pointer-events-none opacity-85">
+                        ${App.renderRubberStamp({
+                            type: 'verified',
+                            size: 'sm',
+                            title: 'TERVERIFIKASI',
+                            sub: 'AKAD PINJAMAN CAIR'
+                        })}
+                    </div>
+                ` : '')}
+
                 <div class="relative z-10 flex flex-col md:flex-row gap-5 justify-between">
                     <!-- Info Pinjaman -->
                     <div class="flex items-start gap-4">
@@ -228,6 +249,7 @@ const KartuAngsuranPage = {
                         class="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur border border-white/30 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all">
                         <i class="ri-file-excel-line"></i> Export CSV
                     </button>
+                    ${App.renderDensityToggle()}
                 </div>
             </div>
 
@@ -248,7 +270,7 @@ const KartuAngsuranPage = {
 
             <!-- Tabel Angsuran -->
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="data-table w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100">
                             <th class="px-4 py-3 text-center font-semibold text-gray-500 text-xs w-12">Ke-</th>
@@ -334,12 +356,14 @@ const KartuAngsuranPage = {
         const title = 'KARTU ANGSURAN PINJAMAN';
 
         // Use App helpers for consistent branding
-        App.drawPDFHeader(doc, title);
-        App.drawPDFFooter(doc);
+        const subtitle = `No. Pinjaman: ${p.no_pinjaman}  |  Anggota: ${p.anggota_nama} (${p.no_anggota})`;
+        App.drawPDFHeader(doc, title, { subtitle });
 
-        // ── Info Box (shifted down to y=47 to prevent overlap with title at y=38.5) ──
-        doc.setFillColor(241, 245, 249);
-        doc.roundedRect(14, 47, pw - 28, 28, 2, 2, 'F');
+        // ── Info Box (at y=45) ──
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(14, 45, pw - 28, 26, 2, 2, 'FD');
         doc.setFontSize(8); doc.setTextColor(71, 85, 105);
 
         const L = 18, R = pw / 2 + 2;
@@ -405,8 +429,7 @@ const KartuAngsuranPage = {
             alternateRowStyles: { fillColor: [248, 250, 252] },
             margin: { left: 14, right: 14, top: 48, bottom: 20 },
             didDrawPage: () => {
-                App.drawPDFHeader(doc, title);
-                App.drawPDFFooter(doc);
+                App.drawPDFHeader(doc, title, { subtitle });
             }
         });
 
@@ -415,13 +438,25 @@ const KartuAngsuranPage = {
         const totalPokok = txs.reduce((s, a) => s + parseFloat(a.pokok || 0), 0);
         const totalBunga = txs.reduce((s, a) => s + parseFloat(a.bunga || 0), 0);
         const totalDenda = txs.reduce((s, a) => s + parseFloat(a.denda || 0), 0);
-        doc.setFillColor(241, 245, 249);
-        doc.roundedRect(pw - 110, fy, 96, 22, 2, 2, 'F');
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(pw - 110, fy, 96, 20, 2, 2, 'FD');
         doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42);
-        doc.text('Sisa Pinjaman', pw - 106, fy + 7);
-        doc.text(App.formatRupiah(p.sisa_pinjaman), pw - 16, fy + 7, { align: 'right' });
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(100);
-        doc.text(`Total Bunga: ${App.formatRupiah(totalBunga)}  |  Total Denda: ${App.formatRupiah(totalDenda)}`, pw - 106, fy + 14);
+        doc.text('Sisa Pinjaman', pw - 105, fy + 6.5);
+        doc.text(App.formatRupiah(p.sisa_pinjaman), pw - 16, fy + 6.5, { align: 'right' });
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
+        doc.text(`Total Bunga: ${App.formatRupiah(totalBunga)}  |  Total Denda: ${App.formatRupiah(totalDenda)}`, pw - 105, fy + 13.5);
+
+        // Signatures block
+        App.drawPDFSignatures(doc, fy + 24, { title, subtitle });
+
+        // Two-Pass Page Numbering & Footer Drawing for Absolute Accuracy
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            App.drawPDFFooter(doc, { currentPage: i, totalPages });
+        }
 
         window.open(doc.output('bloburl'), '_blank');
     },

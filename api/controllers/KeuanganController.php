@@ -1789,7 +1789,6 @@ switch ($id) {
         break;
 
     case 'akun':
-        checkPermission('keuangan.akun');
         if ($method === 'GET') {
             if ($action) {
                 $cacheKey = "rep_coa_{$action}";
@@ -1807,6 +1806,7 @@ switch ($id) {
                 successResponse($data);
             }
         } elseif ($method === 'POST') {
+            checkPermission('keuangan.akun');
             $kode = $params['kode'] ?? '';
             $nama = $params['nama'] ?? '';
             $tipe = $params['tipe'] ?? '';
@@ -1826,6 +1826,7 @@ switch ($id) {
             clearCache(['coa']);
             successResponse(['id' => $newId], 'Akun berhasil ditambahkan', 201);
         } elseif ($method === 'PUT') {
+            checkPermission('keuangan.akun');
             if (!$action)
                 errorResponse('ID akun diperlukan');
             $tipe = $params['tipe'] ?? 'aset';
@@ -1837,6 +1838,7 @@ switch ($id) {
             clearCache(['coa' => $action]);
             successResponse(null, 'Akun berhasil diupdate');
         } elseif ($method === 'DELETE') {
+            checkPermission('keuangan.akun');
             if (!$action)
                 errorResponse('ID akun diperlukan');
             $used = $db->count("SELECT COUNT(*) FROM jurnal_detail WHERE akun_id = ?", [$action]);

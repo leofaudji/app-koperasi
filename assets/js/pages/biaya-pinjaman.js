@@ -16,9 +16,12 @@ const BiayaPinjamanPage = {
                     <h2 class="text-lg font-bold text-gray-800">Jenis Biaya Pinjaman</h2>
                     <p class="text-sm text-gray-400 mt-0.5">Komponen biaya yang muncul otomatis saat pencairan pinjaman</p>
                 </div>
-                <button onclick="BiayaPinjamanPage.form()" class="bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-primary-500/20">
-                    <i class="ri-add-line"></i> Tambah Biaya
-                </button>
+                <div class="flex items-center gap-2">
+                    ${App.renderDensityToggle()}
+                    <button onclick="BiayaPinjamanPage.form()" class="bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-primary-500/20">
+                        <i class="ri-add-line"></i> Tambah Biaya
+                    </button>
+                </div>
             </div>
 
             <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 text-sm text-amber-800">
@@ -27,7 +30,7 @@ const BiayaPinjamanPage = {
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="data-table w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50">
                             <th class="px-4 py-3 text-left font-medium text-gray-500">No</th>
@@ -86,72 +89,84 @@ const BiayaPinjamanPage = {
     },
 
     async form(id = null) {
-        let data = null;
-        if (id) {
-            const r = await App.api(`biaya-pinjaman/${id}`);
-            if (!r?.success) { App.toast('Gagal memuat data', 'error'); return; }
-            data = r.data;
+        if (id || !App._apiCache['keuangan/akun']) {
+            App.openModalLoading(id ? 'Memuat Data Biaya...' : 'Menyiapkan Form Biaya...');
         }
 
-        // Load akun untuk dropdown
-        if (!this._akun || !this._akun.length) {
-            const akunRes = await App.api('keuangan/akun');
+        try {
+            const [r, akunRes] = await Promise.all([
+                id ? App.api(`biaya-pinjaman/${id}`) : Promise.resolve(null),
+                App.cachedApi('keuangan/akun')
+            ]);
+
+            if (id && !r?.success) {
+                App.closeModal();
+                App.toast('Gagal memuat data', 'error');
+                return;
+            }
+            const data = id ? r?.data : null;
+
+            // Load akun untuk dropdown
             this._akun = akunRes?.data || [];
+            const akunOpts = this._akun
+                .filter(a => a.tipe === 'pendapatan' || a.tipe === 'kewajiban')
+                .map(a => `<option value="${a.id}" ${data?.akun_id == a.id ? 'selected' : ''}>[${a.kode}] ${a.nama} (${a.tipe})</option>`)
+                .join('');
+
+            App.openModal(`<div class="p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-5"><i class="ri-coins-line text-amber-500 mr-2"></i>${data ? 'Edit' : 'Tambah'} Jenis Biaya</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Nama Biaya *</label>
+                        <input type="text" id="bb-nama" value="${data?.nama || ''}" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" placeholder="Contoh: Biaya Provisi">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Tipe Perhitungan *</label>
+                            <select id="bb-tipe" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" onchange="BiayaPinjamanPage.toggleTipe(this.value)">
+                                <option value="nominal" ${data?.tipe !== 'persen' ? 'selected' : ''}>Nominal (Rp)</option>
+                                <option value="persen" ${data?.tipe === 'persen' ? 'selected' : ''}>Persentase (%)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1" id="bb-nilai-lbl">Nilai (Rp) *</label>
+                            <input type="number" id="bb-nilai" value="${data?.nilai || 0}" min="0" step="0.01" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Akun Jurnal Kredit (COA)</label>
+                        <select id="bb-akun" data-icon="ri-book-2-line" data-search-placeholder="Cari akun pendapatan COA..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
+                            <option value="">-- Otomatis Sesuai Aturan Sistem --</option>
+                            ${akunOpts}
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Akun pendapatan untuk kredit potongan biaya saat pencairan pinjaman. Jika dikosongkan untuk <b>Biaya Provisi</b>, sistem otomatis mengalokasikan ke akun provisi jenis pinjaman terkait (402/403/404/405).</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Status Keharusan</label>
+                            <select id="bb-wajib" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
+                                <option value="1" ${data?.is_wajib ? 'selected' : ''}>Biaya Wajib</option>
+                                <option value="0" ${!data?.is_wajib ? 'selected' : ''}>Opsional</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Urutan Tampil</label>
+                            <input type="number" id="bb-urutan" value="${data?.urutan || 0}" min="0" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 pt-4 border-t">
+                        <button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm hover:bg-gray-50 text-gray-600">Batal</button>
+                        <button type="button" onclick="BiayaPinjamanPage.save(${id || 'null'})" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium">Simpan</button>
+                    </div>
+                </div>
+            </div>`);
+
+            if (data?.tipe === 'persen') BiayaPinjamanPage.toggleTipe('persen');
+        } catch (err) {
+            console.error('Error in BiayaPinjamanPage.form:', err);
+            App.closeModal();
+            App.toast('Terjadi kesalahan saat menyiapkan form biaya', 'error');
         }
-        const akunOpts = this._akun
-            .filter(a => a.tipe === 'pendapatan' || a.tipe === 'kewajiban')
-            .map(a => `<option value="${a.id}" ${data?.akun_id == a.id ? 'selected' : ''}>[${a.kode}] ${a.nama} (${a.tipe})</option>`)
-            .join('');
-
-        App.openModal(`<div class="p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-5"><i class="ri-coins-line text-amber-500 mr-2"></i>${data ? 'Edit' : 'Tambah'} Jenis Biaya</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">Nama Biaya *</label>
-                    <input type="text" id="bb-nama" value="${data?.nama || ''}" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" placeholder="Contoh: Biaya Provisi">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Tipe Perhitungan *</label>
-                        <select id="bb-tipe" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" onchange="BiayaPinjamanPage.toggleTipe(this.value)">
-                            <option value="nominal" ${data?.tipe !== 'persen' ? 'selected' : ''}>Nominal (Rp)</option>
-                            <option value="persen" ${data?.tipe === 'persen' ? 'selected' : ''}>Persentase (%)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1" id="bb-nilai-lbl">Nilai (Rp) *</label>
-                        <input type="number" id="bb-nilai" value="${data?.nilai || 0}" min="0" step="0.01" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">Akun Jurnal Kredit (COA)</label>
-                    <select id="bb-akun" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
-                        <option value="">-- Otomatis Sesuai Aturan Sistem --</option>
-                        ${akunOpts}
-                    </select>
-                    <p class="text-xs text-gray-400 mt-1">Akun pendapatan untuk kredit potongan biaya saat pencairan pinjaman. Jika dikosongkan untuk <b>Biaya Provisi</b>, sistem otomatis mengalokasikan ke akun provisi jenis pinjaman terkait (402/403/404/405).</p>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Status Keharusan</label>
-                        <select id="bb-wajib" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
-                            <option value="1" ${data?.is_wajib ? 'selected' : ''}>Biaya Wajib</option>
-                            <option value="0" ${!data?.is_wajib ? 'selected' : ''}>Opsional</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Urutan Tampil</label>
-                        <input type="number" id="bb-urutan" value="${data?.urutan || 0}" min="0" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
-                    </div>
-                </div>
-                <div class="flex justify-end gap-3 pt-4 border-t">
-                    <button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm hover:bg-gray-50 text-gray-600">Batal</button>
-                    <button type="button" onclick="BiayaPinjamanPage.save(${id || 'null'})" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium">Simpan</button>
-                </div>
-            </div>
-        </div>`);
-
-        if (data?.tipe === 'persen') BiayaPinjamanPage.toggleTipe('persen');
     },
 
     toggleTipe(tipe) {

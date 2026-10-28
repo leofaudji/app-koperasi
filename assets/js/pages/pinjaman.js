@@ -288,6 +288,7 @@ const PinjamanPage = {
                         <option value="">Semua Status</option><option value="pending">Pending</option><option value="cair">Cair</option><option value="lunas">Lunas</option><option value="ditolak">Ditolak</option></select>
                 </div>
                 <div class="flex items-center gap-2">
+                    ${App.renderDensityToggle()}
                     <button onclick="PinjamanPage.export('pdf')" class="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF"><i class="ri-file-pdf-line text-lg"></i></button>
                     <button onclick="PinjamanPage.export('csv')" class="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title="Export CSV"><i class="ri-file-excel-line text-lg"></i></button>
                     ${App.hasPerm('pinjaman.create') ? '<button onclick="PinjamanPage.form()" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-amber-500/25 ml-2"><i class="ri-add-line"></i> Pengajuan Baru</button>' : ''}
@@ -304,6 +305,7 @@ const PinjamanPage = {
                     <td class="px-4 py-3 text-right font-semibold text-amber-600">${App.formatRupiah(p.sisa_pinjaman)}</td>
                     <td class="px-4 py-3 text-center">${App.statusBadge(p.status)}</td>
                     <td class="px-4 py-3 text-center"><div class="flex justify-center gap-1">
+                        <button onclick="App.inspectPinjaman(${p.id})" class="p-1.5 hover:bg-amber-50 rounded-lg text-amber-600 transition-colors" title="Inspeksi Samping (Slide-Over Drawer)"><i class="ri-side-bar-line"></i></button>
                         <a href="#/pinjaman/${p.id}" class="p-1.5 hover:bg-blue-50 rounded-lg text-blue-500" title="Detail"><i class="ri-eye-line"></i></a>
                         ${p.status === 'pending' && App.hasPerm('pinjaman.approve') ? `<button onclick="PinjamanPage.approve(${p.id})" class="p-1.5 hover:bg-emerald-50 rounded-lg text-emerald-500" title="Approve"><i class="ri-check-line"></i></button><button onclick="PinjamanPage.reject(${p.id})" class="p-1.5 hover:bg-red-50 rounded-lg text-red-400" title="Tolak"><i class="ri-close-line"></i></button>` : ''}
                         ${p.status === 'cair' && App.hasPerm('pinjaman.approve') ? `<button onclick="PinjamanPage.confirmReverse(${p.id}, '${p.no_pinjaman}')" class="p-1.5 hover:bg-red-50 rounded-lg text-red-500" title="Reverse Pencairan"><i class="ri-arrow-go-back-line"></i></button>` : ''}
@@ -314,8 +316,12 @@ const PinjamanPage = {
 
     async form() {
         this._agunanList = [];
-        const jp = await App.api('jenis-pinjaman');
-        App.openModal(`<div class="p-6"><h3 class="text-lg font-bold text-gray-800 mb-4"><i class="ri-hand-coin-line text-amber-500 mr-2"></i>Pengajuan Pinjaman Baru</h3>
+        if (!App._apiCache['jenis-pinjaman']) {
+            App.openModalLoading('Menyiapkan Form Pengajuan Pinjaman...');
+        }
+        try {
+            const jp = await App.cachedApi('jenis-pinjaman');
+            App.openModal(`<div class="p-6"><h3 class="text-lg font-bold text-gray-800 mb-4"><i class="ri-hand-coin-line text-amber-500 mr-2"></i>Pengajuan Pinjaman Baru</h3>
         
         <!-- Tabs Navigation -->
         <div class="flex border-b border-gray-200 mb-6 font-medium text-sm">
@@ -341,7 +347,7 @@ const PinjamanPage = {
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-sm font-medium text-gray-600 mb-1">Jenis Pinjaman *</label><select id="pf-jenis" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">${(jp?.data || []).map(j => `<option value="${j.id}" data-bunga="${j.bunga_persen}" data-tenor="${j.max_tenor}" data-max="${j.max_jumlah}">${j.nama} (${j.bunga_persen}%)</option>`).join('')}</select></div>
+                    <div><label class="block text-sm font-medium text-gray-600 mb-1">Jenis Pinjaman *</label><select id="pf-jenis" data-icon="ri-hand-coin-line" data-search-placeholder="Cari jenis pinjaman..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">${(jp?.data || []).map(j => `<option value="${j.id}" data-bunga="${j.bunga_persen}" data-tenor="${j.max_tenor}" data-max="${j.max_jumlah}">${j.nama} (${j.bunga_persen}%)</option>`).join('')}</select></div>
                     <div><label class="block text-sm font-medium text-gray-600 mb-1">Tanggal</label><input type="text" id="pf-tgl" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" placeholder="Tanggal"></div>
                     <div><label class="block text-sm font-medium text-gray-600 mb-1">Jumlah (Rp) *</label><input type="number" id="pf-jumlah" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" min="1" required oninput="PinjamanPage.calcSim()"></div>
                     <div><label class="block text-sm font-medium text-gray-600 mb-1">Tenor (bulan) *</label><input type="number" id="pf-tenor" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" min="1" required oninput="PinjamanPage.calcSim()"></div>
@@ -513,6 +519,11 @@ const PinjamanPage = {
                 submitBtn.innerHTML = 'Ajukan Pinjaman';
             }
         };
+        } catch (err) {
+            console.error('Error in PinjamanPage.form:', err);
+            App.closeModal();
+            App.toast('Terjadi kesalahan saat menyiapkan form pengajuan pinjaman', 'error');
+        }
     },
 
     selectAnggotaByIndex(idx) {
@@ -1156,13 +1167,20 @@ const PinjamanPage = {
     },
 
     async approve(id) {
-        // Load data pinjaman, jenis biaya & akun secara paralel
-        const [resPnj, resBiaya, resAkun] = await Promise.all([
-            App.api(`pinjaman/${id}`),
-            App.api('biaya-pinjaman?active=1'),
-            App.api('keuangan/akun')
-        ]);
-        if (!resPnj?.success) { App.toast('Gagal memuat data pinjaman', 'error'); return; }
+        App.openModalLoading('Menyiapkan Persetujuan & Pencairan...');
+
+        try {
+            // Load data pinjaman, jenis biaya & akun secara paralel dengan cache
+            const [resPnj, resBiaya, resAkun] = await Promise.all([
+                App.api(`pinjaman/${id}`),
+                App.cachedApi('biaya-pinjaman?active=1'),
+                App.cachedApi('keuangan/akun')
+            ]);
+        if (!resPnj?.success) {
+            App.closeModal();
+            App.toast('Gagal memuat data pinjaman', 'error');
+            return;
+        }
         const p = resPnj.data;
         const biayaList = resBiaya?.data || [];
         const accounts = resAkun?.data || [];
@@ -1356,6 +1374,11 @@ const PinjamanPage = {
 
         // Hitung estimasi awal dana diterima
         PinjamanPage.calcTotalBiaya();
+        } catch (err) {
+            console.error('Error in PinjamanPage.approve:', err);
+            App.closeModal();
+            App.toast('Terjadi kesalahan saat menyiapkan persetujuan pinjaman', 'error');
+        }
     },
 
     toggleSwInput() {
@@ -1495,9 +1518,20 @@ const PinjamanPage = {
             <div class="bg-gradient-to-br from-violet-600 to-primary-700 p-6 rounded-t-2xl sm:rounded-tl-2xl sm:rounded-tr-2xl text-white relative overflow-hidden">
                 <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
                 <button onclick="App.closeModal()" class="absolute top-4 right-4 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full p-1.5 transition-colors"><i class="ri-close-line"></i></button>
-                <div class="relative z-10">
-                    <h3 class="text-xl font-bold mb-1 flex items-center"><i class="ri-checkbox-circle-line mr-2 text-violet-200"></i>Pelunasan Pinjaman</h3>
-                    <p class="text-violet-100 text-sm opacity-90">${k.pinjaman.anggota_nama} &nbsp;·&nbsp; <span class="font-mono text-white">${k.pinjaman.no_pinjaman}</span></p>
+                <div class="relative z-10 flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-bold mb-1 flex items-center"><i class="ri-checkbox-circle-line mr-2 text-violet-200"></i>Pelunasan Pinjaman</h3>
+                        <p class="text-violet-100 text-sm opacity-90">${k.pinjaman.anggota_nama} &nbsp;·&nbsp; <span class="font-mono text-white">${k.pinjaman.no_pinjaman}</span></p>
+                    </div>
+                    <div class="hidden sm:block pointer-events-none select-none">
+                        ${App.renderRubberStamp({
+                            type: 'early_settled',
+                            size: 'sm',
+                            title: 'PELUNASAN',
+                            sub: 'DISETUJUI KOPERASI',
+                            class: 'shadow-lg'
+                        })}
+                    </div>
                 </div>
             </div>
 

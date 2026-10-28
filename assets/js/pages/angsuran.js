@@ -36,6 +36,7 @@ const AngsuranPage = {
                         <span>Verifikasi Pengajuan</span>
                         ${pendingCount > 0 ? `<span class="min-w-[18px] h-[18px] bg-rose-600 text-white text-[10px] font-bold rounded-full px-1 flex items-center justify-center animate-pulse">${pendingCount}</span>` : ''}
                     </button>
+                    ${App.renderDensityToggle()}
                     <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 p-1 rounded-xl">
                         <button onclick="AngsuranPage.export('pdf')" class="px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1.5" title="Export PDF">
                             <i class="ri-file-pdf-line text-base"></i> PDF
@@ -102,6 +103,11 @@ const AngsuranPage = {
                             <input type="date" id="ags-filter-dari" value="${dari}" onchange="AngsuranPage.loadList(AngsuranPage.container)" class="bg-transparent border-0 p-0 text-xs font-semibold text-gray-800 focus:ring-0 focus:outline-none w-28 cursor-pointer" title="Dari Tanggal">
                             <span class="text-gray-400 text-xs font-bold px-0.5">s/d</span>
                             <input type="date" id="ags-filter-sampai" value="${sampai}" onchange="AngsuranPage.loadList(AngsuranPage.container)" class="bg-transparent border-0 p-0 text-xs font-semibold text-gray-800 focus:ring-0 focus:outline-none w-28 cursor-pointer" title="Sampai Tanggal">
+                        </div>
+
+                        <!-- Date Chips Preset -->
+                        <div class="hidden xl:block">
+                            ${App.renderDateChips({ fromId: 'ags-filter-dari', toId: 'ags-filter-sampai', callback: 'AngsuranPage.loadList(AngsuranPage.container)' })}
                         </div>
                     </div>
 
@@ -170,8 +176,9 @@ const AngsuranPage = {
                                 <button onclick="App.toggleRowDropdown(this)" class="row-dropdown-trigger p-1 px-2.5 text-gray-500 hover:text-gray-700 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1">
                                     Aksi <i class="ri-arrow-down-s-line"></i>
                                 </button>
-                                <div class="row-dropdown-menu hidden absolute right-0 mt-1 w-32 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-fadeIn">
-                                    <button onclick="App.printReceipt('angsuran', ${a.id})" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-1.5"><i class="ri-printer-line text-sm"></i> Struk</button>
+                                <div class="row-dropdown-menu hidden absolute right-0 mt-1 w-36 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-fadeIn">
+                                    <button onclick="App.showThermalReceiptPreview('angsuran', ${a.id})" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center gap-1.5"><i class="ri-receipt-line text-sm"></i> Preview Struk</button>
+                                    <button onclick="App.printReceipt('angsuran', ${a.id})" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5"><i class="ri-printer-line text-sm"></i> Cetak Langsung</button>
                                     <button onclick="AngsuranPage.form(null, { editId: ${a.id} })" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-primary-600 hover:bg-primary-50 transition-colors flex items-center gap-1.5"><i class="ri-edit-line text-sm"></i> Koreksi</button>
                                     <button onclick="AngsuranPage.confirmReverse(${a.id}, '${a.no_pinjaman}', ${a.angsuran_ke})" class="w-full text-left px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1.5"><i class="ri-arrow-go-back-line text-sm"></i> Reversal</button>
                                 </div>
@@ -184,25 +191,31 @@ const AngsuranPage = {
     },
 
     async form(pinjamanId = null, options = {}) {
-        let accounts = [];
-        const resAkun = await App.api('keuangan/akun');
-        if (resAkun?.success) {
-            accounts = resAkun.data;
-        }
-
         const isEdit = !!options.editId;
-        let trx = null;
-        if (isEdit) {
-            const editRes = await App.api('angsuran/' + options.editId);
-            if (editRes?.success) {
-                trx = editRes.data;
-            } else {
-                App.toast('Gagal memuat data angsuran', 'error');
-                return;
-            }
+        if (isEdit || !App._apiCache['keuangan/akun']) {
+            App.openModalLoading(isEdit ? 'Memuat Data Koreksi Angsuran...' : 'Menyiapkan Form Pembayaran...');
         }
 
-        App.openModal(`<div class="p-6">
+        try {
+            // Parallel fetch for speed & use memory cache for master accounts
+            const [resAkun, editRes] = await Promise.all([
+                App.cachedApi('keuangan/akun'),
+                isEdit ? App.api('angsuran/' + options.editId) : Promise.resolve(null)
+            ]);
+
+            let accounts = resAkun?.success ? resAkun.data : [];
+            let trx = null;
+            if (isEdit) {
+                if (editRes?.success) {
+                    trx = editRes.data;
+                } else {
+                    App.closeModal();
+                    App.toast('Gagal memuat data angsuran', 'error');
+                    return;
+                }
+            }
+
+            App.openModal(`<div class="p-6">
             <h3 class="text-lg font-bold text-gray-800 mb-6"><i class="ri-money-dollar-circle-line text-emerald-500 mr-2"></i>${isEdit ? `Koreksi Pembayaran Angsuran: ${trx.no_pinjaman}` : 'Pembayaran Angsuran'}</h3>
             <form id="ags-form" class="space-y-4">
                 <div>
@@ -527,6 +540,11 @@ const AngsuranPage = {
                 App.toast(res?.message || 'Gagal menyimpan pembayaran', 'error');
             }
         };
+        } catch (err) {
+            console.error('Error in AngsuranPage.form:', err);
+            App.closeModal();
+            App.toast('Terjadi kesalahan saat menyiapkan form angsuran', 'error');
+        }
     },
 
     async selectLoan(id) {

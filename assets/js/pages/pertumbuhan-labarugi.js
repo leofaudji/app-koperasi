@@ -71,6 +71,7 @@ const PertumbuhanLabaRugiPage = {
 
                     <!-- Export Buttons -->
                     <div class="flex flex-wrap items-center gap-2">
+                        ${App.renderDensityToggle()}
                         <button onclick="PertumbuhanLabaRugiPage.exportPDF()"
                             class="bg-rose-50 text-rose-600 hover:bg-rose-100 px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all" title="Download / Cetak PDF">
                             <i class="ri-file-pdf-line text-base"></i> Cetak PDF
@@ -292,7 +293,7 @@ const PertumbuhanLabaRugiPage = {
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-xs">
+                    <table class="data-table w-full text-xs">
                         <thead>
                             <tr class="text-left text-gray-500 border-b border-gray-200 bg-gray-50/70 font-semibold">
                                 <th class="py-3 px-4">Periode</th>
@@ -444,26 +445,19 @@ const PertumbuhanLabaRugiPage = {
         const pw = doc.internal.pageSize.getWidth();
 
         const title = 'LAPORAN PERTUMBUHAN LABA / RUGI & TREN SHU';
-        App.drawPDFHeader(doc, title);
-        App.drawPDFFooter(doc);
-
         const subTitle = isBulanan 
             ? `Tahun Analisis: ${d.filter.tahun}  |  Model: Bulanan (Month-over-Month)`
             : `Rentang Analisis: ${d.filter.tahun_awal} s/d ${d.filter.tahun_akhir}  |  Model: Tahunan (Year-over-Year)`;
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 116, 139);
-        doc.text(subTitle, 14, 44);
+        const headerBottomY = App.drawPDFHeader(doc, title, { subtitle: subTitle });
 
         // Summary Cards
         const cards = [
-            { label: 'Total Pendapatan', value: App.formatRupiah(r.total_pendapatan) },
-            { label: 'Total Beban', value: App.formatRupiah(r.total_beban) },
-            { label: 'SHU Bersih', value: App.formatRupiah(r.total_shu) },
-            { label: 'Rata Pertumbuhan', value: this.formatPersen(r.rata_pertumbuhan_persen) }
+            { label: 'Total Pendapatan', value: App.formatRupiah(r.total_pendapatan), color: 'emerald' },
+            { label: 'Total Beban', value: App.formatRupiah(r.total_beban), color: 'rose' },
+            { label: 'SHU Bersih', value: App.formatRupiah(r.total_shu), color: 'indigo' },
+            { label: 'Rata Pertumbuhan', value: this.formatPersen(r.rata_pertumbuhan_persen), color: 'blue' }
         ];
-        const curY = App.drawPDFSummaryCards(doc, cards, 48);
+        const curY = App.drawPDFSummaryCards(doc, cards, headerBottomY + 2);
 
         // Table Data
         const tableBody = items.map(it => {
@@ -534,10 +528,19 @@ const PertumbuhanLabaRugiPage = {
                 }
             },
             didDrawPage: () => {
-                App.drawPDFHeader(doc, title);
-                App.drawPDFFooter(doc);
+                App.drawPDFHeader(doc, title, { subtitle: subTitle });
             }
         });
+
+        // Signatures block
+        App.drawPDFSignatures(doc, doc.lastAutoTable.finalY + 6, { title, subtitle: subTitle });
+
+        // Two-Pass Page Numbering & Footer Drawing for Absolute Accuracy
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            App.drawPDFFooter(doc, { currentPage: i, totalPages });
+        }
 
         window.open(doc.output('bloburl'), '_blank');
     },

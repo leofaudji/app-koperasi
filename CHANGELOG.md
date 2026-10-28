@@ -1,443 +1,681 @@
-# CHANGELOG
+# Catatan Riwayat Versi & Pembaruan Aplikasi (Changelog)
 
-Semua perubahan penting pada proyek Aplikasi Koperasi Simpan Pinjam akan didokumentasikan di file ini.
+Halaman ini mendokumentasikan seluruh riwayat pembaruan, penambahan fitur baru, peningkatan kenyamanan, dan perbaikan pada Aplikasi Koperasi Simpan Pinjam. 
 
-Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.0.0/), dan proyek ini menggunakan [Semantic Versioning](https://semver.org/lang/id/).
+Dokumentasi disajikan dalam bahasa operasional yang mudah dipahami oleh seluruh pengurus, staf administrasi, bendahara, pengawas, dan anggota koperasi.
+
+---
+
+## [v2.9.9] - 2026-10-16
+
+### 📑 Slide-Over Drawer Inspection (Panel Samping Non-Destruktif)
+- **Inspeksi Data Mendalam Tanpa Kehilangan Konteks Layar**:
+  - Menyediakan panel samping geser kanan (*Slide-Over Drawer*) non-destruktif berarsitektur global `App.openDrawer(contentHtml, opts)` dan `App.closeDrawer()`.
+  - Staf/pengurus dapat memeriksa profil lengkap anggota, rekening simpanan aktif, portofolio pinjaman, atau rincian transaksi kas secara komprehensif tanpa harus berpindah halaman atau menutup tabel master data aktif.
+  - **Kenyamanan Operasional & Filter Terjaga**: Posisi kueri pencarian, scroll tabel, dan halaman pagination tetap tersimpan utuh di latar belakang.
+  - **Aksesibilitas Cepat**: Terintegrasi dengan tombol keyboard `Escape` untuk menutup panel secara instan, backdrop blur lembut (`backdrop-blur-[2px]`), serta footer navigasi cepat menuju halaman penuh atau form koreksi.
+  - **Integrasi di Seluruh Modul Inti**: Dilengkapi tombol aksi inspeksi cepat (`ri-side-bar-line`) langsung pada tabel Data Anggota (`App.inspectAnggota`) dan tabel Pinjaman (`App.inspectPinjaman`).
+
+### 🌅 Human-Touch Greeting & Briefing Operasional Harian di Dashboard
+- **Sentuhan Hangat Personal & Rangkuman Kinerja Harian**:
+  - Menghadirkan banner ucapan salam manusiawi (*human touch greeting*) di bagian teratas Dashboard utama yang beradaptasi secara dinamis menurut waktu lokal:
+    - 🌅 **Selamat Pagi** (04:00 - 10:59)
+    - ☀️ **Selamat Siang** (11:00 - 14:59)
+    - 🌤️ **Selamat Sore** (15:00 - 17:59)
+    - 🌙 **Selamat Malam** (18:00 - 03:59)
+  - **Identitas Personal Pengurus**: Menyapa nama lengkap pengguna dan menampilkan lencana jabatan resmi (*Role*) serta tanggal berbahasa Indonesia yang bersahabat (misal: *Jumat, 16 Oktober 2026*).
+  - **Kutipan Koperasi & Etika Finansial Hari Ini**: Rotasi kutipan inspiratif mengenai asas kekeluargaan, kejujuran akuntansi, dan amanah gotong royong koperasi (misal dari Bung Hatta dan prinsip dasar jati diri koperasi).
+  - **Kartu Briefing Operasional Harian (*Daily Operational Briefing*)**: Rangkuman ringkas status kerja aktif hari ini, meliputi antrean persetujuan pinjaman yang membutuhkan tindak lanjut komite kredit, rasio likuiditas kas, dan tombol pintas aksi langsung ke buku kas dan antrean pembiayaan.
+
+### 🧾 Thermal Receipt Preview dengan Efek Gerigi Kertas Sobek (Serrated Paper Edge)
+- **Pratinjau Fisik Struk Kertas Kasir Sejati**:
+  - Menghadirkan modal pratinjau struk kasir (*thermal receipt preview*) sebelum dokumen dicetak ke mesin printer fisik kasir (kompatibel kertas 58mm dan 80mm).
+  - **Efek Gerigi Kertas Sobek (*Serrated Saw-Tooth Edge*)**: Menerapkan efek visual gerigi kertas sobek murni dengan CSS gradient segitiga saw-tooth pada sisi atas (`::before`) dan sisi bawah (`::after`) struk, meniru hasil sobekan pisau pemotong mesin printer kasir fisik.
+  - **Sentuhan Otentik Kasir Toko & Koperasi**:
+    - Tipografi tabular monospaced (*JetBrains Mono*) dengan garis ganda (*double line*) dan garis putus-putus (*dashed line*).
+    - Cap Stempel Karet Fisik miring (*Rubber Stamp "LUNAS" / "DITERIMA" / "TERVERIFIKASI"*) yang tercetak di atas dokumen.
+    - Simulasi kode batang visual (*vector barcode*) dengan nomor transaksi resmi.
+    - Tombol cepat **Cetak ke Printer Fisik** (*ESC/POS print*) dan tombol **Salin Ringkasan Struk** ke papan klip (*clipboard*).
+  - **Tersedia di Menu Pembayaran**: Terintegrasi pada dropdown aksi tabel Pembayaran Angsuran dan Transaksi Simpanan.
+
+---
+
+## [v2.9.8] - 2026-10-16
+
+### 🖋️ Tipografi Finansial Monospace Tabular (Human-Crafted Accounting Precision)
+- **Integrasi Huruf JetBrains Mono & Angka Sejajar (Tabular Figures)**:
+  - Mengintegrasikan font **JetBrains Mono** standar industri fintech pada seluruh nominal Rupiah, nomor rekening, nomor akad pinjaman, kode akun jurnal, dan kolom tabel numerik.
+  - Menerapkan fitur tipografi `font-variant-numeric: tabular-nums slashed-zero` (`font-feature-settings: 'tnum' 1, 'zero' 1`).
+  - **Kerapian Lurus Vertikal**: Setiap angka 0 s/d 9 memiliki lebar horizontal yang presisi sama persis, memastikan digit desimal, ribuan, dan jutaan pada laporan keuangan (Buku Besar, Neraca, Mutasi, Baki Debet, Arus Kas) sejajar lurus secara vertikal layaknya lembar kerja cetak akuntansi profesional buatan manusia.
+
+### 🔴 Efek Stempel Karet Fisik (Authentic Rubber Stamp Effect)
+- **Sentuhan Otentik Stempel Cap Dokumen Resmi Koperasi**:
+  - Menggantikan badge status digital kaku dengan efek visual **Stempel Karet Manual (*Physical Rubber Stamp*)** bertekstur tinta basah dengan sudut miring dinamis (`-11deg`) dan batas garis ganda putus-putus (*dashed border*).
+  - **Animasi Bantingan Stempel (*Stamp Slam*)**: Memberikan animasi ketukan stempel alami yang mantap saat dokumen atau modal dibuka.
+  - **Varian Cap Status Finansial Terpadu**:
+    - 🟢 **LUNAS**: Stempel hijau zamrud (*emerald*) pada kartu angsuran lunas dan kuitansi pembayaran resmi.
+    - 🔵 **TERVERIFIKASI**: Stempel biru indigo (*verified*) pada voucher kas resmi (BKM/BKK/BMK), sampul buku simpanan, dan kartu akad pinjaman aktif.
+    - 🔷 **LUNAS DIPERCEPAT**: Stempel teal pada modal pelunasan pinjaman dipercepat (*early settlement*).
+    - 🔴 **DIBATALKAN / REVERSED**: Stempel merah tua (*crimson*) tebal pada voucher atau transaksi yang telah dikoreksi/dibatalkan.
+  - **Dukungan Dokumen Cetak Fisik**: Stempel juga terintegrasi otomatis ke dalam template cetak voucher kas resmi via iframe, sehingga saat dicetak ke printer fisik atau PDF dokumen terlihat sah berstempel.
+
+---
+
+## [v2.9.7] - 2026-10-16
+
+### 📌 Bar Ringkasan Melayang Adaptif (Sticky Floating Table Summary Bar)
+- **Monitoring Total Tanpa Repot Menggulir Layar**:
+  - Pada laporan keuangan dan transaksi berskala panjang (Buku Besar, Arus Kas, Laporan Baki Debet, Laporan Mutasi Simpanan, Laporan Mutasi Angsuran):
+  - Saat staf atau pengurus memeriksa puluhan/ratusan baris data di bagian tengah dan baris total tabel berada di luar jangkauan pandangan (*off-screen*), panel ringkasan total bergaya *frosted glass* otomatis melayang (*sticky dock*) di bagian bawah layar.
+  - **Indikator Metrik Kumulatif**: Menampilkan nilai total utama (Total Debit, Total Kredit, Saldo Akhir, Baki Debet, atau Mutasi) dengan tipografi monospaced tebal dan warna kontras yang ramah mata.
+  - **Kendali Navigasi Praktis**: Dilengkapi tombol **Lompat ke Ujung Tabel** (*smooth scroll to bottom*), tombol minimize (*ciutkan menjadi kapsul ringkas*), dan tombol tutup manual.
+  - **Pembersihan Otomatis**: Bar otomatis menyembunyikan diri saat bagian `<tfoot>` tabel asli memasuki pandangan layar (*in-view*) dan otomatis dibersihkan saat berpindah halaman menu.
+
+### 🗓️ Widget Kalender Jatuh Tempo Finansial (Due-Dates Tracker)
+- **Monitoring Jadwal Angsuran & Proyeksi Kas Masuk Interaktif**:
+  - Kartu angsuran jatuh tempo statis pada **Dashboard** kini di-upgrade menjadi widget kalender finansial interaktif penuh.
+  - **Navigasi Kalender Bulanan**: Pengurus dapat melihat hari-hari dalam sebulan dengan indikator titik warna:
+    - 🔴 **Merah / Berdenyut (Pulse)**: Angsuran menunggak / melewati batas tanggal jatuh tempo.
+    - 🔵 **Biru / Indigo**: Angsuran yang jatuh tempo tepat hari ini.
+    - 🟡 / 🟢 **Hijau**: Angsuran yang akan datang (*upcoming schedule*).
+  - **Mode Tampilan Ganda (Dual View)**: Tersedia pilihan mode **Kalender Bulanan** (Grid 7 Hari) dan mode **Daftar Prioritas** (Filter Terlambat, Hari Ini, dan Mendatang).
+  - **Kartu Ringkasan KPI Eksekutif**:
+    - **Total Tagihan Bulan Berjalan**: Total frekuensi dan akumulasi nilai rupiah kas masuk yang diproyeksikan.
+    - **Jatuh Tempo Hari Ini**: Peringatan tagihan yang harus diselesaikan pada hari berjalan.
+    - **Tunggakan Terlambat (Overdue)**: Rekapitulasi pinjaman bermasalah yang membutuhkan tindakan penagihan segera.
+  - **Aksi Cepat 1-Klik**:
+    - 🟢 **Kirim Pengingat WhatsApp Instan**: Membuka WhatsApp secara otomatis dengan pesan resmi, sopan, dan berformat rapi (*Nomor Pinjaman, Angsuran ke-X, Jumlah Tagihan, dan Tanggal Jatuh Tempo*) langsung ke nomor kontak anggota.
+    - 💳 **Tombol Bayar Langsung**: Langsung membuka pencarian dan form pembayaran angsuran untuk pinjaman anggota yang bersangkutan.
+
+---
+
+## [v2.9.5] - 2026-10-16
+
+### ⚡ Filter Preset Waktu Cepat (Quick Date Chips) pada Seluruh Laporan
+- **Pemilihan Rentang Waktu 1-Klik (Quick Date Presets)**:
+  - Seluruh halaman laporan keuangan dan transaksi kini dilengkapi tombol *Quick Date Chips* instan: **Hari Ini**, **7 Hari**, **Bulan Ini**, **Bulan Lalu**, dan **Tahun Ini**.
+  - Mengeliminasi proses memilih tanggal secara manual pada kalender picker untuk kebutuhan harian dan bulanan yang repetitif.
+  - **Sinkronisasi Warna & Status Chip Aktif**: Penanda chip yang diklik kini otomatis mempertahankan status aktifnya (`is-active` dengan warna primer biru/indigo) secara persisten saat data laporan dimuat ulang, serta otomatis merespons format tanggal ISO/DMY dan Flatpickr.
+  - Diterapkan secara merata pada:
+    - **Kas Masuk & Kas Keluar** (Kas Transaksi)
+    - **Laporan Arus Kas** (Direct Cash Flow)
+    - **Buku Besar** (General Ledger)
+    - **Jurnal Umum & Penyesuaian**
+    - **Laporan Laba / Rugi**
+    - **Laporan Mutasi Simpanan** (Global & Rekap)
+    - **Mutasi Simpanan Anggota Individual**
+    - **Laporan Mutasi Angsuran Pinjaman**
+    - **Daftar Transaksi Simpanan**
+    - **Daftar Transaksi Pembayaran Angsuran**
+    - **Buku Tabungan / Simpanan Anggota**
+    - **Kartu Piutang / Angsuran Pinjaman**
+
+### 📐 Mode Kerapatan Tabel Fleksibel (Compact vs Comfortable Density View)
+- **Personalisasi Tampilan Baris Tabel (Display Density)**:
+  - Menyediakan 2 mode kerapatan visual untuk seluruh tabel data koperasi:
+    - **Mode Normal (Comfortable)**: Jarak baris lega, nyaman untuk operasional kasir sehari-hari dan penggunaan layar sentuh/tablet.
+    - **Mode Padat (Compact Mode)**: Mengurangi padding baris 35–40%, merampingkan ukuran teks, ikon, dan lencana status. Sangat ideal bagi bagian akuntansi, audit, dan pengawas untuk memeriksa 30–40 baris transaksi sekaligus dalam satu layar monitor tanpa perlu banyak menggulir (*scrolling*).
+  - **Tombol Pengubah Kerapatan Global di Topbar**: Tersedia ikon pengatur kerapatan di bilah navigasi atas (topbar) di samping tombol Dark Mode, sehingga dapat diakses dari mana saja.
+  - **Tombol Pengubah Inline di Seluruh Menu Tabel Data & Laporan**:
+    - **Laporan Keuangan & Akuntansi**: Neraca, Laba Rugi, Perubahan Ekuitas, Pertumbuhan Laba/Rugi, Arus Kas, Buku Besar, Jurnal.
+    - **Operasional Simpan Pinjam**: Kas Transaksi, Angsuran, Simpanan, Pinjaman, Mutasi Simpanan, Rekening Simpanan, Rekening Pinjaman, Buku Simpanan, Kartu Angsuran.
+    - **Laporan Portofolio & Risiko**: Laporan Baki Debet, Laporan Kolektibilitas (NPL), Laporan Agunan, Monitoring Simpanan Wajib, Laporan Jasa Anggota.
+    - **Master Data & Konfigurasi**: Chart of Accounts (Akun), Anggota, Jenis Simpanan, Jenis Pinjaman, Biaya Pinjaman, Kode Transaksi, Manajemen User, Pengumuman, Agunan.
+    - **Tata Kelola & Audit**: Sesi RAT, Jasa Partisipatif, Pembagian SHU, Audit Log Sistem, Portal Member Logs, Toko Koperasi (Pesanan), Aspirasi & Pengaduan.
+  - **Penyimpanan Preferensi Otomatis**: Pengaturan kerapatan disimpan di memori browser pengguna (`localStorage`) dan langsung diterapkan secara mulus ke seluruh halaman tanpa perlu mengatur ulang.
+
+---
+
+## [v2.9.3] - 2026-10-16
+
+### 📈 Indikator Gelombang Tren (Micro Sparkline Charts) pada Kartu Ringkasan
+- **Grafik Tren Bergelombang Interaktif (Fintech-Grade Micro Sparklines)**:
+  - Seluruh kartu ringkasan eksekutif pada **Dashboard** (Total Anggota, Total Simpanan, Pinjaman Aktif, dan Pinjaman Pending) kini diperkaya dengan grafik gelombang mikro berbasis SVG modern (*Bézier curve smoothing*).
+  - Dilengkapi arsir gradien warna transparan (*ambient gradient fill*) dan titik suar bercahaya (*glowing pulse beacon*) di ujung kurva yang berkedip dinamis untuk menunjukkan posisi data terkini.
+  - **Lencana Perubahan Tren (Trend Badge Pill)**: Dilengkapi lencana persentase tren perbandingan (misalnya `+5.2%` hijau untuk tren naik atau `-1.8%` merah untuk penurunan) beserta indikator arah panah dan keterangan rentang waktu (misalnya `Tren 7 hari` atau `Inflow kumulatif`).
+  - **Kartu Likuiditas Kas**: Saldo Kas Operasional (Akun 1000) pada blok Skor Likuiditas kini juga dilengkapi gelombang arus dana real-time.
+  - **Modul Kas Masuk & Kas Keluar**: Empat kartu ringkasan kas (Penerimaan Kas, Pengeluaran Beban, Arus Kas Bersih/Net Flow, dan Perputaran Kas) kini menampilkan grafik ombak arus kas langsung di bawah ikon transaksi.
+  - **Super Ringan & Tanpa Beban**: Dirancang murni menggunakan kalkulasi vektor SVG dan CSS hardware-accelerated tanpa perpustakaan eksternal (0 kB external bundle library), sehingga halaman tetap terbuka dalam sekejap tanpa lag.
+
+---
+
+## [v2.9.2] - 2026-10-16
+
+### 🎨 Desain Dropdown Interaktif & Pencarian Otomatis (Smart Searchable Combobox)
+- **Transformasi Dropdown Pilihan Data Modern**:
+  - Menggantikan dropdown `<select>` polosan bawaan browser dengan komponen pilihan interaktif modern (**Smart Combobox**) yang elegan, bergaris tepi halus, dan berlatar putih bersih dengan bayangan lembut.
+  - **Pencarian Cepat Saat Mengetik (Autocomplete)**: Pengguna tidak perlu lagi menggulir daftar ratusan akun atau jenis transaksi secara manual. Cukup ketik kode (misal `1101` atau `5101`), nama akun, atau kata kunci lainnya, daftar pilihan akan langsung menyaring hasil secara instan (0 milidetik).
+  - **Penanda Teks yang Dicocokkan (Search Highlighting)**: Karakter atau kata yang cocok dengan ketikan pengguna otomatis disorot dengan warna kuning lembut, memudahkan mengenali hasil pencarian secara sekilas.
+  - **Tata Letak Informasi Kaya (Rich Data Badges)**:
+    - Untuk **Bagan Akun Keuangan (COA)**: Kode akun disajikan dalam kotak lencana (badge) bernuansa font monospace biru/indigo, nama akun tebal, serta kategori/tipe akun di sisi kanan.
+    - Untuk **Produk Pinjaman**: Dilengkapi rincian suku bunga dan batas tenor maksimal.
+    - Untuk **Kode Transaksi**: Dilengkapi ikon arah debit/kredit dan badge ringkas.
+  - **Navigasi Penuh Menggunakan Keyboard**:
+    - Tombol panah atas & bawah (↑ ↓) untuk berpindah pilihan secara cepat.
+    - Tombol `Enter` untuk menetapkan pilihan.
+    - Tombol `Escape` (ESC) untuk menutup daftar pilihan.
+  - **Tombol Hapus Pilihan Sekali Klik**: Tersedia ikon silang cepat (reset) untuk mengosongkan atau mengganti pilihan dalam 1 kali klik.
+  - **Pendeteksi Batas Layar Cerdas (Auto-Flip)**: Jika form berada di dekat bagian bawah layar, daftar dropdown otomatis membuka ke arah atas sehingga tidak pernah terpotong oleh batas monitor.
+  - **Penerapan Luas di Seluruh Modul Aplikasi**:
+    - **Kas Masuk, Kas Keluar & Mutasi Kas**: Pilihan Rekening Kas/Bank & Akun Lawan COA.
+    - **Filter Cepat Akun Kas**: Filter rekening kas pada daftar transaksi kasir.
+    - **Buku Besar Keuangan**: Filter pencarian cepat akun buku besar.
+    - **Pengaturan Kode Transaksi**: Pilihan Akun Debit & Akun Kredit COA.
+    - **Pengaturan Jenis Simpanan**: Pilihan Akun COA Kewajiban simpanan.
+    - **Pengaturan Jenis Pinjaman**: Pilihan Akun Neraca Piutang pinjaman.
+    - **Pengaturan Biaya Pinjaman**: Pilihan Akun Pendapatan potongan biaya pencairan pinjaman.
+    - **Proses Akhir Tahun (Tutup Buku)**: Pilihan Akun Modal Tujuan SHU.
+    - **Mutasi Simpanan Anggota**: Filter cepat Jenis Simpanan.
+    - **Pengajuan Pinjaman**: Pilihan Jenis Produk Pinjaman.
+    - **Pembukaan Rekening Simpanan**: Pilihan Produk Simpanan anggota.
+    - **Manajemen Agunan**: Pilihan Tipe Agunan (BPKB, Sertifikat SHM, Deposito, dll).
+    - **Chart of Accounts (COA)**: Pilihan Kelompok Akun pembukuan.
+    - **Manajemen Pengguna (User)**: Pilihan Role Hak Akses Petugas.
+
+---
+
+## [v2.9.1] - 2026-10-15
+
+### 🚀 Produktivitas & Kenyamanan Kerja Kasir & Admin
+- **Menu Pintas Cepat (Command Palette `Ctrl + K`)**:
+  - Membuka jendela pencarian instan dari mana saja cukup dengan menekan tombol `Ctrl + K` (atau klik kotak pencarian di bilah atas).
+  - Tampilan awal langsung menyediakan **Aksi Cepat Kasir**: Input Kas Masuk, Input Kas Keluar, Setor Simpanan, Ajukan Pinjaman, Bayar Angsuran, Tambah Anggota, dan Buka Laporan.
+  - Pencarian pintar: Mengetik nama anggota atau nomor pinjaman langsung menyaring data secara seketika dan dapat dipilih menggunakan tombol panah atas/bawah (↑↓) dan tombol Enter pada keyboard.
+- **Kalkulator Kasir & Simulasi Angsuran Melayang (Pintasan `Alt + C`)**:
+  - Tombol kalkulator praktis di bagian atas aplikasi atau dengan menekan tombol `Alt + C` pada keyboard.
+  - **Kalkulator Harian Kasir**: Dilengkapi tulisan **Terbilang Rupiah Otomatis** saat menghitung angka, tombol nominal cepat (+50rb, +100rb, +500rb, +1jt), dan tombol salin nominal.
+  - **Hitung Uang Kembalian**: Menghitung selisih uang diterima kasir dikurangi total tagihan belanja/setoran secara otomatis dengan warna penanda yang jelas (Hijau jika pas/lebih, Merah jika kurang).
+  - **Simulasi Angsuran Pinjaman Cepat**: Memasukkan plafon pinjaman, jangka waktu bulan, dan suku bunga per bulan; sistem langsung menghitung cicilan pokok, bunga, total angsuran per bulan, dan total pengembalian. Dilengkapi tombol **"Salin Rincian Simulasi"** yang siap langsung dikirimkan ke pesan WhatsApp anggota.
+- **Suara Konfirmasi Transaksi (Audio Feedback Kasir)**:
+  - Bunyi denting harmonik lembut saat transaksi berhasil disimpan, bunyi register kasir saat menambah uang, dan nada pengingat ramah saat ada kekurangan data atau peringatan saldo.
+  - Tombol pengatur suara di bagian atas untuk membisukan (Mute) atau mengaktifkan kembali suara kapan saja sesuai kebutuhan ruangan kantor koperasi.
+- **Catatan Memo Internal Anggota (Staff Sticky Notes)**:
+  - Tombol **"Catatan Memo"** pada halaman profil rincian anggota. Petugas kasir dan bagian kredit dapat menyematkan catatan penting internal (seperti perjanjian tanggal pembayaran angsuran, nomor telepon cadangan keluarga, atau pesan khusus) yang hanya dapat dibaca oleh staf internal koperasi.
+
+---
+
+## [v2.9.0] - 2026-10-15
+
+### 📄 Format Cetak Dokumen & Laporan Resmi Koperasi (Bersih & Hemat Tinta)
+- **Kop Surat Resmi Koperasi Hemat Tinta**:
+  - Menggantikan tampilan kop warna gelap yang boros tinta printer dengan **Kop Surat Resmi Berlatar Putih Bersih** dan aksen garis warna tema koperasi, sangat tajam dan profesional saat dicetak fisik ke kertas maupun saat dibaca di layar HP/komputer.
+  - **Logo Lembaga & Lambang Inisial**: Menampilkan logo resmi koperasi di sisi kiri atas secara presisi, atau lambang monogram khusus jika logo belum diunggah.
+  - **Identitas Lengkap Koperasi**: Mencantumkan nama koperasi (huruf tebal), status badan hukum, alamat kantor cabang/pusat, serta nomor telepon, email, dan website resmi lembaga.
+  - **Kotak Keterangan Petugas & Waktu Cetak (Pojok Kanan Atas)**: Kotak rapi yang mencatat waktu cetak lengkap (tanggal, jam, dan zona WIB), nama lengkap staf/petugas pencetak beserta jabatannya, serta nomor referensi dokumen resmi.
+  - **Garis Pembatas Ganda Standar Pembukuan**: Pembatas kop resmi standar akuntansi berupa kombinasi garis tegas dan garis aksen tipis.
+- **Judul & Keterangan Periode Laporan**:
+  - Judul laporan diperjelas dengan garis aksen vertikal di sisi kiri, serta keterangan rentang tanggal/periode yang menyatu rapi tanpa saling menimpa.
+- **Kotak Ringkasan Keuangan yang Jelas & Rapi**:
+  - Kotak ringkasan total saldo, pendapatan, atau pengeluaran di bagian atas tabel kini berlatar putih bersih dengan garis tepi halus.
+  - Tulisan angka nominal otomatis menyesuaikan ukuran secara cerdas jika mencapai ratusan juta hingga miliaran rupiah, sehingga angka tidak pernah terpotong atau sesak.
+- **Tabel Data Keuangan Rapi & Mudah Dibaca**:
+  - Seluruh angka uang (Rupiah) otomatis rata kanan dan sejajar rapi dari atas ke bawah agar mudah dihitung dan ditinjau.
+  - Nomor urut, tanggal transaksi, dan status otomatis rata tengah.
+  - **Warna Tanda Status Lembut**: Status transaksi menggunakan warna yang mudah dibedakan namun tidak menyilaukan (Hijau untuk status Lancar, Lunas, dan Aktif; Kuning untuk Pending, Proses, dan Perlu Perhatian; Merah untuk status Menunggak, Macet, dan Ditolak).
+- **Kolom Tanda Tangan Resmi Pengurus Koperasi**:
+  - Setiap laporan keuangan otomatis menyertakan kolom pengesahan resmi di akhir lembar:
+    - Tempat dan tanggal cetak resmi berbahasa Indonesia (contoh: *Kota, 15 Oktober 2026*).
+    - Kolom Mengetahui / Menyetujui (*Ketua Pengurus Koperasi*).
+    - Kolom Pembuat / Pemeriksa Dokumen (*Bagian Pembukuan / Bendahara* lengkap dengan nama petugas login).
+  - Jika sisa ruang di halaman terakhir terlalu sempit, tanda tangan otomatis berpindah ke halaman pengesahan baru yang rapi tanpa menabrak tabel.
+- **Keterangan Nomor Halaman yang Akurat**:
+  - Mencantumkan nomor halaman lengkap (*contoh: Halaman 1 dari 3, Halaman 2 dari 3*), hak cipta resmi atas nama koperasi Anda, serta jaminan keabsahan dokumen pembukuan elektronik.
+
+---
+
+## [v2.8.9] - 2026-10-15
+
+### 🎨 Kemudahan Navigasi Menu & Tanda Tugas Baru
+- **Tanda Angka Tugas Baru (Pending) Otomatis**:
+  - Menu harian kini dilengkapi bulatan angka berwarna yang berkedip lembut saat ada tugas yang perlu ditindaklanjuti admin: *Pengajuan Pinjaman Baru dari Anggota*, *Pengecekan Pembayaran Angsuran*, *Pesanan Toko Baru*, dan *Pesan Aspirasi & Pengawas*.
+  - **Sistem Sangat Ringan & Tidak Bikin Lambat**: Cara pengecekan tugas baru dirancang sangat efisien agar aplikasi tetap terbuka seketika dan tidak macet, bahkan saat data anggota koperasi sudah mencapai puluhan ribu orang.
+  - Angka tugas otomatis diperbarui saat Anda kembali membuka tab aplikasi di komputer.
+- **Tanda Pengingat pada Menu Induk**:
+  - Jika menu Pinjaman atau Keuangan sedang dalam keadaan tertutup/terlipat, menu utama tetap menampilkan tanda titik berwarna, sehingga tidak ada tugas anggota yang terlewat oleh petugas.
+- **Kelompok Menu Bisa Dilipat (Sesuai Kebutuhan)**:
+  - Seluruh kelompok menu di bilah samping (*NAVIGASI*, *MASTER DATA*, *TRANSAKSI*, *LAPORAN*, *SISTEM*) kini dapat dilipat atau dibuka cukup dengan satu klik.
+  - Pilihan menu yang Anda buka akan diingat oleh sistem, sehingga tampilan tetap rapi setiap kali Anda membuka aplikasi.
+  - Menu yang sedang dibuka otomatis terbuka sendiri agar Anda selalu tahu sedang berada di halaman mana.
+- **Struktur Garis Pohon Menu yang Rapi**:
+  - Garis penghubung submenu kini tampil lebih halus menyerupai cabang pohon, dan menyala dengan warna aksen oranye saat kursor didekatkan.
+- **⭐ Menu Favorit Pilihan Anda**:
+  - Pengurus dan petugas kini dapat menandai menu yang paling sering dibuka sehari-hari dengan mengklik tanda bintang (⭐).
+  - Menu pilihan akan langsung disematkan pada baris paling atas **`⭐ FAVORIT SAYA`** lengkap dengan tanda jumlah tugas baru masing-masing.
+- **🖥️ Mode Layar Luas (Tampilan Menu Ringkas 64px)**:
+  - Tersedia tombol pada logo atas untuk merampingkan bilah menu samping menjadi baris ikon kecil.
+  - Menghemat ruang layar hingga 156 pixel untuk memberikan area pandang yang jauh lebih lega saat membaca tabel keuangan yang berkolom lebar (seperti Buku Besar, Jurnal Umum, dan Neraca).
+  - Tanda tugas baru dan petunjuk nama menu tetap muncul saat kursor didekatkan ke ikon.
+
+---
+
+## [v2.8.8] - 2026-10-10
+
+### ⚡ Akselerasi Kecepatan & Pencarian Tabel Praktis
+- **Pencarian Otomatis Saat Mengetik (Tanpa Perlu Tekan Enter)**:
+  - Cukup ketik nama anggota atau nomor bukti pada kotak pencarian di tabel anggota, simpanan, pinjaman, angsuran, kas, atau jurnal; data tabel akan langsung tersaring otomatis 350 milidetik setelah Anda berhenti mengetik.
+  - Posisi kursor ketik tetap terjaga dan tidak akan loncat keluar dari kotak pencarian saat tabel menyegarkan data.
+  - Kotak pencarian Jurnal Umum kini juga mendukung tombol Enter untuk pencarian seketika.
+- **Aplikasi Terbuka Lebih Ringan Saat Pertama Kali Masuk**:
+  - Komponen cetak dokumen PDF dan kode QR diatur agar dimuat di latar belakang tanpa menghalangi halaman utama, sehingga layar dashboard aplikasi terbuka 2 kali lebih cepat.
+
+---
+
+## [v2.8.7] - 2026-10-10
+
+### 🚀 Peningkatan Kelancaran & Kecepatan Kerja Aplikasi
+- **Perpindahan Halaman Instan Tanpa Menunggu**:
+  - Saat kursor mouse diarahkan ke nama menu, sistem langsung menyiapkan halaman tersebut di balik layar, sehingga saat menu diklik halaman berpindah seketika tanpa putaran loading lama.
+- **Formulir Transaksi Terbuka Seketika**:
+  - Daftar pilihan akun rekening, jenis simpanan, dan jenis pinjaman disimpan sementara di memori komputer selama 5 menit.
+  - Formulir input simpanan, pencairan pinjaman, dan transaksi kas terbuka langsung dalam hitungan milidetik tanpa harus memanggil server berulang kali.
+  - Data pilihan otomatis diperbarui kembali saat ada penambahan atau pengubahan data master.
+- **Lancar Saat Banyak Petugas Membuka Laporan Bersamaan**:
+  - Sistem disesuaikan agar beberapa petugas dapat membuka laporan keuangan, ringkasan dashboard, dan data transaksi secara bersamaan tanpa saling menunggu antrean di server.
+- **Hemat Kuota Internet Hingga 80%**:
+  - Seluruh pengiriman data otomatis dikompresi sehingga sangat hemat kuota dan terasa ringan saat diakses melalui internet kantor cabang atau koneksi seluler.
+- **Hemat Daya Baterai Laptop & Komputer**:
+  - Pengecekan data otomatis dijeda saat tab peramban sedang diminimalkan atau tidak sedang dilihat oleh petugas.
+
+---
+
+## [v2.8.6] - 2026-10-09
+
+### 🎨 Perbaikan Tampilan Menu Kas & Pilihan Tanggal
+- **Warna Header Menu Kas Lebih Tegas & Nyaman**:
+  - Bagian atas menu Kas Masuk dan Kas Keluar dipercantik dengan warna biru tua resmi dan tulisan putih yang kontras.
+  - Tombol aksi utama (*+ Kas Masuk*, *- Kas Keluar*, dan *Mutasi Kas*) kini tampil dengan warna penuh yang tegas dan mudah dilihat.
+- **Kotak Pilihan Tanggal Tidak Lagi Sempit**:
+  - Mengatasi tampilan pilihan rentang tanggal pencarian ("Dari Tanggal" s/d "Sampai Tanggal") yang sebelumnya bertumpuk atau terpotong pada layar laptop standar.
+  - Baris filter kini tertata lega, tombol segarkan data berada di posisi yang nyaman, dan tombol pilihan periode (*Hari Ini*, *7 Hari*, *Bulan Ini*) tersusun rapi.
+
+---
+
+## [v2.8.5] - 2026-10-09
+
+### 💎 Pembaruan Lengkap Menu Kas Masuk, Kas Keluar & Mutasi Kas
+- **Ringkasan Keuangan Kas Harian (4 Kotak Utama)**:
+  - **Kas Masuk**: Total penerimaan uang koperasi dan jumlah transaksi masuk.
+  - **Kas Keluar**: Total pengeluaran beban biaya operasional dan frekuensi transaksi.
+  - **Arus Kas Bersih**: Tanda otomatis yang langsung menunjukkan posisi kas koperasi berstatus `SURPLUS KAS (+)` warna hijau atau `DEFISIT KAS (-)` warna merah.
+  - **Rekening Aktif**: Total keseluruhan perputaran kas dan jumlah rekening kas serta rekening bank koperasi yang aktif.
+- **Penyaringan Transaksi Cepat & Praktis**:
+  - Tombol tab cepat: *Semua Transaksi*, *📥 Kas Masuk*, *📤 Kas Keluar*, dan *⇄ Mutasi Kas*.
+  - Pilihan periode instan dalam 1 klik: *Hari Ini*, *7 Hari Terakhir*, *Bulan Ini*, *Bulan Lalu*, dan *Tahun Ini*.
+  - Penyaringan khusus berdasarkan rekening tertentu (misal: hanya Kas Tunai Kasir, Bank BRI, atau Bank Jatim).
+  - Kotak pencarian nomor bukti dan uraian transaksi dilengkapi tombol silang (`✕`) untuk menghapus pencarian seketika.
+- **Tanda Aliran Uang yang Jelas**:
+  - Setiap baris catatan kas menampilkan panah arah perpindahan uang (contoh: dari Kas Utama ➔ Beban Listrik, atau dari Kasir ➔ Rekening Bank BRI Koperasi).
+  - Angka nominal menggunakan warna yang tegas (Hijau untuk uang masuk, Merah untuk uang keluar, dan Biru untuk mutasi transfer bank).
+- **Cetak Bukti Kas Resmi (BKM, BKK, BMK)**:
+  - Setiap transaksi dapat dicetak menjadi bukti kas resmi: Bukti Kas Masuk (BKM), Bukti Kas Keluar (BKK), atau Bukti Memori Kas (BMK).
+  - Dilengkapi kop koperasi, nomor bukti, tanggal, pihak terkait, tulisan **Terbilang Rupiah Otomatis**, rincian pos pembukuan, dan 4 kolom tanda tangan (Menyetujui, Pembukuan, Kasir/Bendahara, dan Penyetor/Penerima).
+  - Cetak langsung bekerja tanpa terhalang pemblokir pop-up browser.
+- **Formulir Input Kas Dilengkapi Bantuan Hitung**:
+  - Pengetikan nominal uang otomatis menampilkan tanda titik ribuan dan teks **Terbilang Rupiah** secara langsung untuk mencegah salah ketik.
+  - Tombol pintas tambah nominal cepat (`+50rb`, `+100rb`, `+500rb`, `+1jt`, `+5jt`, `+10jt`).
+  - Fitur baru **Pindah Buku Antar Bank (Mutasi Kas)** untuk perpindahan uang dari kas tunai ke rekening bank atau antar rekening bank koperasi.
+  - Menampilkan simulasi catatan debit-kredit akuntansi sebelum transaksi disimpan.
+- **Membuka Halaman Kas 100x Lebih Cepat**:
+  - Seluruh riwayat transaksi kas kini langsung tampil seketika di layar tanpa jeda waktu tunggu.
+
+---
+
+## [v2.8.4] - 2026-10-09
+
+### 🛠️ Perbaikan Formulir Jurnal & Kemudahan Penggunaan
+- **Perbaikan Formulir Jurnal Akuntansi**:
+  - Mengatasi kendala di mana kotak formulir entri jurnal sempat tertutup bayangan abu-abu dan isian tidak bisa diketik. Sekarang formulir terbuka bersih di tengah layar dan siap diisi.
+- **Kemudahan Pemilihan Akun Bagi Staf Pembukuan**:
+  - Staf administrasi dan kasir kini dapat langsung memilih daftar rekening akun saat mencatat transaksi tanpa terhambat peringatan izin sistem.
+- **Tutup Jendela Dialog Cukup Tekan Tombol ESC**:
+  - Menutup kotak dialog atau formulir yang terbuka kini cukup dengan menekan tombol `Escape (Esc)` pada keyboard komputer Anda.
+- **Pemberitahuan yang Ramah Saat Jaringan Terganggu**:
+  - Jika terjadi kendala koneksi internet saat menyimpan data, sistem menampilkan pesan petunjuk yang jelas dan menutup proses secara bersih tanpa membuat layar membeku.
+
+---
+
+## [v2.8.3] - 2026-10-09
+
+### ✨ Efek Tombol Responsif & Perlindungan Anti-Dobel Klik
+- **Efek Sentuhan Tombol yang Lembut**:
+  - Setiap tombol aksi, menu, dan tab kini memberikan efek gelombang lembut saat diklik, memberikan kepastian langsung bahwa tombol telah berhasil ditekan.
+- **Perlindungan Anti-Dobel Klik**:
+  - Saat tombol simpan atau bayar diklik, tombol otomatis berubah menampilkan tanda berputar dan terkunci sementara sampai proses selesai, mencegah transaksi tersimpan ganda akibat ketidaksengajaan klik dua kali.
+  - Jika isian form ada yang belum lengkap, tombol otomatis kembali normal dan siap digunakan lagi.
+
+---
+
+## [v2.8.2] - 2026-10-09
+
+### 🚀 Peningkatan Kecepatan Formulir di Seluruh Menu
+- **Persetujuan Pinjaman Lebih Cepat**:
+  - Kotak persetujuan dan pencairan pinjaman kini terbuka seketika dan data biaya pinjaman langsung tersedia tanpa waktu tunggu.
+- **Formulir Jurnal, Hak Akses, dan Pengumuman Terbuka Instan**:
+  - Peningkatan kecepatan pembukaan jendela dialog di menu Jurnal Umum, Pengaturan Hak Akses Staf, dan Pengumuman Koperasi.
+- **Pemeliharaan Database Terjadwal**:
+  - Penambahan skrip pemeliharaan indeks database berkala untuk menjaga kecepatan pencarian data di server koperasi.
+
+---
+
+## [v2.8.1] - 2026-10-09
+
+### ⚡ Kecepatan Kerja Admin & Tampilan Loading Modern
+- **Formulir Kedua Terbuka 0 Detik**:
+  - Setelah membuka suatu formulir transaksi sekali, pembukaan berikutnya berlangsung seketika dari memori browser tanpa perlu mengambil data ulang dari server.
+- **Tampilan Kotak Form Tidak Membeku**:
+  - Saat tombol "Tambah", "Bayar", atau "Edit" diklik, kotak dialog langsung muncul dengan pola kerangka lembut, menghilangkan kesan aplikasi macet saat mengambil data jaringan.
+- **Pencarian Data Anggota, Simpanan & Pinjaman Jauh Lebih Cepat**:
+  - Peningkatan kecepatan penarikan data transaksi simpanan, pengajuan pinjaman, jadwal angsuran, dan pencarian anggota di database.
+
+---
 
 ## [v2.8.0] - 2026-10-09
 
-### 📲 Modul Pemantauan & Laporan Web Push Notifikasi (`#/web-push`)
-- **Dashboard & Pemantauan Perangkat Terdaftar (*Push Subscriptions*)**:
-  - Menampilkan metrik real-time total perangkat terdaftar, anggota unik yang terhubung, jumlah notifikasi terkirim hari ini, dan status engine kriptografi RFC 8291 / RFC 8292 VAPID.
-  - Tabel rincian perangkat anggota terhubung dengan deteksi otomatis tipe platform (Android, iOS/Safari PWA, Windows, macOS) dan penyedia push gateway (Google FCM, Apple APNs, Microsoft WNS).
-  - Tombol **"Tes Kirim"** ke anggota spesifik untuk menguji konektivitas pengiriman push langsung ke perangkat ponsel/desktop anggota.
-- **Riwayat Lengkap Pengiriman (*Push Logs*)**:
-  - Rekap jejak audit setiap notifikasi yang dipicu sistem (Setoran & Penarikan Simpanan, Pembayaran Angsuran & Pelunasan Pinjaman, Pencairan Pinjaman, Pengingat Jatuh Tempo Tagihan H-3 & H-0, Koreksi/Reversal Simpanan & Angsuran, serta Broadcast Manual).
-  - Integrasi pesan otomatis pembatalan/koreksi pembukuan (*Reversal*) sehingga anggota langsung mendapat notifikasi transparan jika transaksi simpanan, angsuran, atau pencairan pinjaman dikoreksi oleh petugas.
-  - Rincian status sukses, sebagian, atau gagal beserta jumlah perangkat yang menerima dan detail pesan yang terkirim.
-- **Kirim Broadcast Push Notifikasi Massal**:
-  - Form pengiriman broadcast pesan atau pengumuman darurat langsung ke layar seluruh anggota yang telah mengaktifkan izin notifikasi.
-  - Fitur **Live Phone Screen Preview** untuk mensimulasikan tampilan visual notifikasi di layar smartphone sebelum dikirimkan.
-- **Broadcast Tagihan Pinjaman Jatuh Tempo (Segmentasi Cerdas)**:
-  - Tab interaktif khusus **"Tagihan Jatuh Tempo"** dengan kartu analitik 6 segmentasi keterlambatan:
-    1. 📅 **H-5 s/d H-1** (Segera Jatuh Tempo / < 5 Hari).
-    2. ⚠️ **H-0** (Jatuh Tempo HARI INI).
-    3. ⏳ **Terlambat 1 - 7 Hari** (Masa Tenggang / Denda Berjalan).
-    4. 🚨 **Terlambat 8 - 30 Hari** (~1 Bulan / Surat Peringatan SP 1).
-    5. 🛑 **Menunggak > 30 Hari** (Macet / Surat Peringatan SP 2 & 3).
-    6. 🌐 **Semua Tagihan Outstanding** (Total Belum Lunas).
-  - Indikator kesiapan perangkat push per anggota (🟢 Terkoneksi vs ⚪ Belum Ada Perangkat).
-  - Pengiriman fleksibel: Kirim batch terpilih (*multi-select checkbox*) atau broadcast massal seluruh kategori dalam 1-klik.
-  - Generator pesan otomatis cerdas (*Dynamic Preset*) dengan token personalisasi `{nama}`, `{angsuran_ke}`, `{jenis_pinjaman}`, `{no_pinjaman}`, `{total}`, `{jatuh_tempo}`, dan `{hari}`.
-- **Diagnostik Engine VAPID**:
-  - Tampilan status uncompressed P-256 public key, subject VAPID, dan matriks kompatibilitas browser anggota.
+### 📲 Modul Pengingat Tagihan Pinjaman & Notifikasi Layar HP Anggota
+- **Pusat Pemantauan Perangkat Anggota Terhubung**:
+  - Menampilkan jumlah anggota yang telah mengaktifkan izin notifikasi di ponsel pintar mereka (Android, iPhone, maupun komputer desktop).
+  - Tersedia tombol **"Tes Kirim Pesan"** ke anggota tertentu untuk memastikan notifikasi sampai ke ponsel anggota.
+- **Riwayat Pengiriman Notifikasi Koperasi**:
+  - Mencatat riwayat setiap pesan yang terkirim ke anggota: bukti setoran simpanan, penarikan uang, persetujuan pinjaman, pelunasan angsuran, pengingat jatuh tempo, hingga pemberitahuan pembatalan transaksi yang transparan.
+- **Pengiriman Pesan Massal (Broadcast) ke Seluruh Anggota**:
+  - Pengurus dapat mengirimkan informasi penting atau pengumuman darurat langsung ke layar depan ponsel seluruh anggota koperasi.
+  - Dilengkapi fitur **Contoh Tampilan Layar HP** untuk melihat simulasi pesan sebelum benar-benar dikirimkan.
+- **Pengingat Khusus Tagihan Pinjaman Jatuh Tempo**:
+  - Pengelompokan cerdas tagihan pinjaman anggota berdasarkan tingkat urgensi:
+    1. 📅 **H-5 s/d H-1**: Tagihan yang akan segera jatuh tempo dalam waktu dekat.
+    2. ⚠️ **H-0**: Tagihan yang jatuh tempo HARI INI.
+    3. ⏳ **Terlambat 1 - 7 Hari**: Masa tenggang awal keterlambatan.
+    4. 🚨 **Terlambat 8 - 30 Hari**: Terlambat sekitar 1 bulan (Persiapan Surat Peringatan SP 1).
+    5. 🛑 **Menunggak Lebih dari 30 Hari**: Pinjaman macet (Surat Peringatan SP 2 & 3).
+    6. 🌐 **Seluruh Tagihan Belum Lunas**: Rekap total tagihan pinjaman yang beredar.
+  - Pengurus dapat mengirim pesan pengingat tagihan cukup dengan mencentang nama anggota atau mengirim ke seluruh kelompok dalam 1 klik.
+  - Teks pesan otomatis memuat nama anggota, jenis pinjaman, angsuran ke berapa, nominal tagihan, dan tanggal jatuh tempo secara akurat.
 
 ---
 
 ## [v2.7.0] - 2026-10-06
 
-### 🛍️ Modul Manajemen Pesanan Toko Koperasi (`#/toko-pesanan`)
-- **Dashboard & Antrean Pesanan Retail Masuk**:
-  - Menghubungkan pesanan belanja dari Portal Anggota PWA (`toko_pesanan` & `toko_pesanan_detail`) ke antarmuka admin backoffice kasir/staf koperasi.
-  - KPI Summary: Total Pesanan, Perlu Diproses (Pending), Sedang Disiapkan, Siap Diambil, dan Selesai (plus akumulasi omset retail).
-  - Filter interaktif: Pencarian nama/no anggota/no pesanan, filter status, metode bayar (Potong Sukarela vs Tunai COD), dan filter tanggal.
-- **Workflow & Tindak Lanjut Pesanan**:
-  - Modal detail pesanan komprehensif menampilkan data pemesan, integrasi tautan WhatsApp 1-klik, rincian barang, total bayar, dan catatan anggota.
-  - Tombol aksi progresif: *Mulai Siapkan* $\rightarrow$ *Tandai Siap Diambil* $\rightarrow$ *Selesaikan Pesanan (Diserahkan)*.
-  - Pembatalan pesanan aman: Otomatis *refund* saldo Simpanan Sukarela dan mengembalikan stok barang ke etalase toko secara terintegrasi dengan pencatatan jejak audit.
-- **Cetak Struk Thermal POS & Ekspor Laporan**:
-  - Fitur cetak struk kasir format POS thermal 58mm/80mm siap pakai untuk diselipkan pada kantong belanjaan anggota.
-  - Ekspor rekapitulasi pesanan ke format PDF dan CSV UTF-8.
+### 🛍️ Pengelolaan Pesanan Belanja Anggota di Toko Koperasi
+- **Daftar Pesanan Belanja Anggota yang Masuk**:
+  - Menghubungkan pesanan belanja dari aplikasi HP anggota langsung ke layar komputer kasir/staf toko koperasi.
+  - Ringkasan pesanan harian: Total Pesanan, Perlu Diproses (Baru Masuk), Sedang Disiapkan, Siap Diambil, dan Selesai (lengkap dengan total perputaran omset toko).
+  - Penyaringan mudah berdasarkan nama anggota, nomor pesanan, status pesanan, metode bayar (Tunai saat ambil vs Potong Simpanan Sukarela), dan tanggal belanja.
+- **Alur Kerja Pemrosesan Pesanan**:
+  - Kotak rincian pesanan menampilkan daftar barang yang dibeli, total bayar, catatan anggota, serta tombol kirim pesan WhatsApp ke anggota dalam 1 klik.
+  - Tombol tahapan kerja yang mudah dipahami: *Mulai Siapkan* ➔ *Tandai Siap Diambil* ➔ *Selesaikan Pesanan (Sudah Diserahkan)*.
+  - Pembatalan pesanan yang aman: jika pesanan dibatalkan, saldo simpanan sukarela anggota otomatis dikembalikan dan stok barang kembali masuk ke toko.
+- **Cetak Struk Belanja & Laporan Penjualan**:
+  - Cetak struk belanja ukuran printer kasir kecil (58mm/80mm) yang siap diselipkan ke kantong belanjaan anggota.
+  - Ekspor rekapitulasi penjualan toko ke format PDF dan file Excel (CSV).
 
 ---
 
 ## [v2.6.0] - 2026-09-21
 
-### 🔔 Verifikasi Pengajuan Pembayaran Angsuran via Simpanan Sukarela
-- **Workflow Persetujuan Otomatis (Bendahara & Kasir)**:
-  - Anggota dapat mengajukan pembayaran angsuran mandiri melalui saldo Simpanan Sukarela dari Portal Anggota.
-  - **Notifikasi Real-time Bendahara**: Icon lonceng di header aplikasi utama menampilkan badge jumlah pengajuan pembayaran pending secara *live*. Dropdown notifikasi menampilkan daftar pengajuan beserta nominal, nama anggota, dan waktu pengajuan.
-  - **Modal Verifikasi Informatif & Presisi**:
-    - Menampilkan kartu identitas anggota & pinjaman, rincian komponen angsuran (Pokok, Bunga, Denda, Total Tagihan).
-    - Menampilkan saldo Simpanan Sukarela saat ini, nominal tagihan, dan proyeksi sisa saldo setelah dipotong.
-    - Validasi keamanan: Tombol "Setujui & Proses Pembayaran" otomatis terkunci dengan peringatan jika saldo anggota tidak mencukupi saat proses verifikasi berlangsung.
-  - **Otomatisasi Pembukuan & Mutasi**:
-    - Persetujuan (ACC) oleh Bendahara secara instan melunasi angsuran, mendebet saldo rekening simpanan sukarela anggota, mencatat mutasi penarikan simpanan, dan membukukan jurnal pemindahbukuan otomatis tanpa menyentuh kas fisik.
-    - Opsi "Tolak Pengajuan" dilengkapi kolom alasan penolakan yang langsung terkirim sebagai notifikasi ke portal anggota.
-
-### 💳 Optimalisasi Menu Pembayaran Angsuran (`#/angsuran`)
-- **Tabel Transaksi Pembayaran Angsuran**:
-  - Menampilkan riwayat transaksi pembayaran angsuran anggota yang dipilih sesuai filter yang aktif.
-  - **Filter Periode Terintegrasi**: Ditambahkan filter Tanggal Mulai dan Tanggal Selesai pada tabel riwayat pembayaran angsuran.
-  - **Penyempurnaan Tata Letak Filter**: Desain filter responsif yang rapi dengan tombol pencarian, reset filter, dan penataan kolom yang ergonomis.
-
-### 🛡️ Perbaikan Filter & Lookup Nama Anggota Berkarakter Petik Satu (`'`)
-- **Penanganan Escape Karakter Khusus**:
-  - Mengatasi kendala pemilihan nama anggota yang memiliki tanda petik satu (misal: *D'Angelo*, *Ma'ruf*, *Jum'at*) pada autocomplete / dropdown filter di menu Buku Simpanan, Mutasi Simpanan, Pembayaran Angsuran, Pinjaman, dan form terkait lainnya.
-  - Mencegah error JavaScript syntax saat rendering atribut event listener HTML.
-
-### 📱 Portal Anggota v1.7.0 (PWA)
-- **Widget Tagihan & Jadwal Angsuran Terdekat (Billing Card)**:
-  - Menggantikan tampilan widget estimasi SHU tahunan di beranda dengan kartu interaktif Tagihan Angsuran Terdekat yang belum lunas.
-  - Informasi lengkap: Angsuran ke-X dari tenor, jatuh tempo, nominal tagihan, rincian pokok/bunga/denda, dan badge status urgensi (Terlambat, Hari Ini, atau X Hari Lagi).
-  - **Tombol Cepat "Bayar via Simpanan Sukarela"**: Anggota dengan saldo mencukupi dapat langsung memproses autodebet tagihan dari halaman beranda.
-  - State dinamis: Menampilkan status *Menunggu ACC Bendahara*, kartu apresiasi hijau *"Semua Angsuran Lunas!"*, atau kartu promo *"Bebas Kewajiban Pinjaman"*.
-- **Pembaruan Cache Service Worker**:
-  - Peningkatan Service Worker ke `v77` (`koperasi-portal-v77`) untuk pembaharuan aset instan di sisi pengguna.
+### 🔔 Pembayaran Angsuran Mandiri via Simpanan Sukarela
+- **Persetujuan Pembayaran Angsuran oleh Bendahara & Kasir**:
+  - Anggota dapat mengajukan pembayaran angsuran pinjaman mereka secara mandiri menggunakan saldo Simpanan Sukarela dari ponsel mereka.
+  - **Tanda Lonceng Pengingat di Layar Admin**: Ikon lonceng di bagian atas aplikasi menampilkan jumlah pengajuan pembayaran yang sedang menunggu verifikasi secara langsung.
+  - **Pemeriksaan Saldo yang Aman**:
+    - Menampilkan data anggota, pinjaman, rincian pokok, bunga, denda, dan total tagihan.
+    - Menampilkan saldo simpanan sukarela anggota saat ini, jumlah tagihan, dan perkiraan sisa saldo setelah dipotong.
+    - Tombol persetujuan otomatis terkunci jika saldo simpanan anggota tidak mencukupi, sehingga aman dari kesalahan penarikan.
+  - **Pembukuan Otomatis Tanpa Uang Tunai**:
+    - Begitu disetujui Bendahara, angsuran dinyatakan lunas dan saldo rekening tabungan sukarela anggota otomatis terpotong tanpa perlu menghitung uang fisik di meja kasir.
+    - Opsi penolakan dilengkapi alasan penolakan yang otomatis terkirim ke ponsel anggota.
+- **Penyempurnaan Menu Pembayaran Angsuran**:
+  - Penambahan filter tanggal mulai dan tanggal selesai pada daftar riwayat pembayaran angsuran.
+  - Tata letak pencarian yang lebih rapi dan nyaman digunakan.
+- **Dukungan Nama Anggota yang Menggunakan Tanda Petik Satu (`'`)**:
+  - Memperbaiki pemilihan nama anggota yang memiliki tanda petik (seperti: *Ma'ruf*, *D'Angelo*, *Jum'at*) pada kotak pencarian agar tidak memunculkan kesalahan sistem.
+- **Pembaruan Aplikasi HP Anggota (Portal PWA)**:
+  - Beranda aplikasi anggota kini menampilkan kartu pengingat tagihan angsuran terdekat beserta tanggal jatuh tempo dan tombol cepat bayar via simpanan sukarela.
 
 ---
 
 ## [v2.5.1] - 2026-09-19
 
-### 💰 Metode Pembayaran Angsuran via Simpanan Sukarela
-- **Opsi Pembayaran Pemindahbukuan Internal (Overbooking)**:
-  - Menambahkan metode pembayaran `Simpanan Sukarela` pada menu **Pembayaran Angsuran** (`#/angsuran`).
-  - Menampilkan Saldo Simpanan Sukarela anggota secara *real-time* pada ringkasan pinjaman dan form pembayaran angsuran.
-  - Indikator kecukupan saldo interaktif: otomatis memvalidasi apakah saldo Simpanan Sukarela anggota mencukupi total tagihan (Pokok + Bunga + Denda). Jika kurang, tombol simpan otomatis dinonaktifkan dengan peringatan selisih defisit.
-- **Integrasi Akuntansi & Buku Tabungan**:
-  - **Potong Saldo Rekening Simpanan**: Saldo `rekening_simpanan` anggota otomatis terpotong saat pembayaran diproses.
-  - **Mutasi Buku Tabungan**: Mencatat transaksi penarikan di tabel `simpanan` dengan nomor referensi transaksi angsuran (`[AG:...]`).
-  - **Jurnal Otomatis Seimbang**: Membentuk pembukuan jurnal pemindahbukuan (Debet: Akun Simpanan Sukarela/206 vs Kredit: Piutang Pinjaman, Pendapatan Bunga, Pendapatan Denda) tanpa mempengaruhi kas fisik koperasi (*zero cash impact*).
-- **Dukungan Penuh Reversal (Pembatalan)**:
-  - Reversal angsuran yang dibayar via Simpanan Sukarela secara otomatis mengembalikan (*refund*) dana ke saldo Simpanan Sukarela anggota dan mencatat mutasi pengembalian.
-- **Pembaruan Laporan & Struk**:
-  - Filter metode `Simpanan Sukarela` pada daftar angsuran dan Laporan Mutasi Angsuran.
-  - Badge khusus berdesain elegan `💰 Sukarela` pada baris tabel data angsuran.
-  - Cetak struk kasir menampilkan metode pembayaran `SIMPANAN SUKARELA`.
-- **Database & Audit Integrity**:
-  - Migrasi skema database `db_migration_v2.1.7.php` memperbarui tipe kolom `metode_pembayaran` pada tabel `angsuran` dan `simpanan`.
-  - Rekonsiliasi audit mengenali transaksi pemotongan angsuran sukarela secara cerdas (*zero false positives* pada Audit Health Score).
+### 💰 Pembayaran Angsuran Langsung dari Simpanan Sukarela di Kantor
+- **Pilihan Metode Bayar Baru di Kasir**:
+  - Petugas kasir kini dapat memilih metode pembayaran **Simpanan Sukarela** saat menerima pembayaran angsuran di kantor.
+  - Saldo tabungan sukarela anggota langsung terlihat di layar form angsuran. Jika saldo kurang, sistem akan memberikan peringatan dan tombol simpan terkunci otomatis.
+- **Otomatis Masuk Buku Tabungan & Jurnal Pembukuan**:
+  - Saldo rekening tabungan anggota langsung berkurang dan tercatat rapi di buku tabungan dengan keterangan nomor angsuran terkait.
+  - Jurnal akuntansi otomatis mencatat pemindahan saldo tanpa mempengaruhi kas fisik koperasi.
+- **Pembatalan Transaksi yang Aman**:
+  - Jika transaksi angsuran yang dipotong dari simpanan dibatalkan (direversal), dana otomatis kembali utuh ke saldo tabungan anggota.
+- **Struk Kasir Resmi**:
+  - Struk cetak pembayaran angsuran dengan jelas mencantumkan keterangan metode bayar `SIMPANAN SUKARELA`.
 
 ---
 
 ## [v2.5.0] - 2026-09-16
 
-### 📊 Laporan Perubahan Ekuitas Multi-Tab (Standar SAK EP & RAT)
-- **Implementasi Sistem Multi-Tab Terpadu (3 Sudut Pandang Laporan)**:
-  - **Tab 1: Aliran Vertikal (Waterfall Bridge)**: Menyajikan alur mutasi modal mengalir bertingkat: *Saldo Awal per 1 Jan* $\rightarrow$ *(+) Penambahan Modal Sendiri* (Setoran Pokok, Wajib, Partisipatif, Cadangan, SHU Positif) $\rightarrow$ *(-) Pengurangan Modal* (Pengembalian Pokok/Wajib Anggota Keluar, Penyesuaian, Defisit) $\rightarrow$ *Saldo Akhir Modal per 31 Des*.
-  - **Tab 2: Komparatif Tahunan (Year-over-Year / YoY)**: Perbandingan posisi ekuitas modal antara *Tahun Berjalan vs Tahun Sebelumnya* lengkap dengan pertumbuhan nominal ($\pm\text{Rp}$), pertumbuhan persentase ($\pm\%$), dan status tren (*Naik ↗*, *Turun ↘*, *Stabil ➔*) berstandar audit akuntan publik (KAP).
-  - **Tab 3: Matriks SAK EP (8 Kolom Formal)**: Tabel matriks mutasi horizontal formal cross-tabulation untuk lampiran resmi buku pertanggungjawaban RAT.
-- **Rekonsiliasi Otomatis 100% Terhadap Neraca (Balance Guarantee)**:
-  - Total Modal Akhir hasil perhitungan diverifikasi matematis secara otomatis terhadap total pos Ekuitas pada Laporan Neraca per 31 Desember, dengan verifikasi selisih Rp 0,00 (`is_balanced: true`).
-- **Pita Ringkasan Eksekutif (Bento Ribbon) & Visualisasi**:
-  - 4 metrik utama (*Modal Awal*, *Penambahan*, *Pengurangan*, *Modal Akhir*), badge status *Rekonsiliasi Neraca*, serta bilah visualisasi distribusi porsi modal akhir.
-- **Ekspor Dokumen Resmi RAT**:
-  - **Cetak PDF Landscape (A4)** ber-kop surat resmi koperasi, tabel matriks bergaris presisi, catatan pengesahan SAK EP, dan blok 3 tanda tangan legal (*Pengawas*, *Ketua*, dan *Bendahara*).
-  - **Ekspor Microsoft Excel**: File CSV ber-encoding UTF-8 BOM (`\uFEFF`) komprehensif mencakup seksi Aliran Vertikal, Komparatif YoY, dan Matriks SAK EP.
-- **Penyederhanaan Label Menu**:
-  - Didaftarkan pada menu navigasi **LAPORAN $\rightarrow$ Keuangan $\rightarrow$ Perubahan Ekuitas** (`#/perubahan-ekuitas`).
+### 📊 Laporan Perubahan Modal (Ekuitas) Lengkap untuk Dokumen RAT
+- **Tiga Sudut Pandang Laporan Perubahan Modal**:
+  - **Sudut Pandang Aliran Modal**: Memantau mutasi modal bertahap mulai dari *Saldo Modal Awal per 1 Januari* ➔ *(+) Penambahan Modal Sendiri* (Simpanan Pokok, Simpanan Wajib, Dana Cadangan, dan SHU Tahun Berjalan) ➔ *(-) Pengurangan Modal* (Pengembalian simpanan anggota keluar) ➔ *Saldo Akhir Modal per 31 Desember*.
+  - **Sudut Pandang Perbandingan Tahunan**: Membandingkan posisi modal *Tahun Ini vs Tahun Lalu*, lengkap dengan angka kenaikan rupiah, persentase pertumbuhan, dan tanda arah tren (Naik, Turun, atau Stabil).
+  - **Sudut Pandang Tabel Matriks Resmi (8 Kolom SAK EP)**: Format tabel resmi untuk lampiran buku laporan pertanggungjawaban Pengurus pada Rapat Anggota Tahunan (RAT).
+- **Jaminan 100% Cocok dengan Neraca**:
+  - Total Modal Akhir secara otomatis diverifikasi terhadap pos Modal pada Laporan Neraca per 31 Desember, menjamin saldo seimbang tanpa selisih (Rp 0).
+- **Cetak Dokumen Resmi & Ekspor Excel**:
+  - Format cetak PDF posisi mendatar (Landscape) ber-kop surat resmi koperasi, catatan pengesahan standar akuntansi, dan 3 kolom tanda tangan legal (*Pengawas*, *Ketua*, dan *Bendahara*).
+  - Ekspor berkas ke Microsoft Excel (CSV).
 
-### 🏛️ Harmonisasi Regulasi Penilaian Kesehatan Koperasi (KKPKK Modern)
-- **Penyelarasan Rujukan Hukum Kontemporer**:
-  - Menyeragamkan rujukan hukum dari regulasi usang Permenkop 20/2008 ke regulasi terbaru: **Permenkop UKM No. 9 Tahun 2020 jo. Permenkop UKM No. 2 Tahun 2024 & Permenkop UKM No. 8 Tahun 2023**.
-  - Mengimplementasikan instrumen resmi **Kertas Kerja Pemeriksaan Kesehatan Koperasi (KKPKK)** dengan 4 Pilar Pengawasan Modern:
-    1. *Tata Kelola (Bobot 30%)*: Kelembagaan, legalitas NIK, akuntabilitas RAT/Tutup Buku, dan kepatuhan SAK EP (audit saldo 100% balance).
-    2. *Profil Risiko (Bobot 15%)*: Evaluasi risiko pembiayaan/NPL ($\le 5\%$), risiko likuiditas (Cash Ratio $\ge 10\%$), dan kecukupan cadangan risiko.
-    3. *Kinerja Keuangan (Bobot 40%)*: Rentabilitas aset (ROA), rentabilitas modal sendiri (ROE), efisiensi biaya (BOPO), dan kemandirian operasional.
-    4. *Permodalan (Bobot 15%)*: Rasio Kecukupan Modal (*CAR*) terhadap ATMR dan rasio modal sendiri terhadap total aset.
-- **Standardisasi Nomenklatur Predikat Resmi Kemenkop UKM**:
-  - Klasifikasi predikat: 🟢 **Sehat** $(\ge 80{,}00)$, 🔵 **Cukup Sehat** $(66{,}00 - <80{,}00)$, 🟡 **Dalam Pengawasan** $(51{,}00 - <66{,}00)$, dan 🔴 **Dalam Pengawasan Khusus** $(<51{,}00)$.
-- **Penyelarasan Modal Sendiri Koperasi**:
-  - Menghitung modal sendiri sesuai perundang-undangan dan SAK EP (mengakomodasi Simpanan Pokok dan Simpanan Wajib anggota sebagai bagian dari modal sendiri/ekuitas).
-- **Pembaruan UI & PDF**:
-  - Memperbarui antarmuka `kesehatan-koperasi.js`, menghilangkan duplikasi ikon, dan cetak dokumen resmi PDF ber-header KKPKK.
+### 🏛️ Penilaian Kesehatan Koperasi Sesuai Pedoman Kemenkop UKM Terbaru
+- **Pedoman Hukum Resmi & Mutakhir**:
+  - Menyelaraskan seluruh rumus dan standar penilaian kesehatan sesuai peraturan Kementerian Koperasi dan UKM RI terbaru (**Permenkop UKM No. 9/2020 jo. No. 2/2024 & No. 8/2023**).
+  - Menggunakan instrumen resmi **Kertas Kerja Pemeriksaan Kesehatan Koperasi (KKPKK)** dengan 4 pilar pengawasan:
+    1. *Tata Kelola (Bobot 30%)*: Kelembagaan, kelengkapan izin NIK, penyelenggaraan RAT, dan kepatuhan pembukuan seimbang.
+    2. *Profil Risiko (Bobot 15%)*: Rasio kredit macet/NPL (target di bawah 5%), ketersediaan dana kas likuid, dan kecukupan cadangan risiko.
+    3. *Kinerja Keuangan (Bobot 40%)*: Kemampuan menghasilkan SHU terhadap aset dan modal, efisiensi beban operasional (BOPO), dan kemandirian usaha.
+    4. *Permodalan (Bobot 15%)*: Kecukupan modal sendiri terhadap risiko pinjaman dan total aset koperasi.
+- **Predikat Resmi Standar Kementerian**:
+  - Klasifikasi predikat hasil penilaian: 🟢 **Sehat** (nilai 80 ke atas), 🔵 **Cukup Sehat** (nilai 66 s/d 79), 🟡 **Dalam Pengawasan** (nilai 51 s/d 65), dan 🔴 **Dalam Pengawasan Khusus** (nilai di bawah 51).
+- **Simpanan Pokok & Wajib Diakui sebagai Modal Sendiri**:
+  - Penghitungan modal sendiri kini mencakup simpanan pokok dan simpanan wajib anggota sesuai undang-undang koperasi.
 
-### 🧭 Restrukturisasi & Optimalisasi Menu Navigasi
-- **Penyelarasan Alur Kerja Operasional Koperasi (Workflow-Driven)**:
-  - **Master Data**: Mengelompokkan pengaturan jenis pinjaman dan biaya pinjaman agar berdampingan, diikuti kode transaksi dan COA (*Chart of Account*).
-  - **Transaksi**: Menempatkan *Kas Masuk & Keluar* di urutan teratas untuk kasir/teller harian, disusul modul Simpanan, Pinjaman, dan Jurnal Keuangan back-office.
-  - **Laporan Keuangan**: Menyusun urutan logis laporan standar akuntansi: *Neraca* $\rightarrow$ *Laba Rugi* $\rightarrow$ *Pertumbuhan Laba Rugi* $\rightarrow$ *Laporan Arus Kas* $\rightarrow$ *Perubahan Ekuitas* $\rightarrow$ *Buku Besar* $\rightarrow$ *Audit Saldo* $\rightarrow$ *Kepatuhan Kemenkop* $\rightarrow$ *Tingkat Kesehatan*.
-  - **Sistem & Tata Kelola**: Memposisikan sub-menu *RAT & Akhir Tahun* di urutan teratas modul Sistem.
+### 🧭 Penataan Urutan Menu Sesuai Alur Kerja Harian
+- **Urutan Menu Lebih Terstruktur**:
+  - **Master Data**: Mengelompokkan pengaturan jenis pinjaman dan biaya pinjaman agar berdampingan, diikuti kode transaksi dan daftar akun perkiraan.
+  - **Transaksi**: Menempatkan *Kas Masuk & Keluar* di urutan teratas untuk operasional harian teller, disusul modul Simpanan, Pinjaman, dan Jurnal Keuangan.
+  - **Laporan Keuangan**: Disusun berurutan sesuai alur pembukuan standar: *Neraca* ➔ *Laba Rugi* ➔ *Pertumbuhan SHU* ➔ *Arus Kas* ➔ *Perubahan Modal* ➔ *Buku Besar* ➔ *Pemeriksaan Saldo* ➔ *Kepatuhan Kemenkop* ➔ *Tingkat Kesehatan*.
+  - **Sistem**: Menempatkan menu *RAT & Akhir Tahun* di bagian paling atas kelompok Sistem.
 
-### 🛡️ Integritas Data & Audit Saldo (100% Reconciled)
-- **Koreksi Rekonsiliasi Modul vs Buku Besar (GL)**:
-  - Menghapus transaksi reversal yatim dan memulihkan saldo rekening Simpanan Pokok REO SUHANAFI sehingga Simpanan Pokok seimbang 100% (Selisih Rp 0,00).
-  - Mengoreksi akun debet jurnal `TB2026080048` ke akun Kas (`100`) dan menyesuaikan `sisa_pinjaman` pinjaman 1888 ke Rp 1.500.000 sehingga Piutang Insidental seimbang 100% (Selisih Rp 0,00).
-  - Menyelaraskan saldo awal pembukaan Piutang Berjangka 1 (`104`) dan pecahan sen Simpanan Sukarela (`206`) serta Partisipatif (`214`) terhadap akun penyeimbang `3999` (Selisih Saldo Awal) dengan pembukuan jurnal tetap 100% *balance*.
-  - Mengalihkan referensi jurnal borongan `JRN2026070206` ke jurnal umum (`ref_tipe = 'umum'`) untuk mengeliminasi benturan selisih nominal Rp 660.000.
-- **Penguatan Logika Backend (Pencegahan Masa Depan)**:
-  - `AuditController.php`: Deteksi cerdas simpanan dari potongan pencairan pinjaman dan pelunasan angsuran via Top-up/Refinancing secara otomatis (*zero false positives*).
-  - `PinjamanController.php`: Konsistensi inisialisasi `sisa_pinjaman` berdasarkan pokok pinjaman murni (`jumlah`), serta penandaan metode pembayaran angsuran top-up sebagai `'topup'`.
-- **Script Pemulihan Mandiri (`repair_audit_discrepancies.php`)**:
-  - Menyediakan script perbaikan otomatis berbasis CLI yang aman (transaksional ACID dan mendukung opsi `--dry-run`).
+### 🛡️ Pemeriksaan Keseimbangan Saldo Pembukuan (100% Seimbang)
+- **Keseimbangan Modul vs Buku Besar**:
+  - Memastikan saldo pembukuan Simpanan Pokok, Simpanan Wajib, Simpanan Sukarela, dan Piutang Pinjaman seluruh anggota 100% seimbang terhadap saldo Buku Besar Akuntansi dengan selisih Rp 0.
+- **Pencegahan Selisih di Masa Depan**:
+  - Sistem otomatis mengenali pencatatan simpanan dari potongan pencairan pinjaman dan pelunasan angsuran pembaruan pinjaman secara akurat.
 
-### 📈 Laporan Pertumbuhan Laba/Rugi (Bulanan & Tahunan)
-- **Mode MoM (Month-over-Month)**: Analisis kinerja 12 bulan dalam 1 tahun buku dengan perbandingan pertumbuhan nominal ($\pm\text{Rp}$) dan persentase ($\pm\%$) antar bulan.
-- **Mode YoY (Year-over-Year)**: Analisis tren multi-tahun dengan fleksibilitas filter rentang tahun.
-- **Smart Future-Month Handling**: Mencegah false negative dropout pada grafik maupun kalkulasi rata-rata untuk bulan yang belum berjalan.
-- **Visualisasi & Ekspor**: Diagram batang interaktif (Pendapatan, Beban, SHU), 5 kartu KPI, cetak PDF landscape, dan ekspor CSV UTF-8 BOM.
+### 📈 Laporan Pertumbuhan SHU (Bulanan & Tahunan)
+- **Grafik Pertumbuhan Antar Bulan**: Analisis kinerja 12 bulan dalam satu tahun buku untuk memantau pendapatan, beban, dan SHU bersih antar bulan.
+- **Grafik Pertumbuhan Antar Tahun**: Analisis tren pendapatan dan SHU koperasi dari tahun ke tahun.
+- **Ekspor Dokumen**: Dilengkapi diagram grafik, kartu ringkasan kinerja, cetak PDF resmi, dan ekspor ke Excel.
 
-### 💵 Laporan Arus Kas, Kepatuhan Kemenkop, & Kunci Periode Akuntansi
-- **Laporan Arus Kas (SAK EP)**: Laporan arus kas 3 pilar (Operasi, Investasi, Pendanaan) dengan rekonsiliasi kas riil ke neraca/buku besar (100% balance), filter tanggal fleksibel & preset, cetak PDF resmi, dan ekspor Excel (CSV).
-- **Dashboard Kepatuhan Kemenkop UKM**: Klasifikasi otomatis Kelompok Usaha Koperasi (KUK 1-4) sesuai Permenkop UKM No. 2/2024, evaluasi 7 rasio prudensial (BMPP, Likuiditas, Solvabilitas, NPL, Kemandirian Modal, ROE, ROA), serta matriks profil Online Data System (ODS).
-- **Kunci Periode Akuntansi (Period Locking)**: Fitur tutup buku berkala untuk mengunci pencatatan, pengeditan, atau pembatalan transaksi lampau di modul Jurnal, Pinjaman, Angsuran, dan Simpanan.
+### 💵 Laporan Arus Kas & Kunci Tutup Buku Akhir Periode
+- **Laporan Arus Kas Standar Akuntansi**: Mengelompokkan arus uang masuk dan keluar menjadi 3 aktivitas (Operasional, Investasi, dan Pendanaan) dengan verifikasi saldo kas riil terhadap neraca.
+- **Kunci Periode Pembukuan (Tutup Buku)**: Fitur penguncian buku berkala agar data transaksi simpanan, pinjaman, angsuran, dan jurnal pada bulan/tahun yang sudah ditutup tidak bisa diubah atau dihapus secara tidak sengaja.
 
+---
 
 ## [v2.1.9] - 2026-08-19
 
-### 🐛 Diperbaiki & Dioptimalkan
-- **Potongan Simpanan Wajib Pencairan:** Memperbaiki bug query pencarian Simpanan Wajib pada pencairan pinjaman yang salah mendeteksi produk Simpanan Pokok (karena kode dan kriteria `is_wajib = 1` yang tumpang tindih). Sekarang potongan simpanan wajib dijamin masuk ke produk Simpanan Wajib secara tepat.
+### 🛠️ Perbaikan & Penyempurnaan Sistem
+- **Potongan Simpanan Wajib Saat Pencairan Pinjaman**: Memperbaiki pencatatan agar potongan simpanan wajib saat anggota mencairkan pinjaman selalu masuk ke rekening Simpanan Wajib secara tepat dan tidak tertukar.
+
+---
 
 ## [v2.1.8] - 2026-08-19
 
-### 🎨 Desain & UI
-- **Redesain Kas Masuk & Keluar:** Memperbarui format tampilan menu Kas Masuk & Keluar dengan tata letak kartu lipat (collapsible layout) modern. Sekarang pengguna dapat memperluas baris transaksi untuk melihat rincian posting jurnal double-entry secara instan.
-- **Ekspor PDF & CSV:** Menambahkan tombol ekspor langsung pada menu transaksi kas untuk mendownload riwayat kas masuk/keluar yang sedang difilter.
-- **Fitur Pembatalan (Reversal):** Menambahkan tombol aksi reversal instan pada baris kas masuk/keluar untuk mempermudah pembatalan transaksi kas salah input.
+### 🎨 Pembaruan Tampilan & Kenyamanan Pengguna
+- **Tampilan Baru Transaksi Kas Masuk & Keluar**: Tampilan baris transaksi kas kini dapat dibuka untuk melihat rincian pembukuan akuntansi secara langsung.
+- **Tombol Ekspor Langsung**: Menambahkan tombol unduh PDF dan Excel langsung dari daftar riwayat kas.
+- **Fitur Pembatalan Transaksi Kas (Reversal)**: Menambahkan tombol pembatalan transaksi kas yang mudah digunakan jika kasir salah melakukan penginputan.
+
+---
 
 ## [v2.1.7] - 2026-08-15
 
-### ✨ Ditambahkan
-- **Filter Rentang Tanggal Simpanan:** Menambahkan filter **Dari Tanggal s/d Sampai Tanggal** pada daftar transaksi simpanan untuk membatasi pencarian transaksi berdasarkan tanggal tertentu, lengkap dengan integrasi ke fitur ekspor PDF/CSV.
+### ✨ Fitur Baru
+- **Pencarian Simpanan Berdasarkan Rentang Tanggal**: Menambahkan pilihan tanggal awal dan tanggal akhir pada daftar simpanan untuk mempermudah pencarian setoran atau penarikan pada tanggal tertentu, lengkap dengan tombol cetak laporan.
+
+---
 
 ## [v2.1.6] - 2026-08-15
 
-### ✨ Ditambahkan & Dioptimalkan
-- **Multi-Refinancing (Refinancing > 1 Pinjaman):** Menambahkan dukungan penuh untuk membiayai kembali (melunasi) lebih dari satu pinjaman lama sekaligus dalam satu pengajuan baru.
-- **Kustomisasi Bunga & Denda Refinancing:** Menambahkan masukan Bunga Berjalan dan Denda Berjalan secara individual untuk setiap pinjaman yang dilunasi pada modal persetujuan.
-- **Estimasi Kas Bersih (Live Net Payout Calculation):** Menambahkan kalkulator kas bersih (Dana Bersih Diterima) pada modal persetujuan pinjaman yang berinteraksi langsung (live update) saat nominal potongan bunga/denda diubah.
-- **Reversal Multi-Refinancing:** Memastikan pembatalan (reversal) pencairan pinjaman top-up mengembalikan status dan saldo seluruh pinjaman lama yang dilunasi sebelumnya ke status aktif semula.
+### ✨ Fitur Baru
+- **Pembaruan Pinjaman Lebih dari 1 Pinjaman Lama Sekaligus (Multi-Refinancing)**: Anggota kini dapat mengajukan satu pinjaman baru untuk melunasi sisa beberapa pinjaman lama sekaligus dalam satu kali pengajuan.
+- **Pengaturan Bunga & Denda Berjalan yang Fleksibel**: Petugas dapat menyesuaikan potongan bunga atau denda berjalan untuk masing-masing pinjaman lama yang dilunasi.
+- **Kalkulator Kas Bersih Otomatis**: Layar persetujuan langsung menampilkan jumlah uang bersih yang akan diterima oleh anggota setelah dipotong pelunasan pinjaman lama dan biaya administrasi.
+- **Pembatalan Aman**: Jika pencairan pinjaman pembaruan dibatalkan, status pinjaman lama otomatis aktif kembali ke kondisi semula.
+
+---
 
 ## [v2.1.5] - 2026-08-15
 
-### 🐛 Diperbaiki & Dioptimalkan
-- **Filter Tanggal Laporan Keuangan:** Memperbaiki bug kalkulasi saldo akun per tanggal/periode (Neraca, Penilaian Kesehatan, Buku Besar, Tutup Buku) agar data transaksi di luar tanggal filter tidak ikut dijumlahkan oleh query `LEFT JOIN` pada database.
-- **Inisialisasi Sisa Pinjaman:** Mengubah setelan `sisa_pinjaman` baru agar diisi sebesar nominal pokok plafon pinjaman (`jumlah`), bukan total bayar (`total_bayar` dengan bunga), untuk mencegah selisih audit modul vs GL di masa depan.
-- **Sistem Reversal Top-up:** Menambahkan pemulihan status dan sisa pinjaman lama serta pengembalian status angsuran lamanya kembali ke status belum bayar saat transaksi pencairan pinjaman top-up baru dibatalkan (direversal).
-- **Skrip Koreksi Database:** Menyediakan skrip mandiri `fix_historical_data.php` untuk menyeimbangkan data pembukuan historis yang telanjur selisih.
+### 🛠️ Perbaikan & Penyempurnaan Sistem
+- **Ketepatan Filter Tanggal Laporan Keuangan**: Memperbaiki penghitungan saldo pada laporan Neraca, Buku Besar, dan Penilaian Kesehatan agar hanya menjumlahkan transaksi dalam rentang tanggal yang dipilih.
+- **Pencatatan Sisa Pinjaman yang Tepat**: Menyesuaikan pencatatan sisa pokok pinjaman baru agar selalu akurat terhadap nilai plafon pokok pinjaman, mencegah potensi selisih saldo di masa depan.
+
+---
 
 ## [v2.1.4] - 2026-07-07
 
-### 🎨 Desain & UI
-- **Grup Dropdown Aksi Tabel:** Mengganti deretan tombol aksi (Struk, Koreksi, Reversal) pada tabel Transaksi Simpanan dan Pembayaran Angsuran dengan satu tombol dropdown **"Aksi"** yang ringkas dan elegan, menghemat ruang horizontal tabel dan membuat tampilan jauh lebih rapi.
+### 🎨 Pembaruan Tampilan & Kenyamanan Pengguna
+- **Tombol Menu Aksi yang Ringkas**: Menggantikan deretan tombol panjang pada tabel Simpanan dan Angsuran dengan satu tombol dropdown **"Aksi"** yang rapi, sehingga tabel lebih lega dan nyaman dibaca.
+
+---
 
 ## [v2.1.3] - 2026-07-07
 
-### ✨ Ditambahkan
-- **Cetak Struk Thermal POS (POS Printer Receipt Layout):** Tombol "Struk" baru pada daftar Transaksi Simpanan dan Pembayaran Angsuran untuk memicu cetak bukti bayar thermal POS (lebar 76mm/80mm) yang rapi, lengkap dengan detail baris, nama kasir, dan kolom tanda tangan ganda (kasir & anggota).
+### ✨ Fitur Baru
+- **Cetak Struk Kasir Printer Thermal (Ukuran 58mm / 80mm)**: Menambahkan tombol cetak struk kasir ukuran kertas struk kecil pada transaksi simpanan dan pembayaran angsuran, lengkap dengan nama kasir dan tempat tanda tangan anggota.
+
+---
 
 ## [v2.1.2] - 2026-07-07
 
-### ✨ Ditambahkan
-- **Pintasan Sumber Transaksi (Traceability Link):** Tombol "Buka Transaksi" pada detail jurnal otomatis (Simpanan, Angsuran, Pinjaman) untuk langsung beralih dan memfilter transaksi asli di halaman masing-masing.
-- **Indikator & Histori Koreksi (Audit Trail):** Label badge **"DIEDIT"** berwarna kuning jika transaksi telah dikoreksi. Mengklik badge akan memunculkan timeline modal riwayat perubahan, lengkap dengan perbandingan field lama vs baru (*side-by-side JSON diff* dan format Rupiah otomatis).
+### ✨ Fitur Baru
+- **Pintasan Langsung ke Sumber Transaksi**: Menambahkan tombol "Buka Transaksi" pada rincian jurnal otomatis untuk langsung menuju ke data simpanan atau pinjaman aslinya.
+- **Tanda Transaksi yang Pernah Diedit**: Transaksi yang pernah mengalami koreksi ditandai dengan badge khusus berwarna kuning. Mengklik badge akan memperlihatkan riwayat lengkap perubahan data sebelum dan sesudah diedit.
+
+---
 
 ## [v2.1.1] - 2026-07-07
 
-### ✨ Ditambahkan
-- **Fitur Koreksi Jurnal Manual:** Pengguna dapat mengoreksi data tanggal, keterangan, dan akun debit/kredit pada entri Jurnal Umum manual.
-- **Koreksi Transaksi Angsuran:** Dukungan koreksi/edit nominal pokok, bunga, denda, tanggal, dan kas masuk pada transaksi Angsuran.
+### ✨ Fitur Baru & Pembaruan Tampilan
+- **Koreksi Jurnal Umum & Angsuran**: Petugas yang berwenang dapat mengoreksi keterangan, tanggal, atau nominal pada catatan Jurnal Umum dan pembayaran Angsuran jika terdapat kekeliruan input.
+- **Penyederhanaan Kolom Tabel**: Rincian pokok pinjaman, bunga, dan denda digabung menjadi satu kolom informasi yang rapi dan hemat tempat.
 
-### 🎨 Desain & UI
-- **Penyederhanaan Tabel Angsuran:** Kolom Pokok, Bunga, dan Total digabungkan menjadi kolom "Rincian Pembayaran" yang dinamis dan hemat ruang.
-- **Penyederhanaan Jurnal Umum:** Menggabungkan kolom Faktur (No. Bukti) dan Tanggal Transaksi menjadi satu kolom info vertikal yang ringkas.
-- **Status Metode Pembayaran:** Menambahkan informasi metode bayar (Tunai/Transfer) langsung di bawah badge status pada tabel Angsuran.
+---
 
 ## [v2.1.0] - 2026-07-07
 
-### ✨ Ditambahkan
-- **Metode Pembayaran Multi-Akun:** Dukungan metode pembayaran `Transfer Bank` dengan pilihan akun kas/bank tujuan pada modul Simpanan, Angsuran, Pinjaman, dan Jurnal.
-- **Kustomisasi Tanggal Transaksi:** Pengisian tanggal transaksi kustom pada modul Angsuran dan Jurnal untuk pencatatan historis yang akurat.
-- **Filter Metode Pembayaran:** Penyaringan data transaksi berdasarkan metode pembayaran (`Tunai`/`Transfer`) pada tabel Simpanan, Laporan Mutasi Simpanan, Angsuran, dan Laporan Mutasi Angsuran.
+### ✨ Fitur Baru
+- **Metode Pembayaran Transfer Bank**: Pilihan metode bayar Transfer Bank lengkap dengan pemilihan rekening bank koperasi tujuan pada modul Simpanan, Angsuran, Pinjaman, dan Jurnal.
+- **Penyaringan Berdasarkan Metode Bayar**: Memfilter transaksi berdasarkan pembayaran Tunai atau Transfer Bank.
 
-### 🔧 Perbaikan
-- **Pengecualian Data Migrasi di Audit Koperasi:** Transaksi berlabel "Import", "Migrasi", dan "Saldo Awal" kini dikecualikan dari deteksi data yatim (orphan) dan backdated untuk mencegah kesalahan penilaian kesehatan koperasi.
-- **Optimasi Penalti Backdated:** Sistem penilaian kesehatan hanya mengenakan penalti untuk transaksi backdated yang melebihi 30 hari (bukan lagi 3 hari), sehingga input transaksi bulanan biasa tidak mengurangi skor.
-- **Perbaikan Query SQL Audit:** Pengelompokan (GROUP BY) pada query rekonsiliasi GL pinjaman untuk memastikan kompatibilitas database yang lebih baik.
-- **Pembersihan Cache Otomatis:** Sinkronisasi pembersihan cache modul keuangan, audit, dan simpanan pada setiap transaksi simpanan dan pinjaman.
+---
 
 ## [v2.0.5] - 2026-06-24
 
-### ✨ Ditambahkan
-- **Shortcut Transaksi Wajib:** Tombol langsung dari halaman Monitoring Simpanan Wajib membuka modal transaksi dengan `jenis_simpanan=SW`.
-- **Tampilan Tabel Simpanan Ringkas:** Penyederhanaan tabel `Simpanan` dengan kolom bergabung dan baris lebih kompak agar data dapat dibaca lebih efisien.
+### ✨ Fitur Baru & Perbaikan
+- **Pintasan Cepat Setoran Simpanan Wajib**: Tombol cepat untuk langsung mencatat setoran Simpanan Wajib anggota dari halaman pemantauan simpanan wajib.
+- **Tampilan Tabel Simpanan Lebih Rapi**: Tampilan baris data simpanan dibuat lebih kompak dan menyertakan nomor rekening simpanan.
 
-### 🔧 Perbaikan
-- **Perbaikan No. Rekening:** Backend list simpanan sekarang mengikutkan `no_rekening` sehingga data rekening dapat ditampilkan di tabel transaksi.
-- **Filter Rekening Simpanan SW:** Pencarian rekening pada modal simpanan menggunakan `jenis_simpanan=SW` untuk shortcut setoran wajib.
-- **Monitoring Simpanan Wajib Stabil:** API `simpanan/monitoring-wajib` sekarang menyediakan `sp_lunas` dan `sw_months` serta mencegah deteksi `undefined` pada bulan yang belum punya data.
-- **Logika Kepatuhan SW:** Penyederhanaan dan perbaikan logika deteksi tunggakan SW/SP agar anggota yang telah setor teridentifikasi dengan benar.
+---
 
 ## [v2.0.4] - 2026-05-20
 
-### ✨ Ditambahkan
-- **Premium PDF Engine Upgrade (Global Helper):** Integrasi header bergradien modern kustom, visual accent bar pada subjudul, serta footer dinamis dengan nomor halaman (`Page X of Y`) pada semua modul laporan.
-- **Auto-Width & Proportional Column Sizing:** Menghitung lebar kolom secara proporsional dan otomatis berbasis tipe data (mono-width untuk nomor, lebar luas untuk deskripsi, sedang untuk finansial), mencegah pemotongan data teks penting.
-- **Dynamic Status Badging in PDF Tables:** Penataan otomatis teks status (LANCAR, MACET, PENDING, AKTIF, dll.) menjadi badge berwarna dengan kontras tinggi yang menyesuaikan dengan tema aktif sistem pada dokumen PDF.
-- **Visual Category Badging (Reconciliation PDF):** Menambahkan aksen warna latar belakang Indigo (Simpanan) dan Purple (Pinjaman) yang elegan untuk membedakan kategori transaksi pada laporan audit secara cepat.
-- **Combined Account & GL Column (Reconciliation PDF):** Menggabungkan kolom "Nama Rekening Akun" dan "Kode Akun" menjadi satu kolom ringkas "Rekening & Akun GL" dengan pemisah baris (`\n`), menghemat ruang horizontal dan memastikan nilai nominal Rupiah memiliki ruang maksimal.
+### 📄 Peningkatan Kualitas Cetak Dokumen PDF
+- **Desain Laporan PDF Standar Resmi**: Menghadirkan tampilan header bergradien rapi, garis aksen subjudul, dan keterangan nomor halaman (*Halaman X dari Y*) pada seluruh laporan koperasi.
+- **Ukuran Lebar Kolom Otomatis**: Kolom teks keterangan otomatis diberi ruang lebih luas, sedangkan kolom angka nominal menyesuaikan agar tidak ada teks yang terpotong.
+- **Pewarnaan Status Transaksi yang Jelas**: Warna status (LANCAR, MACET, PENDING, LUNAS) tampil rapi dan mudah dibaca pada lembaran PDF.
 
-### 🔧 Perbaikan
-- **Penyuntingan Karakter Garbled jsPDF:** Mengganti simbol checkmark Unicode (`✔`) dengan teks ASCII standar (`[OK]`), memperbaiki isu di mana PDF viewer standar merender checkmark sebagai karakter sampah `&&&&`.
-- **Dynamic Header & Title Alignment:** Menyeimbangkan tinggi area gradien `drawPDFHeader` dan menurunkan koordinat vertikal judul laporan ke `y = 38.5` serta sub-header ke `y = 44` untuk mengeliminasi tabrakan visual.
-- **Proteksi Page-Break Multi-Halaman:** Menerapkan batas margin pengaman `top: 48` pada seluruh rendering autoTable kustom (`audit.js`, `kesehatan-koperasi.js`, `buku-simpanan.js`, `kartu-angsuran.js`, `pengundian-rat.js`) agar judul tabel tidak tertimpa banner dinamis pada halaman 2+.
-- **Reconciliation Data Mapping:** Memperbaiki mapping data sehingga temuan selisih nominal transaksi dan data yatim (orphan) dapat dibaca dengan nilai riil yang akurat.
-- **Branding & Splash Screen Polish:** Poles visual logo, background glow, grayscale footer partner, serta perbaikan typo teks bahasa Inggris ke bahasa Indonesia ("and" -> "dan") pada `index.html` untuk meningkatkan estetika antarmuka login.
-
-## [v2.0.2] - 2026-05-13
-
-### Fixed
-- **Date Handling**: Fixed UTC date shifts in App.todayISO and resolved default filter value discrepancies in Mutasi Simpanan.
-- **Activity History**: Integrated live activity logs into Member Detail page.
+---
 
 ## [v2.0.1] - 2026-05-10
 
-### ✨ Ditambahkan
-- **Branding Dinamis di Login**: Nama koperasi dan logo pada halaman login kini diambil secara dinamis dari pengaturan database tanpa memerlukan login terlebih dahulu.
-- **Collapsible Changelog**: Antarmuka riwayat versi kini dapat diciutkan (collapsible) per versi untuk navigasi yang lebih rapi dan fokus pada versi terbaru.
-- **Digital Signature & E-Contract**: Implementasi tanda tangan digital berbasis QR Code pada dokumen SPK (Surat Persetujuan Kredit) untuk verifikasi keaslian dokumen secara instan.
-- **Dashboard Analytics Update**: Penambahan statistik "Pinjaman Per Jenis" pada dashboard utama untuk memberikan gambaran portofolio pinjaman yang lebih komprehensif, sejajar dengan statistik simpanan.
-- **Fintech Detail Interface**: Redesain total halaman detail anggota dengan antarmuka berbasis tab (Ringkasan, Simpanan, Pinjaman, Profil) ala aplikasi Fintech premium. Dilengkapi dengan indikator progress pelunasan pinjaman, kartu statistik modern, dan navigasi yang lebih intuitif.
-- **Modal Mutasi Produk**: Kini pengurus dapat melihat riwayat transaksi simpanan atau riwayat angsuran pinjaman secara instan melalui modal pop-up hanya dengan mengklik kartu produk pada halaman detail anggota.
-- **Financial Health Scoreboard**: Panel indikator kesehatan finansial yang mencakup Rasio NPL (Kredit Macet), Pertumbuhan Anggota (MoM), dan Volume Transaksi 30 hari terakhir untuk pemantauan performa bisnis yang lebih akurat.
-- **Liquidity Gauge Analytics**: Panel pemantauan likuiditas kas secara real-time yang membandingkan aset kas dengan total kewajiban simpanan, lengkap dengan indikator kesehatan keuangan.
-- **Quick Action Magic Menu**: Floating action button (FAB) baru untuk akses cepat ke transaksi simpanan, pinjaman, dan pendaftaran anggota dari halaman mana pun.
+### ✨ Fitur Baru & Tampilan
+- **Logo & Nama Koperasi Dinamis di Halaman Masuk**: Halaman login langsung menampilkan nama resmi dan logo koperasi sesuai pengaturan lembaga.
+- **Tanda Tangan Digital Kode QR pada Surat Pinjaman (SPK)**: Dokumen Surat Persetujuan Pinjaman kini dilengkapi kode QR resmi untuk membuktikan keaslian dokumen secara instan.
+- **Halaman Detail Anggota Modern**: Informasi anggota ditata dalam tab-tab rapi (Ringkasan, Simpanan, Pinjaman, dan Profil) lengkap dengan grafik kemajuan pelunasan pinjaman.
+- **Panel Pemantauan Kesehatan Finansial**: Ringkasan persentase kredit macet, penambahan anggota baru, dan perputaran transaksi kas di beranda utama pengurus.
+- **Tombol Pintas Aksi Cepat**: Tombol bulat di pojok layar untuk mencatat simpanan, pinjaman, atau pendaftaran anggota baru secara instan dari halaman mana saja.
 
-### 🔧 Diubah
-- **Akses Publik Pengaturan**: Membuka akses baca publik terbatas ke endpoint `/api/settings` untuk mendukung fitur branding dinamis dengan tetap menjaga keamanan data sensitif.
-- **Hardening Sesi HTTPS**: Optimalisasi parameter cookie sesi (`Secure`, `HttpOnly`, `SameSite=Lax`) untuk meningkatkan stabilitas login di lingkungan server hosting berbasis HTTPS.
+---
 
 ## [v1.8.0] - 2026-05-07
 
-### ✨ Ditambahkan
-- **Analitik Produk Laporan Pinjaman**: Ringkasan total saldo per jenis produk di bagian atas laporan untuk akses cepat.
-- **Filter Produk Interaktif**: Memungkinkan pemfilteran tabel laporan hanya dengan mengklik kartu analitik produk.
-- **Peningkatan Laporan Baki Debet**: Pengelompokan data berdasarkan produk dan penambahan kartu analitik total baki debet per kategori.
-- **Sinkronisasi Data Agunan**: Sinkronisasi tipe agunan antara modul manajemen dan laporan daftar agunan.
-- **Kolom No. Rekening**: Penambahan informasi nomor pinjaman (rekening) pada Laporan Saldo Pinjaman yang bersifat context-aware terhadap filter produk.
-
-### 🔧 Diubah
-- **Optimasi SQL Laporan**: Sinkronisasi kriteria filter antara analitik dan tabel untuk memastikan total saldo selalu matching.
-- **Perbaikan Bug Cache**: Pembaruan mekanisme cache-busting (v1.8.0) untuk mengatasi error "TypeError" akibat script lama yang tersimpan di browser.
+### ✨ Fitur Baru
+- **Ringkasan Total Saldo Pinjaman per Jenis**: Menampilkan kartu ringkasan total saldo berdasarkan jenis pinjaman (misal: Pinjaman Reguler, Insidental, Konsumtif) di bagian atas laporan.
+- **Saring Data Cukup Klik Kartu**: Pengurus dapat menyaring tabel laporan hanya dengan mengklik kartu jenis pinjaman yang diinginkan.
 
 ---
 
 ## [v1.7.0] - 2026-05-03
 
-### ✨ Ditambahkan
-- **Sistem Reversal Transaksi (Non-Destruktif)**: Memungkinkan pembatalan transaksi Jurnal Umum, Simpanan, Angsuran, dan Pencairan Pinjaman tanpa menghapus data asli (audit-compliant).
-- Fitur **Pembalikan Jurnal Otomatis** (Contra Entry) dengan penanda `ref_tipe='reversal'`.
-- Label visual **REVERSED** pada tabel transaksi untuk memudahkan identifikasi data yang telah dibatalkan.
-- Tombol **Reverse** pada daftar dan detail transaksi (tergantung hak akses).
-- Integrasi **Redis Caching** terpusat pada modul keuangan dan kesehatan koperasi untuk performa maksimal.
-
-### 🔧 Diubah
-- **Optimasi UI Angsuran**: Penggabungan kolom No. Pinjaman, Nama Anggota, dan Urutan Angsuran menjadi satu kolom "Informasi Pinjaman" yang lebih efisien ruang.
-- Standarisasi data API: Menghapus format mata uang dari backend agar dashboard grafik dapat merender data numerik dengan benar.
+### ✨ Fitur Baru
+- **Sistem Pembatalan Transaksi yang Aman (Reversal)**: Membatalkan transaksi salah input pada Jurnal, Simpanan, Angsuran, atau Pencairan Pinjaman tanpa menghapus catatan asli, sehingga tetap memenuhi standar audit pembukuan.
+- **Label Transaksi Batal**: Transaksi yang telah dibatalkan ditandai dengan badge jelas `DIBATALKAN` pada tabel.
 
 ---
 
 ## [v1.6.0] - 2026-04-22
 
-### ✨ Ditambahkan
-- Fitur **Monitoring Portal** pada dashboard Admin
-- **Dashboard Summary Real-time**: Monitoring jumlah login hari ini, user aktif, total aktifitas, dan split platform (Mobile vs Desktop)
-- Pelacakan aktifitas anggota secara real-time (Login, Cek Saldo, Mutasi, Pinjaman, dll.)
-- Informasi detail aktifitas: Nama Anggota, Jenis Aktifitas, Platform (Mobile/Desktop), Browser, dan IP Address
-- Filter pencarian dan paginasi pada log aktifitas portal
+### ✨ Fitur Baru
+- **Pemantauan Aktivitas Aplikasi HP Anggota**: Pengurus dapat melihat jumlah anggota yang sedang aktif membuka aplikasi HP koperasi, membedakan pengguna HP Android, iPhone, maupun komputer desktop.
 
 ---
 
-## [v1.5.4] - 2026-04-22
+## [v1.5.0] - 2026-04-22
 
-### ✨ Ditambahkan
-- Penggabungan kolom **No. Anggota** dan **Nama Anggota** menjadi satu kolom "Anggota" yang lebih efisien ruang
-- Tampilan ID Anggota menggunakan font mono kecil di bawah nama anggota
-
-### 🔧 Diubah
-- Optimasi lebar tabel laporan simpanan agar lebih nyaman dilihat pada layar standar
-
----
-
-## [v1.5.3] - 2026-04-22
-
-### ✨ Ditambahkan
-- Fitur **Sorting Kolom** pada Laporan Saldo Simpanan (klik judul kolom untuk mengurutkan)
-- **Ringkasan Total di Atas** (Summary Cards) pada Laporan Saldo Simpanan agar total dapat dilihat langsung tanpa scrolling
-- Indikator arah pengurutan (ikon panah) pada header tabel
-
-### 🔧 Diubah
-- Pembaruan tampilan dashboard portal untuk konsistensi branding
-
----
-
-## [v1.5.2] - 2026-04-22
-
-### ✨ Ditambahkan
-- Dukungan penuh untuk **Simpanan Partisipatif** di Laporan Saldo Simpanan dan Portal Anggota
-- Ikon spesifik untuk Simpanan Partisipatif di dashboard portal
-
-### 🔧 Diubah
-- Refaktor layout **Laporan Saldo Simpanan** untuk memastikan tombol aksi berada di atas tabel
-- Optimasi SQL `laporan-saldo` menggunakan `LEFT JOIN` agar seluruh anggota aktif tampil di laporan
-
-### 🐞 Perbaiki
-- Perbaikan layout "berantakan" pada header laporan simpanan
-- Penanganan nilai `NaN` pada kalkulasi total laporan jika terdapat data kosong
-
----
-
-## [v1.5.1] - 2026-03-23
-- Pembersihan file migrasi dan debug yang sudah tidak digunakan dari root dan folder `database/`
-- Penambahan `.gitignore` untuk mengecualikan `database.sql` dan folder `uploads/`
+### ✨ Fitur Baru & Tampilan
+- **Pengurutan Kolom Laporan**: Mengklik judul kolom tabel laporan saldo simpanan kini otomatis mengurutkan data dari nilai tertinggi ke terendah atau sebaliknya.
+- **Dukungan Simpanan Partisipatif**: Menambahkan produk Simpanan Partisipatif pada laporan simpanan dan aplikasi anggota.
 
 ---
 
 ## [v1.4.0] - 2026-03-13
 
-### ✨ Ditambahkan
-- Fitur **upload logo koperasi** pada halaman Pengaturan
-- Logo koperasi ditampilkan di header PDF laporan
-- Direktori `uploads/` untuk menyimpan fil aset (logo, dll.)
-
-### 🔧 Diubah
-- Halaman pengaturan menggunakan tab layout yang lebih terstruktur (Umum, Portal, Tampilan, Tema, Backup)
+### ✨ Fitur Baru
+- **Unggah Logo Resmi Koperasi**: Pengurus dapat mengunggah file logo koperasi pada halaman Pengaturan, yang otomatis tampil di aplikasi dan kop surat cetak laporan.
 
 ---
 
 ## [v1.3.0] - 2026-03-09
 
-### ✨ Ditambahkan
-- Fitur **Backup & Restore Database** di halaman Pengaturan
-- Ekspor database dalam format `.sql`
-- Impor/restore database dari file `.sql`
+### ✨ Fitur Baru
+- **Pencadangan & Pemulihan Data Koperasi (Backup & Restore)**: Fasilitas untuk mengunduh berkas cadangan database koperasi secara mandiri demi keamanan arsip data lembaga.
 
 ---
 
 ## [v1.2.0] - 2026-03-09
 
-### ✨ Ditambahkan
-- Sistem **Audit Log & Activity Tracking** untuk memantau perubahan transaksi
-- Tabel `audit_logs` di database
-- Helper `logActivity` pada API core
-- Tab "History Perubahan" di halaman Audit Saldo
-- Integrasi pencatatan aktivitas pada `SimpananController`, `PinjamanController`, `AngsuranController`
+### ✨ Fitur Baru
+- **Catatan Jejak Aktivitas Petugas (Audit Log)**: Sistem otomatis mencatat riwayat penambahan, pengubahan, atau penghapusan transaksi beserta nama petugas yang melakukannya untuk transparansi operasional.
 
 ---
 
 ## [v1.1.0] - 2026-03-05
 
-### ✨ Ditambahkan
-- Modul **RAT (Rapat Anggota Tahunan)** — Manajemen RAT dan Pengundian RAT
-- Fitur **eksekusi pembagian SHU** dari modul RAT, termasuk kalkulasi Jasa Modal dan Jasa Anggota
-- Tabel `rat_shu_executions` untuk mencegah distribusi SHU ganda
-- Tombol "Eksekusi Pembagian SHU" (kondisional) pada topik RAT yang sudah ditutup
+### ✨ Fitur Baru
+- **Modul Rapat Anggota Tahunan (RAT) & Pembagian SHU**:
+  - Fasilitas pencatatan agenda RAT dan pengundian nomor undian doorprize bagi anggota yang hadir.
+  - Pembagian SHU (Sisa Hasil Usaha) otomatis berdasarkan Jasa Modal dan Jasa Anggota, serta pencegahan pembagian SHU ganda.
 
 ---
 
 ## [v1.0.0] - 2026-03-01
 
-### ✨ Ditambahkan
-- Rilis awal Aplikasi Koperasi Simpan Pinjam
-- Manajemen **Anggota** (pendaftaran, edit, nonaktif)
-- Modul **Simpanan** — Jenis simpanan, kode transaksi, transaksi, mutasi
-- Modul **Pinjaman** — Pengajuan, persetujuan, pencairan, angsuran, agunan
-- Modul **Keuangan** — Jurnal umum, buku besar, neraca, laba rugi
-- Laporan: Saldo simpanan, buku simpanan, laporan pinjaman, baki debet, kolektibilitas, kartu angsuran
-- Modul **Pembagian SHU** dan **Proses Akhir Tahun**
-- Sistem **RBAC** (Role-Based Access Control) — Admin, Petugas, Anggota
-- **Portal Anggota** (PWA) untuk akses informasi simpan pinjam mandiri
-- Sistem **Pengumuman** untuk komunikasi koperasi kepada anggota
-- **Laporan Tingkat Kesehatan Koperasi** sesuai standar penilaian
-- Sistem pengaturan aplikasi (nama koperasi, alamat, tema warna, logo)
-- **Tema warna** yang dapat disesuaikan (Indigo, Violet, Biru, Cyan, Hijau, Oranye, Merah, Abu-abu)
+### ✨ Rilis Perdana Aplikasi Koperasi Simpan Pinjam
+- **Manajemen Anggota**: Pendaftaran anggota baru, perubahan data profil, dan penonaktifan anggota.
+- **Modul Simpanan**: Pengelolaan jenis simpanan (Pokok, Wajib, Sukarela), pencatatan setoran, penarikan, dan buku mutasi tabungan.
+- **Modul Pinjaman**: Pengajuan pinjaman, persetujuan pengurus, pencairan dana, pembayaran angsuran berkala, dan pencatatan jaminan/agunan.
+- **Modul Pembukuan Keuangan**: Jurnal umum, buku besar, neraca keuangan, dan perhitungan laba rugi.
+- **Laporan Lengkap Koperasi**: Laporan saldo simpanan, buku tabungan, laporan portofolio pinjaman, baki debet, tingkat kolektibilitas kredit, dan kartu angsuran pinjaman.
+- **Hak Akses Pengguna (RBAC)**: Pembagian kewenangan yang aman antara Administrator, Pengurus, Petugas Kasir, dan Anggota Koperasi.
+- **Aplikasi Anggota di Ponsel (PWA)**: Anggota dapat mengecek saldo simpanan, jadwal angsuran pinjaman, dan mutasi transaksi secara mandiri melalui HP.
+- **Pengumuman Koperasi**: Fasilitas penyampaian berita dan pengumuman resmi koperasi kepada seluruh anggota.
+- **Pilihan Tema Warna Aplikasi**: Pengaturan warna tampilan sistem yang dapat disesuaikan dengan identitas koperasi Anda.

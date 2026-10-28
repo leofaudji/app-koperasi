@@ -9,21 +9,27 @@ const MutasiPage = {
         const anggotaId = urlP.get('anggota_id') || '';
 
         container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 animate-fadeIn">
-            <div class="flex flex-col sm:flex-row gap-3 mb-6">
+            <div class="flex flex-col sm:flex-row gap-3 mb-3">
                 <div class="flex-1 relative">
                     <input type="text" id="ms-anggota-search" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Cari anggota..." autocomplete="off">
                     <input type="hidden" id="ms-anggota-id" value="${anggotaId}">
                     <div id="ms-anggota-dd" class="hidden border border-gray-200 rounded-xl mt-1 max-h-40 overflow-auto bg-white shadow-lg absolute z-50 w-full"></div>
                 </div>
-                <select id="ms-jenis" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm"><option value="">Semua Jenis</option></select>
+                <div class="w-full sm:w-56">
+                    <select id="ms-jenis" data-icon="ri-wallet-3-line" data-search-placeholder="Cari jenis simpanan..." class="searchable-select w-full"><option value="">Semua Jenis Simpanan</option></select>
+                </div>
                 <input type="text" id="ms-dari" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Dari">
                 <input type="text" id="ms-sampai" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Sampai">
                 <button onclick="MutasiPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium"><i class="ri-search-line mr-1"></i> Cari</button>
+            </div>
+            <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+                ${App.renderDateChips({ fromId: 'ms-dari', toId: 'ms-sampai', callback: 'MutasiPage.load()' })}
             </div>
             <div id="ms-saldo-area" class="hidden mb-6">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                     <div id="ms-saldo" class="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1 w-full"></div>
                     <div class="flex items-center gap-2">
+                        ${App.renderDensityToggle()}
                         <button onclick="MutasiPage.export('pdf')" class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-2 rounded-xl text-sm font-medium transition-colors">
                             <i class="ri-file-pdf-line mr-1"></i> PDF
                         </button>
@@ -43,7 +49,13 @@ const MutasiPage = {
 
         // Load jenis simpanan
         const js = await App.api('jenis-simpanan');
-        if (js?.data) document.getElementById('ms-jenis').innerHTML += js.data.map(j => `<option value="${j.id}">${j.nama}</option>`).join('');
+        if (js?.data) {
+            const sel = document.getElementById('ms-jenis');
+            if (sel) {
+                sel.innerHTML += js.data.map(j => `<option value="${j.id}">${j.nama}</option>`).join('');
+                App.searchableSelect(sel, { icon: 'ri-wallet-3-line', placeholder: 'Semua Jenis Simpanan' });
+            }
+        }
 
         // Anggota search
         let deb;

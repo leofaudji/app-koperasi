@@ -16,13 +16,48 @@ Modul Akuntansi dan Keuangan adalah jantung tata kelola pembukuan koperasi yang 
 
 ---
 
-## 3. Fitur Transaksi Kas Masuk & Kas Keluar (`#/kas-transaksi`)
+## 3. Fitur Transaksi Kas Masuk, Kas Keluar & Mutasi Kas (`#/kas-transaksi`)
 
-Didesain untuk operasional kasir harian dengan antarmuka **Collapsible Card Layout** modern:
-- **Kas Masuk (`KM...`)**: Mencatat penerimaan kas di luar operasional simpan-pinjam (misal: penerimaan pendapatan sewa, pengembalian panjar kas kecil, setoran modal penyertaan pihak ketiga).
-- **Kas Keluar (`KK...`)**: Mencatat pengeluaran operasional (misal: pembayaran listrik/air/internet, biaya ATK, honor pengurus, beban pemeliharaan kantor).
-- **Kartu Lipat (Collapsible)**: Baris transaksi dapat diperluas untuk menginspeksi rincian entri debit dan kredit akun COA yang terposting secara instan.
-- **Ekspor & Reversal**: Dilengkapi tombol ekspor PDF landscape, file CSV, serta tombol pembatalan (*reversal*) instan.
+Modul Perbendaharaan dan Kas Operasional mengelola seluruh aliran likuiditas non-pembiayaan koperasi dengan tata letak modern, responsif, dan terintegrasi langsung ke buku besar akuntansi:
+
+### 3.1 Klasifikasi Transaksi Kas & Format Nomor Bukti
+1. **Kas Masuk (`KM...`)**:
+   - Mencatat seluruh penerimaan kas/bank di luar angsuran dan simpanan (misal: pendapatan dividen/bunga bank, sewa inventaris, pengembalian panjar operasional, setoran modal pihak ketiga).
+   - Menghasilkan Bukti Kas Masuk (**BKM**) dengan jurnal otomatis: Debit Akun Kas/Bank dan Kredit Akun Pendapatan/Lawan.
+2. **Kas Keluar (`KK...`)**:
+   - Mencatat beban dan pengeluaran operasional (misal: beban gaji/honor, beban listrik/air/internet, biaya ATK kantor, perbaikan inventaris, biaya konsumsi RAT).
+   - Menghasilkan Bukti Kas Keluar (**BKK**) dengan jurnal otomatis: Debit Akun Beban/Biaya dan Kredit Akun Kas/Bank.
+3. **Mutasi Kas / Pindah Buku Antar Bank (`BMK...`)**:
+   - Memfasilitasi perpindahan likuiditas antar rekening kas dan bank (misal: penarikan tunai dari Bank BRI ke Kas Utama, atau penyetoran sisa kas fisik harian ke rekening Bank Jatim).
+   - Menghasilkan Bukti Mutasi Kas (**BMK**) dengan jurnal kontra otomatis: Debit Akun Kas/Bank Penerima dan Kredit Akun Kas/Bank Pengirim.
+
+### 3.2 Executive Financial KPI Dashboard (4 Metrik Perbendaharaan)
+Bagian atas menu menyajikan ringkasan likuiditas real-time yang diperkaya dengan **Pure SVG Micro Sparklines** (kurva Bézier bergelombang halus dan titik beacon berdenyut untuk memantau tren 7 hari terakhir):
+- **Kas Masuk (Inflow)**: Total penerimaan rupiah, frekuensi transaksi masuk, sparkline tren penerimaan, dan rasio perputaran.
+- **Kas Keluar (Outflow)**: Total pengeluaran beban rupiah, sparkline tren pengeluaran, dan frekuensi transaksi pengeluaran.
+- **Arus Kas Bersih (Net Cash Flow)**: Indikator dinamis dengan lencana status `SURPLUS KAS (+)` berwarna hijau emerald atau `DEFISIT KAS (-)` berwarna merah rose, dilengkapi kurva tren net cash flow.
+- **Perputaran Kas & Rekening Aktif**: Total volume transaksi bruto dan jumlah akun kas & bank yang terdaftar aktif.
+
+### 3.3 Visualisasi Alur Dana (Money Flow Badges) & Filter Pintar
+- **Visualisasi Alur**: Setiap baris transaksi menyajikan panah directional alur dana:
+  - Kas Masuk: `[Akun Sumber/Pendapatan]` ➔ `[Rekening Kas/Bank]`
+  - Kas Keluar: `[Rekening Kas/Bank]` ➔ `[Akun Beban/Pengeluaran]`
+  - Mutasi Kas: `[Rekening Kas/Bank Asal]` ➔ `[Rekening Kas/Bank Tujuan]`
+- **Segmentasi Navigasi Tab**: Tab filter instan (*Semua Transaksi*, *📥 Kas Masuk*, *📤 Kas Keluar*, *⇄ Mutasi Kas*) dengan counter badge jumlah transaksi real-time.
+- **Quick Date Chips & Filter Toolbar Responsif**: Dilengkapi tombol preset rentang tanggal instan (*Hari Ini*, *7 Hari*, *Bulan Ini*, *Bulan Lalu*, *Tahun Ini*, *Semua*) dengan indikator status aktif otomatis (`.date-chip.is-active`), filter akun rekening kas tertentu, serta pencarian uraian/nomor bukti dengan layout grid responsif (`xl:grid-cols-12`) yang mencegah kebocoran elemen tanggal (*anti-overflow layout*).
+
+### 3.4 Form Transaksi Cerdas & Simulasi Posting Jurnal
+- **Live Rupiah Formatting & Terbilang Bahasa Indonesia**: Mengonversi angka ke dalam ejaan teks rupiah resmi secara real-time saat petugas mengetik nominal transaksi.
+- **Tombol Quick Chips**: Chip penambah nominal instan (`+50rb`, `+100rb`, `+500rb`, `+1jt`, `+5jt`, `+10jt`).
+- **Simulasi Posting Jurnal Real-Time**: Modal form secara transparan menampilkan simulasi baris Debit dan Kredit buku besar yang akan terbentuk sebelum tombol simpan ditekan.
+
+### 3.5 Cetak Voucher Bukti Kas Resmi (BKM / BKK / BMK)
+Sistem menyediakan fasilitas pratinjau dan pencetakan voucher resmi via dynamic iframe (bebas popup-blocker):
+- **Komponen Voucher**: Kop Koperasi resmi, Nomor Bukti, Tanggal Transaksi, Pihak Terkait (Penyetor / Penerima), Nominal Rupiah, Ejaan Terbilang Bahasa Indonesia, dan Tabel Entri Jurnal Akuntansi (Kode Akun, Nama Akun, Debit, Kredit, Uraian Keterangan).
+- **Otorisasi 4 Tanda Tangan**: Kolom tanda tangan resmi untuk *Menyetujui (Pengurus)*, *Akuntansi (Pembukuan)*, *Kasir (Bendahara)*, dan *Penyetor / Penerima*.
+
+### 3.6 Arsitektur Performa Bebas N+1 Query
+Data rincian jurnal dimuat secara terpadu oleh backend dalam satu panggilan API, meniadakan pemanggilan HTTP berulang per baris (*zero N+1 query*), sehingga daftar transaksi kas terbuka seketika (<100ms).
 
 ---
 
@@ -54,6 +89,7 @@ Menyajikan arus masuk dan keluar kas riil berdasarkan klasifikasi SAK EP:
 2. **Arus Kas dari Aktivitas Investasi**: Perolehan atau pelepasan aktiva tetap/peralatan koperasi.
 3. **Arus Kas dari Aktivitas Pendanaan**: Penerimaan setoran simpanan pokok/wajib baru, pembagian dividen/SHU tunai ke anggota.
 - **Rekonsiliasi Kas Akhir**: Saldo kas akhir periode pada laporan arus kas diverifikasi 100% cocok terhadap saldo kas dan setara kas di Neraca.
+- **Sticky Summary Integration**: Terintegrasi bilah ringkasan mengambang (`App.attachStickySummary`) untuk mengunci akumulasi arus kas saat menggulir tabel aktivitas.
 
 ### 4.5 Laporan Perubahan Ekuitas Multi-Tab (Standar RAT Resmi)
 Menu mutasi permodalan (`#/perubahan-ekuitas`) dengan 3 sudut pandang laporan terintegrasi:
@@ -70,6 +106,15 @@ Menu mutasi permodalan (`#/perubahan-ekuitas`) dengan 3 sudut pandang laporan te
   6. *SHU Tahun Berjalan*
   7. *Total Ekuitas Koperasi*
   8. *Status Rekonsiliasi Neraca (`is_balanced: true`)*
+
+### 4.6 Navigasi Audit Buku Besar & Sticky Floating Summary Bar (`#/buku-besar`)
+Buku Besar adalah instrumen audit harian terpenting bagi akuntan. Guna memaksimalkan produktivitas pemeriksaan jurnal bervolume tinggi:
+1. **Quick Date Chips Integration**: Memilih periode audit seketika (*Bulan Ini*, *Bulan Lalu*, *Tahun Ini*, dll.) dengan active state indicator sinkron.
+2. **Sticky Floating Table Summary Bar (Smart Auto-Docking)**:
+   - Saat tabel Buku Besar memuat puluhan hingga ratusan entri mutasi debit-kredit, bilah ringkasan bawah otomatis menempel mengambang di dasar layar (*bottom dock*) ketika footer tabel asli tidak terlihat di viewport.
+   - Menampilkan total mutasi Debit, total mutasi Kredit, dan kalkulasi Saldo Akhir akun yang diinspeksi secara real-time.
+   - Menyediakan tombol kontrol Minimize (memadatkan menjadi pill ringkas) dan tombol pintas **"Ke Tabel ⭡"** untuk langsung menggulir kembali layar ke bagian atas tabel.
+3. **Dual-Density Mode**: Mendukung peralihan mode nyaman (*Comfortable*) ke mode padat (*Compact*) untuk melihat mutasi transaksi 35% lebih banyak dalam satu bidang pandang layar monitor.
 
 ---
 
@@ -107,8 +152,10 @@ Menu **Audit Saldo** (`#/audit`) menyajikan inspeksi kesehatan data real-time:
 
 | Method | Endpoint | Fungsi | Hak Akses |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/keuangan/jurnal` | Mengambil daftar jurnal umum dengan filter & pagination | `keuangan.jurnal` |
-| `POST` | `/api/keuangan/jurnal` | Input jurnal umum manual (double-entry) | `keuangan.jurnal` |
+| `GET` | `/api/keuangan/akun` | Mengambil bagan akun COA (cached 5 menit pada modal) | Authenticated (Semua Staf) |
+| `POST` / `PUT` / `DELETE` | `/api/keuangan/akun` | Tambah, ubah, atau hapus master akun COA | `keuangan.akun` |
+| `GET` | `/api/keuangan/jurnal` | Mengambil daftar jurnal umum/kas dengan filter & pagination | `keuangan.jurnal` |
+| `POST` | `/api/keuangan/jurnal` | Input transaksi jurnal umum, kas masuk/keluar, mutasi kas | `keuangan.jurnal` |
 | `PUT` | `/api/keuangan/jurnal/{id}` | Koreksi entri jurnal umum manual | `keuangan.jurnal` |
 | `GET` | `/api/keuangan/buku-besar` | Mengambil mutasi akun buku besar (GL) per periode | `keuangan.buku_besar` |
 | `GET` | `/api/keuangan/neraca` | Laporan Neraca posisi keuangan SAK EP | `keuangan.neraca` |

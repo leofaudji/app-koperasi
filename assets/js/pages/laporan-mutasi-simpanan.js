@@ -4,6 +4,24 @@ const LaporanMutasiSimpananPage = {
     from: '',
     to: '',
 
+    setPreset(preset) {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const fmt = d => moment(d).format('YYYY-MM-DD');
+        if (preset === 'today') { this.from = fmt(now); this.to = fmt(now); }
+        else if (preset === '7days') { const d = new Date(); d.setDate(d.getDate() - 6); this.from = fmt(d); this.to = fmt(now); }
+        else if (preset === 'thisMonth' || preset === 'month') { this.from = fmt(new Date(y, m, 1)); this.to = fmt(new Date(y, m + 1, 0)); }
+        else if (preset === 'lastMonth' || preset === 'last_month') { this.from = fmt(new Date(y, m - 1, 1)); this.to = fmt(new Date(y, m, 0)); }
+        else if (preset === 'thisYear' || preset === 'year') { this.from = fmt(new Date(y, 0, 1)); this.to = fmt(new Date(y, 11, 31)); }
+        
+        const fpEl = document.querySelector("#lms-date-range");
+        if (fpEl && fpEl._flatpickr) {
+            fpEl._flatpickr.setDate([this.from, this.to], false);
+        }
+        this.load();
+    },
+
     async render(container) {
         if (!this.from) this.from = moment().startOf('month').format('YYYY-MM-DD');
         if (!this.to) this.to = moment().endOf('month').format('YYYY-MM-DD');
@@ -17,6 +35,7 @@ const LaporanMutasiSimpananPage = {
                     <p class="text-xs text-gray-400 mt-1">Histori mutasi semua simpanan anggota</p>
                 </div>
                 <div class="flex items-center gap-2">
+                    ${App.renderDensityToggle()}
                     <button onclick="LaporanMutasiSimpananPage.export('pdf')" class="bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 border border-red-100">
                         <i class="ri-file-pdf-line"></i> PDF
                     </button>
@@ -31,7 +50,10 @@ const LaporanMutasiSimpananPage = {
             </div>
 
             <!-- Filter Row -->
-            <div class="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 mb-6">
+            <div class="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 mb-6 space-y-3">
+                <div class="pb-3 border-b border-gray-200/60">
+                    ${App.renderDateChips({ callback: 'LaporanMutasiSimpananPage.setPreset', flatpickrId: 'lms-date-range' })}
+                </div>
                 <div class="flex flex-col sm:flex-row items-end gap-4">
                     <div class="flex-1 w-full">
                         <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Periode Transaksi</label>
@@ -162,6 +184,20 @@ const LaporanMutasiSimpananPage = {
             </table>
         </div>`;
         document.getElementById('lms-table-container').innerHTML = html;
+
+        if (data.length > 0) {
+            const totalSetoran = data.reduce((s, r) => s + (r.dk === 'D' ? parseFloat(r.jumlah) : 0), 0);
+            const totalPenarikan = data.reduce((s, r) => s + (r.dk === 'K' ? parseFloat(r.jumlah) : 0), 0);
+            App.attachStickySummary({
+                table: '#lms-table-container table',
+                title: 'Total Mutasi Simpanan',
+                items: [
+                    { label: 'Total Setoran (+)', value: App.formatRupiah(totalSetoran), color: 'emerald' },
+                    { label: 'Total Penarikan (-)', value: App.formatRupiah(totalPenarikan), color: 'rose' },
+                    { label: 'Volume Transaksi', value: `${data.length} Mutasi`, color: 'primary' }
+                ]
+            });
+        }
     },
 
     getColumns() {

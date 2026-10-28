@@ -18,7 +18,8 @@ const KolektibilitasPage = {
                         </h2>
                         <p class="text-gray-500 text-sm mt-1">Pemantauan kelancaran pinjaman aktif berdasarkan hari keterlambatan</p>
                     </div>
-                    <div class="flex gap-2 w-full sm:w-auto">
+                    <div class="flex gap-2 w-full sm:w-auto items-center">
+                        ${App.renderDensityToggle()}
                         <button onclick="KolektibilitasPage.export('pdf')" class="w-full sm:w-auto bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2">
                             <i class="ri-file-pdf-line"></i> PDF
                         </button>
@@ -53,7 +54,7 @@ const KolektibilitasPage = {
                             </div>
                         </div>
                         <div class="overflow-x-auto flex-1">
-                            <table class="w-full text-left border-collapse">
+                            <table class="data-table w-full text-left border-collapse">
                                 <thead>
                                     <tr class="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500">
                                         <th class="p-4 font-semibold">Anggota</th>

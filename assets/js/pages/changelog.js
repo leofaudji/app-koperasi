@@ -39,8 +39,8 @@ function parseChangelog(text) {
             continue;
         }
 
-        // List item under a group
-        const itemMatch = line.match(/^-\s+(.+)/);
+        // List item under a group (matches both top-level and indented bullet items)
+        const itemMatch = line.match(/^\s*-\s+(.+)/);
         if (itemMatch && current._currentGroup) {
             current._currentGroup.items.push(itemMatch[1]);
             continue;
@@ -53,16 +53,16 @@ function parseChangelog(text) {
 // ── Type to badge mapper ──────────────────────────────────────
 function typeBadge(label) {
     const lower = label.toLowerCase();
-    if (lower.includes('ditambahkan') || lower.includes('tambah')) {
+    if (lower.includes('ditambahkan') || lower.includes('tambah') || lower.includes('baru') || lower.includes('fitur')) {
         return { bg: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500', icon: 'ri-add-circle-line', key: 'tambah' };
     }
-    if (lower.includes('diubah') || lower.includes('ubah')) {
-        return { bg: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500', icon: 'ri-edit-2-line', key: 'ubah' };
+    if (lower.includes('diubah') || lower.includes('ubah') || lower.includes('peningkatan') || lower.includes('kenyamanan') || lower.includes('tampilan') || lower.includes('desain') || lower.includes('kecepatan') || lower.includes('cetak') || lower.includes('dokumen') || lower.includes('laporan')) {
+        return { bg: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500', icon: 'ri-flashlight-line', key: 'ubah' };
     }
     if (lower.includes('dihapus') || lower.includes('hapus')) {
         return { bg: 'bg-red-100 text-red-700', dot: 'bg-red-500', icon: 'ri-delete-bin-line', key: 'hapus' };
     }
-    if (lower.includes('diperbaiki') || lower.includes('perbaiki') || lower.includes('fixed') || lower.includes('fix')) {
+    if (lower.includes('diperbaiki') || lower.includes('perbaiki') || lower.includes('fixed') || lower.includes('fix') || lower.includes('perbaikan') || lower.includes('kendala') || lower.includes('solusi')) {
         return { bg: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500', icon: 'ri-bug-line', key: 'perbaiki' };
     }
     return { bg: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400', icon: 'ri-information-line', key: 'lainnya' };

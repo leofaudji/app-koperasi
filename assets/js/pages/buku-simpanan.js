@@ -47,6 +47,10 @@ const BukuSimpananPage = {
                         </button>
                     </div>
                 </div>
+                <div class="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Preset Waktu:</span>
+                    ${App.renderDateChips({ fromId: 'bs-dari', toId: 'bs-sampai', callback: 'BukuSimpananPage.load()' })}
+                </div>
             </div>
 
             <!-- Content Area -->
@@ -193,6 +197,16 @@ const BukuSimpananPage = {
                 <div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-20 translate-x-20"></div>
                 <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-white/5 rounded-full"></div>
 
+                <!-- Rubber Stamp on Passbook -->
+                <div class="absolute right-6 sm:right-16 top-3 sm:top-5 z-20 pointer-events-none select-none">
+                    ${App.renderRubberStamp({
+                        type: rek.status === 'aktif' ? 'verified' : 'rejected',
+                        size: 'sm',
+                        title: rek.status === 'aktif' ? 'TERVERIFIKASI' : 'NON-AKTIF',
+                        sub: 'BUKU TABUNGAN KSP'
+                    })}
+                </div>
+
                 <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
                     <div class="flex items-center gap-4">
                         <div class="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center border border-white/30 shrink-0">
@@ -234,6 +248,7 @@ const BukuSimpananPage = {
                         class="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur border border-white/30 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all">
                         <i class="ri-file-excel-line"></i> Export CSV
                     </button>
+                    ${App.renderDensityToggle()}
                 </div>
             </div>
 
@@ -262,7 +277,7 @@ const BukuSimpananPage = {
 
             <!-- Tabel Buku Tabungan -->
             <div class="overflow-x-auto">
-                <table class="w-full text-sm" id="bs-table">
+                <table class="data-table w-full text-sm" id="bs-table">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100">
                             <th class="px-4 py-3 text-left font-semibold text-gray-500 text-xs w-10">No</th>
@@ -344,30 +359,32 @@ const BukuSimpananPage = {
         const ph = doc.internal.pageSize.getHeight();
 
         const title = 'BUKU SIMPANAN';
+        const subtitle = `No. Rekening: ${rek.no_rekening}  |  Anggota: ${rek.anggota_nama} (${rek.no_anggota})`;
 
         // Use App helpers for consistent branding
-        App.drawPDFHeader(doc, title);
-        App.drawPDFFooter(doc);
+        App.drawPDFHeader(doc, title, { subtitle });
 
         // ── Info Rekening Box ──
-        doc.setFillColor(241, 245, 249);
-        doc.roundedRect(14, 47, pw - 28, 28, 2, 2, 'F');
-        doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(14, 45, pw - 28, 26, 2, 2, 'FD');
+        doc.setFontSize(7.8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
 
         const leftX = 18; const rightX = pw / 2 + 2;
-        doc.setFont('helvetica', 'bold'); doc.text('No. Rekening', leftX, 54);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.no_rekening, leftX + 30, 54);
-        doc.setFont('helvetica', 'bold'); doc.text('Nama Anggota', leftX, 60);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.anggota_nama, leftX + 30, 60);
-        doc.setFont('helvetica', 'bold'); doc.text('No. Anggota', leftX, 66);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.no_anggota, leftX + 30, 66);
+        doc.setFont('helvetica', 'bold'); doc.text('No. Rekening', leftX, 52);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.no_rekening, leftX + 30, 52);
+        doc.setFont('helvetica', 'bold'); doc.text('Nama Anggota', leftX, 58);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.anggota_nama, leftX + 30, 58);
+        doc.setFont('helvetica', 'bold'); doc.text('No. Anggota', leftX, 64);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.no_anggota, leftX + 30, 64);
 
-        doc.setFont('helvetica', 'bold'); doc.text('Jenis Simpanan', rightX, 54);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.jenis_simpanan_nama, rightX + 32, 54);
-        doc.setFont('helvetica', 'bold'); doc.text('Tgl Pembukaan', rightX, 60);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + App.formatDate(rek.tgl_buka), rightX + 32, 60);
-        doc.setFont('helvetica', 'bold'); doc.text('Status', rightX, 66);
-        doc.setFont('helvetica', 'normal'); doc.text(': ' + (rek.status || '-').toUpperCase(), rightX + 32, 66);
+        doc.setFont('helvetica', 'bold'); doc.text('Jenis Simpanan', rightX, 52);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + rek.jenis_simpanan_nama, rightX + 32, 52);
+        doc.setFont('helvetica', 'bold'); doc.text('Tgl Pembukaan', rightX, 58);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + App.formatDate(rek.tgl_buka), rightX + 32, 58);
+        doc.setFont('helvetica', 'bold'); doc.text('Status', rightX, 64);
+        doc.setFont('helvetica', 'normal'); doc.text(': ' + (rek.status || '-').toUpperCase(), rightX + 32, 64);
 
         // ── Tabel Transaksi ──
         let saldoBerjalan = parseFloat(this.rekeningData?._saldo_awal || 0);
@@ -407,20 +424,31 @@ const BukuSimpananPage = {
             alternateRowStyles: { fillColor: [248, 250, 252] },
             margin: { left: 14, right: 14, top: 48, bottom: 20 },
             didDrawPage: (data) => {
-                App.drawPDFHeader(doc, title);
-                App.drawPDFFooter(doc);
+                App.drawPDFHeader(doc, title, { subtitle });
             }
         });
 
         // ── Saldo Akhir di bawah tabel ──
         const finalY = doc.lastAutoTable.finalY + 5;
-        doc.setFillColor(241, 245, 249);
-        doc.roundedRect(pw - 80, finalY, 66, 14, 2, 2, 'F');
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.roundedRect(pw - 80, finalY, 66, 14, 2, 2, 'FD');
         doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 23, 42);
-        doc.text('Saldo Akhir', pw - 76, finalY + 6);
-        doc.text(App.formatRupiah(saldoBerjalan), pw - 16, finalY + 6, { align: 'right' });
-        doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(100);
-        doc.text(`per ${App.todayDMY()}`, pw - 76, finalY + 11);
+        doc.text('Saldo Akhir', pw - 76, finalY + 5.5);
+        doc.text(App.formatRupiah(saldoBerjalan), pw - 16, finalY + 5.5, { align: 'right' });
+        doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139);
+        doc.text(`per ${App.todayDMY()}`, pw - 76, finalY + 10.5);
+
+        // Signatures block
+        App.drawPDFSignatures(doc, finalY + 18, { title, subtitle });
+
+        // Two-Pass Page Numbering & Footer Drawing for Absolute Accuracy
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            App.drawPDFFooter(doc, { currentPage: i, totalPages });
+        }
 
         window.open(doc.output('bloburl'), '_blank');
     },

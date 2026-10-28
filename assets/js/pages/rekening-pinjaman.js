@@ -16,7 +16,8 @@ const RekeningPinjamanPage = {
                         <h3 class="font-semibold text-gray-800">Data Rekening Pinjaman</h3>
                         <p class="text-xs text-gray-400 mt-1">Total ${res.pagination.total} pinjaman terdaftar</p>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex items-center gap-2">
+                        ${App.renderDensityToggle()}
                         <button onclick="RekeningPinjamanPage.export('pdf')" class="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors" title="Export PDF">
                             <i class="ri-file-pdf-line text-xl"></i>
                         </button>

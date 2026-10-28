@@ -1,7 +1,7 @@
 # PRD - 08: Modul Laporan Operasional, Portofolio Kredit, dan Ekspor
 
 ## 1. Ikhtisar Modul
-Modul Laporan dan Analitik berfungsi menyajikan visibilitas menyeluruh atas operasional harian, manajemen portofolio kredit, tingkat risiko pembiayaan (*Non-Performing Loan / NPL*), serta kepatuhan pencadangan piutang. Modul ini dilengkapi dengan mesin pelaporan berstandar eksekutif yang mendukung pencetakan dokumen resmi PDF landscape ber-kop surat dan ekspor data CSV ber-encoding UTF-8 BOM.
+Modul Laporan dan Analitik berfungsi menyajikan visibilitas menyeluruh atas operasional harian, manajemen portofolio kredit, tingkat risiko pembiayaan (*Non-Performing Loan / NPL*), serta kepatuhan pencadangan piutang. Modul ini dilengkapi dengan mesin pelaporan berstandar eksekutif yang mendukung pencetakan dokumen resmi PDF landscape ber-kop surat, ekspor data CSV ber-encoding UTF-8 BOM, serta inovasi antarmuka produktivitas: **Quick Date Chips**, **Table Density Mode (Dual-Density)**, dan **Sticky Floating Table Summary Bar**.
 
 ---
 
@@ -9,8 +9,8 @@ Modul Laporan dan Analitik berfungsi menyajikan visibilitas menyeluruh atas oper
 
 | Laporan | Rute Menu | Fitur Utama & Format Penyajian |
 | :--- | :--- | :--- |
-| **Laporan Saldo Simpanan** | `#/laporan-simpanan` | • **Summary Cards**: Kartu analitik total saldo per jenis produk di bagian atas.<br>• **Interaktif**: Klik kartu produk langsung memfilter tabel.<br>• **Kolom Ringkas**: Penggabungan No. Anggota dan Nama dengan font mono.<br>• **Sorting Dinamis**: Klik header kolom untuk mengurutkan (A-Z, nominal terbesar). |
-| **Laporan Mutasi Simpanan** | `#/laporan-mutasi-simpanan` | • Filter rentang tanggal fleksibel (*Dari Tanggal s/d Sampai Tanggal*).<br>• Filter metode pembayaran (`Tunai` / `Transfer Bank`).<br>• Rincian nomor referensi dan saldo sebelum/sesudah. |
+| **Laporan Saldo Simpanan** | `#/laporan-simpanan` | • **Summary Cards**: Kartu analitik total saldo per jenis produk di bagian atas.<br>• **Interaktif**: Klik kartu produk langsung memfilter tabel.<br>• **Kolom Ringkas**: Penggabungan No. Anggota dan Nama dengan font mono.<br>• **Sorting Dinamis**: Klik header kolom untuk mengurutkan (A-Z, nominal terbesar).<br>• **Dual-Density**: Dukungan mode tampilan Comfortable & Compact. |
+| **Laporan Mutasi Simpanan** | `#/laporan-mutasi-simpanan` | • **Quick Date Chips**: Pilihan preset instan (*Hari Ini, 7 Hari, Bulan Ini, Bulan Lalu, Tahun Ini*) dengan dynamic active-state tracking.<br>• **Filter Komprehensif**: Filter metode pembayaran (`Tunai` / `Transfer Bank`) dan jenis produk.<br>• **Sticky Floating Summary Bar**: Auto-docking bilah ringkasan mengambang saat menelusuri ratusan mutasi, mengunci Total Setoran, Total Penarikan, dan Saldo Mutasi Bersih di dasar layar. |
 | **Buku Simpanan (Passbook)**| `#/buku-simpanan` | • Format tata letak buku tabungan fisik formal.<br>• Menampilkan riwayat transaksi per rekening lengkap dengan tanda tangan petugas. |
 | **Monitoring Simpanan Wajib** | `#/monitoring-simpanan-wajib` | • Matriks 12 bulan status pelunasan iuran rutin anggota.<br>• Kalkulator tunggakan kumulatif dan tombol bayar cepat (*shortcut*). |
 
@@ -22,11 +22,13 @@ Modul Laporan dan Analitik berfungsi menyajikan visibilitas menyeluruh atas oper
 - Menyajikan seluruh portofolio pinjaman anggota yang berstatus aktif/cair.
 - Dilengkapi kartu KPI di bagian atas: Total Plafon Disalurkan, Total Sisa Pinjaman Pokok, Total Pendapatan Bunga Diterima, dan Rata-rata Tenor Berjalan.
 - Kolom Rincian Pembayaran memadatkan info angsuran pokok dan bunga agar hemat ruang horizontal.
+- Dukungan switcher mode kepadatan tabel (*Density Switcher*).
 
 ### 3.2 Laporan Baki Debet (`#/laporan-baki-debet`)
 - Menyajikan posisi outstanding piutang riil per tanggal cut-off.
 - Dikelompokkan per kategori produk kredit (Berjangka 1, Berjangka 2, Insidental, Barang, dll.).
 - Menjadi data rujukan audit rekonsiliasi terhadap pos Aktiva Piutang di Neraca.
+- **Sticky Floating Summary Bar Integration**: Saat melakukan peninjauan daftar baki debet ratusan debitur, bilah ringkasan melayang mengunci total Plafon, Baki Debet Pokok, Baki Debet Bunga, dan Total Tagihan di bagian bawah layar lengkap dengan kontrol minimize dan scroll-back.
 
 ### 3.3 Laporan Kolektibilitas & NPL (`#/laporan-kolektibilitas`)
 Mengimplementasikan standar klasifikasi kualitas aktiva produktif sesuai Peraturan Menteri Koperasi dan UKM serta Otoritas Jasa Keuangan (OJK):
@@ -51,9 +53,14 @@ Mengimplementasikan standar klasifikasi kualitas aktiva produktif sesuai Peratur
 - Rekapitulasi fisik dokumen jaminan kredit anggota (BPKB, SHM/SHGB, Emas, dll.).
 - Status monitoring: Berada di Brankas Khasanah Koperasi, Dipinjam Sementara, atau Telah Dirilis/Dikembalikan ke Anggota.
 
+### 3.6 Laporan Mutasi Angsuran (`#/laporan-mutasi-angsuran`)
+- Menampilkan seluruh histori pembayaran angsuran kredit yang masuk ke koperasi.
+- Filter periode instan dengan Quick Date Chips.
+- **Sticky Floating Summary Bar**: Menampilkan total penerimaan angsuran pokok, penerimaan bunga jasa, denda, dan total bruto penerimaan kasir secara mengambang saat tabel digulir.
+
 ---
 
-## 4. Standar Mesin Ekspor Dokumen Resmi
+## 4. Standar Mesin Ekspor Dokumen & Produktivitas Pengguna
 
 ### 4.1 Mesin Ekspor Microsoft Excel / CSV
 - Seluruh tabel laporan dilengkapi tombol **"Ekspor CSV"**.
@@ -67,6 +74,17 @@ Dibangun menggunakan pustaka `jsPDF` dan `jsPDF-AutoTable` dengan standar desain
 4. **Combined Information Column**: Menggabungkan field terkait (misal: "No. Anggota & Nama" atau "Akun & Kode GL") menjadi satu kolom vertikal ringkas untuk memaksimalkan ruang nominal angka.
 5. **Proteksi Multi-Halaman (Page-Break)**: Menerapkan margin pengaman vertikal `top: 48` pada halaman 2 dan seterusnya agar judul tabel tidak tertimpa header dokumen.
 6. **Footer Dinamis**: Menyajikan waktu cetak (*generated timestamp*), nama operator pencetak, dan nomor halaman otomatis (*Page X of Y*).
+
+### 4.3 Fitur Produktivitas Navigasi Tabel & Laporan Panjang
+Untuk mengoptimalkan pengalaman pengguna dan akuntabilitas audit pada volume data besar:
+1. **Quick Date Chips Engine (`App.renderDateChips`)**:
+   - Menghadirkan tombol pil cepat: *Hari Ini*, *7 Hari*, *Bulan Ini*, *Bulan Lalu*, *Tahun Ini*, dan *Semua*.
+   - Status visual chip aktif disinkronkan secara reaktif saat filter tanggal dipicu atau diubah manual oleh pengguna.
+2. **Table Density Mode (`Comfortable` vs `Compact`)**:
+   - Tersedia tombol pengatur kepadatan baris di seluruh tabel pelaporan untuk kenyamanan membaca optimal.
+3. **Sticky Floating Table Summary Bar (`App.attachStickySummary`)**:
+   - Mendeteksi scroll posisi tabel secara dinamis. Bila baris total footer tabel keluar dari layar pandang, bilah ringkasan mengambang otomatis muncul di bagian bawah layar.
+   - Menyajikan informasi total agregat finansial secara persisten dengan tombol minimize dan scroll-to-table.
 
 ---
 

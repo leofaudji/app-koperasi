@@ -526,33 +526,30 @@ const PengundianRATPage = {
         const ph = doc.internal.pageSize.getHeight();
 
         const title = 'BERITA ACARA PENGUNDIAN HADIAH RAT';
+        const subtitle = `Tanggal: ${App.todayDMY()}  |  Jumlah Pemenang: ${this.winners.length}  |  Total Peserta: ${this.pool.length}`;
 
         // Use App helpers for consistent branding
-        App.drawPDFHeader(doc, title);
-        App.drawPDFFooter(doc);
-
-        doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(100);
-        doc.text(`Tanggal: ${App.todayDMY()}  |  Jumlah Pemenang: ${this.winners.length}  |  Total Peserta: ${this.pool.length}`, pw / 2, 42, { align: 'center' });
+        App.drawPDFHeader(doc, title, { subtitle });
 
         // Tabel pemenang
         const body = this.winners.map((w, i) => [i + 1, w.no, w.nama, w.hadiah || '-', w.waktu]);
 
         doc.autoTable({
-            startY: 48,
+            startY: 46,
             head: [['No', 'Nomor', 'Nama Pemenang', 'Hadiah', 'Waktu']],
             body,
             theme: 'striped',
-            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 9, fontStyle: 'bold', halign: 'center', cellPadding: 3.5 },
-            bodyStyles: { fontSize: 9, cellPadding: 3, textColor: [51, 65, 85] },
+            headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8.5, fontStyle: 'bold', halign: 'center', cellPadding: 3.5, lineColor: [203, 213, 225], lineWidth: 0.15 },
+            bodyStyles: { fontSize: 8.5, cellPadding: 3, textColor: [51, 65, 85], lineColor: [241, 245, 249], lineWidth: 0.08 },
             columnStyles: {
-                0: { halign: 'center', cellWidth: 10 },
-                1: { cellWidth: 40, fontStyle: 'bold' },
+                0: { halign: 'center', cellWidth: 12 },
+                1: { cellWidth: 38, fontStyle: 'bold' },
                 2: { cellWidth: 'auto' },
-                3: { cellWidth: 40 },
+                3: { cellWidth: 42 },
                 4: { halign: 'center', cellWidth: 28 }
             },
             alternateRowStyles: { fillColor: [255, 251, 235] },
-            margin: { left: 14, right: 14, top: 48, bottom: 30 },
+            margin: { left: 14, right: 14, top: 48, bottom: 25 },
             didParseCell: (data) => {
                 if (data.row.index < 3 && data.section === 'body') {
                     const colors = [[254, 240, 138], [229, 231, 235], [251, 191, 36]];
@@ -561,22 +558,29 @@ const PengundianRATPage = {
                 }
             },
             didDrawPage: () => {
-                App.drawPDFHeader(doc, title);
-                App.drawPDFFooter(doc);
+                App.drawPDFHeader(doc, title, { subtitle });
             }
         });
 
         // Tanda tangan
-        const finalY = Math.min(doc.lastAutoTable.finalY + 15, ph - 50);
+        const finalY = Math.min(doc.lastAutoTable.finalY + 15, ph - 45);
         const thirds = (pw - 28) / 3;
         ['Panitia Pengundian', 'Ketua Koperasi', 'Saksi'].forEach((label, i) => {
             const x = 14 + i * thirds + thirds / 2;
-            doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
+            doc.setFontSize(7.8); doc.setFont('helvetica', 'normal'); doc.setTextColor(71, 85, 105);
             doc.text(label, x, finalY, { align: 'center' });
-            doc.setDrawColor(180, 180, 180);
+            doc.setDrawColor(203, 213, 225);
+            doc.setLineWidth(0.3);
             doc.line(x - 25, finalY + 18, x + 25, finalY + 18);
             doc.text('(................................)', x, finalY + 23, { align: 'center' });
         });
+
+        // Two-Pass Page Numbering & Footer Drawing for Absolute Accuracy
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            App.drawPDFFooter(doc, { currentPage: i, totalPages });
+        }
 
         window.open(doc.output('bloburl'), '_blank');
     }
