@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '3.1.0', // Navigation Layout Preference: Sidebar, Bottom Taskbar & Top Taskbar with Full Submenu
+    version: '3.2.0', // Navigation Layout Preference: Sidebar, Bottom Taskbar & Top Taskbar with Full Submenu
     _apiCache: {}, // In-memory client cache for master data
     _inFlight: {}, // Promise pooling for deduplicating in-flight requests
     _pageModules: {}, // Cache for loaded page JS modules
@@ -6063,3 +6063,6 @@ const App = {
 
 // ===== Boot =====
 document.addEventListener('DOMContentLoaded', () => App.init());
+
+// Explicit global exposure for inline event handlers and modules
+window.App = App;

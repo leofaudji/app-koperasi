@@ -62,7 +62,10 @@ switch ($method) {
 
     case 'GET':
         if ($id === 'me') {
-            $session = authCheck();
+            if (!isset($_SESSION['user_id'])) {
+                jsonResponse(['success' => false, 'message' => 'Silakan login terlebih dahulu.', 'data' => null], 200);
+            }
+            $session = $_SESSION;
             $user = $db->fetch(
                 "SELECT u.id, u.username, u.nama_lengkap, u.email, u.role_id, u.anggota_id, r.nama as role_nama 
                  FROM users u JOIN roles r ON u.role_id = r.id WHERE u.id = ?",

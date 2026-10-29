@@ -286,6 +286,44 @@
 
     </script>
 
+    <script>
+        // Resilient fallback for navigation and preferences before core JS loads or during cache renewal
+        window.App = window.App || {};
+        if (!window.App.toggleNavLayoutPicker) {
+            window.App.toggleNavLayoutPicker = function(e) {
+                if (e && e.stopPropagation) e.stopPropagation();
+                var dd = document.getElementById('nav-layout-dropdown');
+                if (dd) dd.classList.toggle('hidden');
+            };
+        }
+        if (!window.App.openPreferencesModal) {
+            window.App.openPreferencesModal = function() {
+                var modal = document.getElementById('preferences-modal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    setTimeout(function() { modal.classList.remove('opacity-0'); }, 10);
+                    if (window.App && typeof window.App.renderPreferencesModalContent === 'function') {
+                        window.App.renderPreferencesModalContent();
+                    }
+                }
+            };
+        }
+        if (!window.App.closePreferencesModal) {
+            window.App.closePreferencesModal = function() {
+                var modal = document.getElementById('preferences-modal');
+                if (modal) {
+                    modal.classList.add('opacity-0');
+                    setTimeout(function() { modal.classList.add('hidden'); }, 200);
+                }
+            };
+        }
+        if (!window.App.setNavLayout) {
+            window.App.setNavLayout = function(layout) {
+                try { localStorage.setItem('app_nav_layout', layout); } catch(_) {}
+                location.reload();
+            };
+        }
+    </script>
 </head>
 
 
