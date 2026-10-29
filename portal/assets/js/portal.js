@@ -1,4 +1,4 @@
-const Portal = {
+﻿const Portal = {
     member: null,
     haptic(type = 'light') {
         try {
@@ -5099,44 +5099,95 @@ _Bukti ini dihasilkan secara otomatis dan sah oleh Sistem Pembukuan Digital Kope
 Portal.init();
 
 // PWA Service Worker & Install Prompt
-let deferredPrompt;
+let deferredPrompt = null;
 const installBanner = document.getElementById('pwa-install-banner');
 const installBtn = document.getElementById('pwa-install-btn');
 const dismissBtn = document.getElementById('pwa-install-dismiss');
 
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the mini-infobar from appearing on mobile
+    // Prevent default mini-infobar
     e.preventDefault();
-    // Stash the event so it can be triggered later.
     deferredPrompt = e;
-    // Show custom install banner if not dismissed before
-    if (!localStorage.getItem('pwa-prompt-dismissed')) {
-        setTimeout(() => installBanner.classList.add('show'), 3000);
+
+    // Show floating install banner if not dismissed within last 12 hours
+    const dismissedTime = localStorage.getItem('pwa-prompt-dismissed-time');
+    const twelveHours = 12 * 60 * 60 * 1000;
+    if (!dismissedTime || (Date.now() - parseInt(dismissedTime)) > twelveHours) {
+        if (installBanner) setTimeout(() => installBanner.classList.add('show'), 2000);
     }
 });
 
-installBtn.addEventListener('click', async () => {
-    installBanner.classList.remove('show');
+if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+        if (installBanner) installBanner.classList.remove('show');
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                console.log('User accepted install prompt');
+            }
+            deferredPrompt = null;
+        }
+    });
+}
+
+if (dismissBtn) {
+    dismissBtn.addEventListener('click', () => {
+        if (installBanner) installBanner.classList.remove('show');
+        localStorage.setItem('pwa-prompt-dismissed-time', String(Date.now()));
+    });
+}
+
+window.addEventListener('appinstalled', () => {
+    if (installBanner) installBanner.classList.remove('show');
+    deferredPrompt = null;
+    console.log('PWA was installed successfully');
+});
+
+// Explicit install trigger callable from Profile or any button
+window.triggerPwaInstall = async function() {
     if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         if (outcome === 'accepted') {
-            console.log('User accepted the install prompt');
+            console.log('User installed the app');
         }
         deferredPrompt = null;
+        return;
     }
-});
 
-dismissBtn.addEventListener('click', () => {
-    installBanner.classList.remove('show');
-    localStorage.setItem('pwa-prompt-dismissed', 'true');
-});
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isStandalone) {
+        Swal.fire({
+            title: 'Sudah Terpasang',
+            text: 'Aplikasi Portal Anggota sudah terpasang dan berjalan dalam mode aplikasi mandiri.',
+            icon: 'success',
+            confirmButtonColor: '#059669',
+            confirmButtonText: 'Tutup'
+        });
+        return;
+    }
 
-window.addEventListener('appinstalled', () => {
-    installBanner.classList.remove('show');
-    deferredPrompt = null;
-    console.log('PWA was installed');
-});
+    Swal.fire({
+        title: 'Pasang Aplikasi Portal',
+        html: '<div class="text-left text-xs space-y-2.5 text-gray-600 dark:text-gray-300 leading-relaxed">' +
+              '<p>Browser Anda dapat memasang portal ini langsung ke layar utama:</p>' +
+              '<div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300">' +
+              '<b>Chrome / Edge (PC & Android):</b><br>' +
+              'Klik ikon titik tiga (⋮) di pojok atas, lalu pilih <b>"Instal aplikasi"</b> atau <b>"Tambahkan ke Layar Utama"</b> (atau klik ikon instal di bilah alamat browser).' +
+              '</div>' +
+              '<div class="p-2.5 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200/60 dark:border-blue-800/40 text-blue-800 dark:text-blue-300">' +
+              '<b>Safari (iOS / iPhone):</b><br>' +
+              'Ketuk tombol <b>Bagikan (Share <i class="bi bi-box-arrow-up"></i>)</b> di bar navigasi bawah Safari, lalu pilih <b>"Add to Home Screen"</b>.' +
+              '</div>' +
+              '</div>',
+        icon: 'info',
+        confirmButtonColor: '#059669',
+        confirmButtonText: 'Saya Mengerti'
+    });
+};
+
+Portal.triggerPwaInstall = window.triggerPwaInstall;
 
 // Pull to Refresh Logic
 let pStartY = 0;

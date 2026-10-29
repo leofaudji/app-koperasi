@@ -1,4 +1,4 @@
-// ============================================
+﻿// ============================================
 // APP CORE - SPA Router, AJAX, Layout Manager
 // ============================================
 
@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '3.0.0', // Dynamic Searchable-Select UX, Full COA Visibility & Financial Forms Standardization
+    version: '3.1.0', // Navigation Layout Preference: Sidebar, Bottom Taskbar & Top Taskbar with Full Submenu
     _apiCache: {}, // In-memory client cache for master data
     _inFlight: {}, // Promise pooling for deduplicating in-flight requests
     _pageModules: {}, // Cache for loaded page JS modules
@@ -154,6 +154,25 @@ const App = {
                 const nd = document.getElementById('notif-dropdown');
                 if (nd && !nd.classList.contains('hidden')) nd.classList.add('hidden');
             }
+            // Close nav layout dropdown on outside click
+            if (!e.target.closest('#topbar-layout-wrapper') && !e.target.closest('#nav-layout-dropdown')) {
+                const dd = document.getElementById('nav-layout-dropdown');
+                if (dd && !dd.classList.contains('hidden')) dd.classList.add('hidden');
+            }
+            // Close start menu on outside click
+            if (!e.target.closest('#windows-start-menu') && !e.target.closest('#taskbar-start-btn')) {
+                const sm = document.getElementById('windows-start-menu');
+                if (sm && !sm.classList.contains('hidden')) sm.classList.add('hidden');
+            }
+            // Close taskbar submenu flyout on outside click
+            if (!e.target.closest('#taskbar-flyout') && !e.target.closest('[data-taskbar-group]')) {
+                const fl = document.getElementById('taskbar-flyout');
+                if (fl && !fl.classList.contains('hidden')) {
+                    fl.classList.add('hidden');
+                    fl.dataset.activeGroup = '';
+                    document.querySelectorAll('.taskbar-app-btn').forEach(b => b.classList.remove('taskbar-btn-open'));
+                }
+            }
         });
 
         // Global Instant Button Ripple Effect (0ms tactile feedback)
@@ -228,6 +247,7 @@ const App = {
         // 3. Check auth
         const res = await this.api('auth/me');
         this.initTableDensity();
+        this.initPreferences();
 
         if (res && res.success) {
             this.setUser(res.data);
@@ -612,6 +632,808 @@ const App = {
         }
     },
 
+    // ===== NAV LAYOUT PREFERENCE (Sidebar / Bottom Taskbar / Top Taskbar) =====
+    navLayout: 'sidebar', // 'sidebar' | 'bottom' | 'top'
+
+    initNavLayout() {
+        const saved = localStorage.getItem('app_nav_layout') || 'sidebar';
+        this.navLayout = saved;
+        this._applyNavLayout(saved);
+    },
+
+    setNavLayout(mode) {
+        this.navLayout = mode;
+        try { localStorage.setItem('app_nav_layout', mode); } catch (_) {}
+        this._applyNavLayout(mode);
+        this.updateLayoutDropdownChecks(mode);
+        // Close any open dropdown
+        const dd = document.getElementById('nav-layout-dropdown');
+        if (dd) dd.classList.add('hidden');
+        const startMenu = document.getElementById('windows-start-menu');
+        if (startMenu) startMenu.classList.add('hidden');
+        const label = mode === 'sidebar' ? 'Sidebar Kiri' : mode === 'bottom' ? 'Taskbar Bawah' : 'Bilah Atas';
+        this.toast(`Tata letak menu: ${label}`, 'success', 2000);
+    },
+
+    _applyNavLayout(mode) {
+        const body = document.body;
+        body.classList.remove('layout-sidebar', 'layout-bottom', 'layout-top');
+        body.classList.add('layout-' + mode);
+        const compactBtn = document.getElementById('topbar-compact-btn');
+        if (compactBtn) compactBtn.style.display = (mode === 'sidebar') ? '' : 'none';
+        if (mode !== 'sidebar') {
+            this.renderWindowsTaskbar();
+            this.renderWindowsStartMenu();
+            this._startTaskbarClock();
+            // Sync user info
+            const ua = document.getElementById('taskbar-user-avatar');
+            const sua = document.getElementById('start-user-avatar');
+            const sun = document.getElementById('start-user-name');
+            const sur = document.getElementById('start-user-role');
+            if (this.user) {
+                const initials = (this.user.name || 'A').charAt(0).toUpperCase();
+                if (ua) ua.textContent = initials;
+                if (sua) sua.textContent = initials;
+                if (sun) sun.textContent = this.user.name || '';
+                if (sur) sur.textContent = this.user.role || '';
+            }
+        }
+        this.updateLayoutDropdownChecks(mode);
+        this.setActiveMenu(this.currentRoute);
+    },
+
+    updateLayoutDropdownChecks(mode) {
+        document.querySelectorAll('[data-layout-opt]').forEach(btn => {
+            const icon = btn.querySelector('.check-icon');
+            if (!icon) return;
+            if (btn.getAttribute('data-layout-opt') === mode) {
+                icon.classList.remove('hidden');
+                btn.classList.add('font-bold', 'text-primary-700');
+            } else {
+                icon.classList.add('hidden');
+                btn.classList.remove('font-bold', 'text-primary-700');
+            }
+        });
+    },
+
+    toggleNavLayoutPicker(event) {
+        if (event) { event.stopPropagation(); event.preventDefault(); }
+        const dd = document.getElementById('nav-layout-dropdown');
+        if (!dd) return;
+        const isHidden = dd.classList.contains('hidden');
+        // Close start menu if open
+        const sm = document.getElementById('windows-start-menu');
+        if (sm) sm.classList.add('hidden');
+        dd.classList.toggle('hidden', !isHidden);
+        this.updateLayoutDropdownChecks(this.navLayout);
+    },
+
+    toggleStartMenu(e) {
+        if (e && typeof e === 'object') { e.stopPropagation(); }
+        else if (e === false) {
+            const sm = document.getElementById('windows-start-menu');
+            if (sm) sm.classList.add('hidden');
+            return;
+        }
+        const sm = document.getElementById('windows-start-menu');
+        if (!sm) return;
+        // Close layout dropdown if open
+        const dd = document.getElementById('nav-layout-dropdown');
+        if (dd) dd.classList.add('hidden');
+        const hidden = sm.classList.contains('hidden');
+        sm.classList.toggle('hidden', !hidden);
+        if (hidden) {
+            const si = document.getElementById('start-menu-search');
+            if (si) { si.value = ''; si.focus(); this.filterStartMenu(''); }
+        }
+    },
+
+    _getTaskbarMenuItems() {
+        const items = [];
+        (this.menus || []).forEach(sec => {
+            if (sec.children && Array.isArray(sec.children)) {
+                sec.children.forEach(item => {
+                    const cloned = Object.assign({}, item);
+                    if (sec.nama === 'LAPORAN' && cloned.nama && !cloned.nama.startsWith('Lap.')) {
+                        cloned.displayTitle = 'Laporan ' + cloned.nama;
+                        cloned.displayName = 'Lap. ' + cloned.nama;
+                    } else {
+                        cloned.displayTitle = cloned.nama;
+                        cloned.displayName = cloned.nama;
+                    }
+                    items.push(cloned);
+                });
+            } else if (!sec.is_header && sec.url) {
+                items.push(Object.assign({ displayTitle: sec.nama, displayName: sec.nama }, sec));
+            }
+        });
+        return items;
+    },
+
+    // ===== WINDOWS TASKBAR OPENED TABS (Only opened/visited menus) =====
+    openedWindowsTabs: null,
+
+    _initOpenedWindowsTabs() {
+        if (!this.openedWindowsTabs) {
+            try {
+                this.openedWindowsTabs = JSON.parse(sessionStorage.getItem('app_opened_tabs') || '[]');
+            } catch (_) {
+                this.openedWindowsTabs = [];
+            }
+        }
+        if (!Array.isArray(this.openedWindowsTabs)) this.openedWindowsTabs = [];
+        if (!this.openedWindowsTabs.some(t => t.url === '#/dashboard')) {
+            this.openedWindowsTabs.unshift({ url: '#/dashboard', nama: 'Dashboard', icon: 'ri-dashboard-line' });
+        }
+    },
+
+    addOpenedWindowsTab(hash) {
+        if (!hash) hash = '#/dashboard';
+        const baseHash = hash.split('?')[0];
+        this._initOpenedWindowsTabs();
+
+        const existing = this.openedWindowsTabs.find(t => t.url === baseHash);
+        if (!existing) {
+            let meta = (this._flatMenuItems || []).find(m => m.url === baseHash);
+            if (!meta) {
+                const known = {
+                    '#/dashboard': { nama: 'Dashboard', icon: 'ri-dashboard-line' },
+                    '#/changelog': { nama: 'Riwayat Versi', icon: 'ri-history-line' },
+                    '#/pengaturan': { nama: 'Pengaturan', icon: 'ri-settings-3-line' },
+                    '#/profil': { nama: 'Profil Saya', icon: 'ri-user-settings-line' },
+                };
+                meta = known[baseHash] || {
+                    nama: baseHash.replace('#/', '').replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    icon: 'ri-window-line'
+                };
+            }
+            this.openedWindowsTabs.push({ url: baseHash, nama: meta.nama, icon: meta.icon || 'ri-window-line' });
+            if (this.openedWindowsTabs.length > 8) {
+                const rmIdx = this.openedWindowsTabs.findIndex(t => t.url !== '#/dashboard' && t.url !== baseHash);
+                if (rmIdx !== -1) this.openedWindowsTabs.splice(rmIdx, 1);
+            }
+        }
+        try {
+            sessionStorage.setItem('app_opened_tabs', JSON.stringify(this.openedWindowsTabs));
+        } catch (_) {}
+
+        if (this.navLayout && this.navLayout !== 'sidebar') {
+            this.renderWindowsTaskbar();
+        }
+    },
+
+    closeWindowsTab(url, event) {
+        if (event) { event.stopPropagation(); event.preventDefault(); }
+        if (url === '#/dashboard') return;
+        this._initOpenedWindowsTabs();
+
+        const idx = this.openedWindowsTabs.findIndex(t => t.url === url);
+        if (idx === -1) return;
+
+        const wasActive = this.currentRoute && (this.currentRoute === url || this.currentRoute.startsWith(url + '?'));
+        this.openedWindowsTabs.splice(idx, 1);
+
+        try {
+            sessionStorage.setItem('app_opened_tabs', JSON.stringify(this.openedWindowsTabs));
+        } catch (_) {}
+
+        if (wasActive) {
+            const nextTab = this.openedWindowsTabs[Math.max(0, idx - 1)] || { url: '#/dashboard' };
+            location.hash = nextTab.url;
+        } else {
+            this.renderWindowsTaskbar();
+        }
+    },
+
+    renderWindowsTaskbar() {
+        const container = document.getElementById('taskbar-pinned-apps');
+        if (!container) return;
+        this._initOpenedWindowsTabs();
+
+        const cur = (this.currentRoute || '#/dashboard').split('?')[0];
+        let html = '';
+        this.openedWindowsTabs.forEach(t => {
+            const isActive = cur === t.url;
+            html += `<div class="taskbar-app-tab${isActive ? ' active' : ''}">
+                <a href="${t.url}" class="taskbar-app-btn${isActive ? ' active' : ''}" title="${t.nama}">
+                    <i class="${t.icon || 'ri-window-line'} text-sm flex-shrink-0"></i>
+                    <span class="hidden sm:inline max-w-[130px] truncate text-xs font-semibold">${t.nama}</span>
+                </a>
+                ${t.url !== '#/dashboard' ? `
+                <button type="button" onclick="App.closeWindowsTab('${t.url}', event)" class="taskbar-tab-close" title="Tutup ${t.nama}">
+                    <i class="ri-close-line text-xs"></i>
+                </button>` : ''}
+            </div>`;
+        });
+        container.innerHTML = html;
+    },
+
+    // ===== PREFERENCES MODAL (Layout, Theme, Font Size, Density, Number Formats, Accounting Grid) =====
+    initPreferences() {
+        this.initFontSize();
+        this.initTableDensity();
+        this.initTableGridStyle();
+        const savedTheme = localStorage.getItem('app_theme');
+        if (savedTheme && window.THEMES && window.THEMES[savedTheme] && window.applyTheme) {
+            window.applyTheme(savedTheme);
+        }
+    },
+
+    initTableGridStyle() {
+        const saved = localStorage.getItem('pref_table_grid_style') || 'zebra';
+        this.applyTableGridStyle(saved);
+    },
+
+    applyTableGridStyle(style) {
+        const valid = ['zebra', 'bordered', 'minimal'].includes(style) ? style : 'zebra';
+        document.body.classList.remove('table-grid-zebra', 'table-grid-bordered', 'table-grid-minimal');
+        document.body.classList.add('table-grid-' + valid);
+        document.body.setAttribute('data-table-grid', valid);
+        try { localStorage.setItem('pref_table_grid_style', valid); } catch (_) {}
+    },
+
+    initFontSize() {
+        const saved = localStorage.getItem('pref_font_size') || 'normal';
+        this.applyFontSize(saved);
+    },
+
+    applyFontSize(size) {
+        const map = { small: '13px', normal: '14px', large: '15px', xl: '16px' };
+        const sz = map[size] || '14px';
+        document.documentElement.style.fontSize = sz;
+        document.documentElement.classList.remove('font-size-small', 'font-size-normal', 'font-size-large', 'font-size-xl');
+        document.documentElement.classList.add('font-size-' + (size || 'normal'));
+        try { localStorage.setItem('pref_font_size', size); } catch (_) {}
+    },
+
+    openPreferencesModal() {
+        const modal = document.getElementById('preferences-modal');
+        if (!modal) return;
+        this.renderPreferencesModalContent();
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.querySelector('.pref-dialog-card')?.classList.remove('scale-95');
+        }, 10);
+    },
+
+    closePreferencesModal() {
+        const modal = document.getElementById('preferences-modal');
+        if (!modal) return;
+        modal.classList.add('opacity-0');
+        modal.querySelector('.pref-dialog-card')?.classList.add('scale-95');
+        setTimeout(() => modal.classList.add('hidden'), 200);
+    },
+
+    renderPreferencesModalContent() {
+        const curLayout = localStorage.getItem('app_nav_layout') || 'sidebar';
+        const curTheme = localStorage.getItem('app_theme') || 'emerald';
+        const curFontSize = localStorage.getItem('pref_font_size') || 'normal';
+        const curDensity = localStorage.getItem('koperasi_table_density') || 'comfortable';
+        const curGridStyle = localStorage.getItem('pref_table_grid_style') || 'zebra';
+        const curDateFormat = localStorage.getItem('pref_date_format') || 'dmy';
+        const curSeparator = localStorage.getItem('pref_num_separator') || 'id';
+        const curDecimals = localStorage.getItem('pref_num_decimals') || '0';
+        const curPrefix = localStorage.getItem('pref_num_currency_symbol') !== null ? localStorage.getItem('pref_num_currency_symbol') : 'Rp ';
+
+        const layouts = [
+            { id: 'sidebar', name: 'Sidebar Kiri', desc: 'Navigasi vertikal klasik dengan fitur lipat dock', icon: 'ri-layout-left-line' },
+            { id: 'bottom', name: 'Taskbar Bawah', desc: 'Windows 11 desktop bar dengan Start Menu pop-up', icon: 'ri-layout-bottom-line' },
+            { id: 'top', name: 'Bilah Atas', desc: 'Menu bar horizontal di bagian paling atas layar', icon: 'ri-layout-top-line' }
+        ];
+        const layoutHtml = layouts.map(l => `
+            <label class="pref-card flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${l.id === curLayout ? 'border-primary-500 bg-primary-50/40 ring-2 ring-primary-500/20' : 'border-gray-200 hover:border-gray-300 bg-white'}">
+                <input type="radio" name="pref_layout" value="${l.id}" ${l.id === curLayout ? 'checked' : ''} onchange="App.updatePrefField('layout', '${l.id}')" class="mt-1 text-primary-600 focus:ring-primary-500">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <i class="${l.icon} text-base ${l.id === curLayout ? 'text-primary-600' : 'text-gray-500'}"></i>
+                        <span class="font-bold text-xs text-gray-900">${l.name}</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-0.5 leading-snug">${l.desc}</p>
+                </div>
+            </label>
+        `).join('');
+
+        const themes = window.THEMES || {};
+        const themeHtml = Object.entries(themes).map(([k, t]) => `
+            <button type="button" onclick="App.updatePrefField('theme', '${k}')" class="flex flex-col items-center gap-1.5 p-2 rounded-xl transition ${k === curTheme ? 'bg-gray-100 ring-2 ring-gray-900/20' : 'hover:bg-gray-50'}" title="${t.name}">
+                <div class="w-8 h-8 rounded-full border-2 transition-transform ${k === curTheme ? 'border-gray-900 scale-110 shadow-md' : 'border-transparent'}" style="background-color: ${t.shade}"></div>
+                <span class="text-[10px] font-semibold text-gray-700">${t.name}</span>
+            </button>
+        `).join('');
+
+        const gridStyles = [
+            { id: 'zebra', name: 'Belang Zebra (Zebra Striping)', desc: 'Baris ganjil/genap selang-seling abu lembut, anti salah baris', icon: 'ri-split-cells-vertical' },
+            { id: 'bordered', name: 'Kisi Kotak Akuntansi (Excel)', desc: 'Sekat border vertikal & horizontal tegas di setiap sel data', icon: 'ri-grid-line' },
+            { id: 'minimal', name: 'Minimalis Bersih (Clean)', desc: 'Garis pemisah datar tanpa border vertikal, tampilan lapang & modern', icon: 'ri-table-line' }
+        ];
+        const gridStyleHtml = gridStyles.map(g => `
+            <label class="pref-card flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${g.id === curGridStyle ? 'border-primary-500 bg-primary-50/40 ring-2 ring-primary-500/20' : 'border-gray-200 hover:border-gray-300 bg-white'}">
+                <input type="radio" name="pref_grid_style" value="${g.id}" ${g.id === curGridStyle ? 'checked' : ''} onchange="App.updatePrefField('grid_style', '${g.id}')" class="mt-1 text-primary-600 focus:ring-primary-500">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <i class="${g.icon} text-base ${g.id === curGridStyle ? 'text-primary-600' : 'text-gray-500'}"></i>
+                        <span class="font-bold text-xs text-gray-900">${g.name}</span>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-0.5 leading-snug">${g.desc}</p>
+                </div>
+            </label>
+        `).join('');
+
+        const fonts = [
+            { id: 'small', label: 'Ramping (13px)', note: 'Hemat ruang' },
+            { id: 'normal', label: 'Standar (14px)', note: 'Default' },
+            { id: 'large', label: 'Besar (15px)', note: 'Lebih jelas' },
+            { id: 'xl', label: 'Ekstra (16px)', note: 'Mata nyaman' }
+        ];
+        const fontHtml = fonts.map(f => `
+            <button type="button" onclick="App.updatePrefField('font', '${f.id}')" class="flex-1 py-2 px-2.5 rounded-xl border text-center transition ${f.id === curFontSize ? 'border-primary-600 bg-primary-50 text-primary-700 font-bold shadow-xs' : 'border-gray-200 text-gray-600 hover:border-gray-300'}">
+                <div class="text-xs font-semibold leading-tight">${f.label}</div>
+                <div class="text-[9px] text-gray-400 mt-0.5">${f.note}</div>
+            </button>
+        `).join('');
+
+        const densityHtml = `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button type="button" onclick="App.updatePrefField('density', 'comfortable')" class="p-3 rounded-2xl border text-left transition ${curDensity === 'comfortable' ? 'border-primary-600 bg-primary-50/50 ring-2 ring-primary-500/20' : 'border-gray-200 hover:border-gray-300 bg-white'}">
+                    <div class="flex items-center gap-2 font-bold text-xs text-gray-800">
+                        <i class="ri-menu-line text-primary-600"></i> Mode Nyaman (Standar)
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">Baris tabel lega dan proporsional untuk entri data harian.</p>
+                </button>
+                <button type="button" onclick="App.updatePrefField('density', 'compact')" class="p-3 rounded-2xl border text-left transition ${curDensity === 'compact' ? 'border-primary-600 bg-primary-50/50 ring-2 ring-primary-500/20' : 'border-gray-200 hover:border-gray-300 bg-white'}">
+                    <div class="flex items-center gap-2 font-bold text-xs text-gray-800">
+                        <i class="ri-menu-fold-line text-primary-600"></i> Mode Padat (Compact)
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">Jarak baris tipis dan rapat, menampilkan lebih banyak baris di layar monitor.</p>
+                </button>
+            </div>
+        `;
+
+        const cont = document.getElementById('pref-modal-body');
+        if (!cont) return;
+        cont.innerHTML = `
+            <div class="space-y-6">
+                <!-- Section 1: Tata Letak Menu Navigasi -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <i class="ri-layout-masonry-line text-primary-600 text-sm"></i> Tata Letak Menu Navigasi
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        ${layoutHtml}
+                    </div>
+                </div>
+
+                <!-- Section 2: Tampilan Grid & Tabel Akuntansi -->
+                <div class="bg-slate-50/90 p-4 rounded-3xl border border-slate-200/80 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="ri-table-line text-primary-600 text-base"></i> Tampilan Grid & Tabel Akuntansi
+                        </label>
+                        <span class="text-[10px] font-semibold text-primary-700 bg-primary-50 border border-primary-200 px-2.5 py-0.5 rounded-full">Buku Besar, Jurnal & Master Data</span>
+                    </div>
+
+                    <!-- 2A. Gaya Garis Tabel -->
+                    <div>
+                        <span class="block text-[11px] font-bold text-gray-700 mb-1.5">Gaya Garis & Sekat Kisi (Grid Style)</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            ${gridStyleHtml}
+                        </div>
+                    </div>
+
+                    <!-- 2B. Kerapatan Baris Data -->
+                    <div>
+                        <span class="block text-[11px] font-bold text-gray-700 mb-1.5">Kerapatan / Spasi Baris Data (Row Density)</span>
+                        ${densityHtml}
+                    </div>
+
+                    <!-- 2C. Format Tanggal Transaksi -->
+                    <div>
+                        <span class="block text-[11px] font-bold text-gray-700 mb-1.5">Format Tanggal Transaksi & Pembukuan</span>
+                        <select id="pref-select-date-format" onchange="App.updatePrefField('date_format', this.value)" class="w-full text-xs font-medium bg-white border border-gray-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-primary-500">
+                            <option value="dmy" ${curDateFormat === 'dmy' ? 'selected' : ''}>Standar Indonesia: DD/MM/YYYY (contoh: 29/10/2026)</option>
+                            <option value="ymd" ${curDateFormat === 'ymd' ? 'selected' : ''}>Standar ISO Sistem: YYYY-MM-DD (contoh: 2026-10-29)</option>
+                            <option value="indo" ${curDateFormat === 'indo' ? 'selected' : ''}>Nama Bulan Singkat: DD MMM YYYY (contoh: 29 Okt 2026)</option>
+                            <option value="long" ${curDateFormat === 'long' ? 'selected' : ''}>Formal Indonesia: DD MMMM YYYY (contoh: 29 Oktober 2026)</option>
+                        </select>
+                    </div>
+
+                    <!-- 2D. Live Accounting Table Preview -->
+                    <div class="mt-3 pt-3 border-t border-slate-200/80">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-bold text-gray-700 flex items-center gap-1.5">
+                                <i class="ri-eye-line text-primary-600"></i> Pratinjau Nyata Buku Kas & Akuntansi:
+                            </span>
+                            <span class="text-[10px] text-gray-400 font-mono">Live Rendering</span>
+                        </div>
+                        <div class="preview-table-wrap table-grid-${curGridStyle} overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-xs" data-table-density="${curDensity}">
+                            <table class="data-table w-full text-xs">
+                                <thead>
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-600 text-[10px] uppercase">Tgl Transaksi</th>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-600 text-[10px] uppercase">No. Bukti</th>
+                                        <th class="px-3 py-2 text-left font-bold text-gray-600 text-[10px] uppercase">Uraian Transaksi</th>
+                                        <th class="px-3 py-2 text-right font-bold text-gray-600 text-[10px] uppercase">Debit</th>
+                                        <th class="px-3 py-2 text-right font-bold text-gray-600 text-[10px] uppercase">Kredit</th>
+                                        <th class="px-3 py-2 text-right font-bold text-gray-600 text-[10px] uppercase">Saldo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="transition-colors">
+                                        <td class="px-3 py-2 text-gray-600 font-sans">${this.formatDate('2026-10-25')}</td>
+                                        <td class="px-3 py-2 font-mono font-bold text-primary-600">JU-001</td>
+                                        <td class="px-3 py-2 font-medium text-gray-800">Saldo Awal Kas Koperasi</td>
+                                        <td class="px-3 py-2 text-right font-mono font-semibold text-emerald-700">${this.formatRupiah(10000000)}</td>
+                                        <td class="px-3 py-2 text-right font-mono text-gray-400">-</td>
+                                        <td class="px-3 py-2 text-right font-mono font-bold text-gray-900">${this.formatRupiah(10000000)}</td>
+                                    </tr>
+                                    <tr class="transition-colors">
+                                        <td class="px-3 py-2 text-gray-600 font-sans">${this.formatDate('2026-10-27')}</td>
+                                        <td class="px-3 py-2 font-mono font-bold text-primary-600">JU-002</td>
+                                        <td class="px-3 py-2 font-medium text-gray-800">Setoran Simpanan Wajib Anggota</td>
+                                        <td class="px-3 py-2 text-right font-mono font-semibold text-emerald-700">${this.formatRupiah(2500000)}</td>
+                                        <td class="px-3 py-2 text-right font-mono text-gray-400">-</td>
+                                        <td class="px-3 py-2 text-right font-mono font-bold text-gray-900">${this.formatRupiah(12500000)}</td>
+                                    </tr>
+                                    <tr class="transition-colors">
+                                        <td class="px-3 py-2 text-gray-600 font-sans">${this.formatDate('2026-10-29')}</td>
+                                        <td class="px-3 py-2 font-mono font-bold text-primary-600">JU-003</td>
+                                        <td class="px-3 py-2 font-medium text-gray-800">Pengadaan ATK & Operasional Kantor</td>
+                                        <td class="px-3 py-2 text-right font-mono text-gray-400">-</td>
+                                        <td class="px-3 py-2 text-right font-mono font-semibold text-rose-600">${this.formatRupiah(1250000)}</td>
+                                        <td class="px-3 py-2 text-right font-mono font-bold text-primary-700">${this.formatRupiah(11250000)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Format Angka & Nilai Rupiah -->
+                <div class="bg-gray-50/80 p-4 rounded-2xl border border-gray-100 space-y-3">
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="ri-money-dollar-circle-line text-primary-600 text-sm"></i> Format Angka & Nilai Rupiah
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <span class="block text-[11px] font-semibold text-gray-600 mb-1">Pemisah Ribuan & Desimal</span>
+                            <select id="pref-select-sep" onchange="App.updatePrefField('separator', this.value)" class="w-full text-xs font-medium bg-white border border-gray-200 rounded-xl px-2.5 py-2 focus:ring-2 focus:ring-primary-500">
+                                <option value="id" ${curSeparator === 'id' ? 'selected' : ''}>Indonesia (1.250.000,00)</option>
+                                <option value="en" ${curSeparator === 'en' ? 'selected' : ''}>US / Internasional (1,250,000.00)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <span class="block text-[11px] font-semibold text-gray-600 mb-1">Angka di Belakang Koma</span>
+                            <select id="pref-select-dec" onchange="App.updatePrefField('decimals', this.value)" class="w-full text-xs font-medium bg-white border border-gray-200 rounded-xl px-2.5 py-2 focus:ring-2 focus:ring-primary-500">
+                                <option value="0" ${curDecimals === '0' ? 'selected' : ''}>0 Desimal (Bulat / Rp 1.250.000)</option>
+                                <option value="2" ${curDecimals === '2' ? 'selected' : ''}>2 Desimal (Rp 1.250.000,00)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <span class="block text-[11px] font-semibold text-gray-600 mb-1">Simbol Mata Uang</span>
+                            <select id="pref-select-prefix" onchange="App.updatePrefField('prefix', this.value)" class="w-full text-xs font-medium bg-white border border-gray-200 rounded-xl px-2.5 py-2 focus:ring-2 focus:ring-primary-500">
+                                <option value="Rp " ${curPrefix === 'Rp ' ? 'selected' : ''}>Tampilkan "Rp "</option>
+                                <option value="" ${curPrefix === '' ? 'selected' : ''}>Tanpa "Rp " (Hanya Angka)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Tema Warna Aplikasi -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <i class="ri-palette-line text-primary-600 text-sm"></i> Tema Warna Aplikasi
+                    </label>
+                    <div class="grid grid-cols-4 sm:grid-cols-8 gap-1.5 bg-gray-50/60 p-2.5 rounded-2xl border border-gray-100">
+                        ${themeHtml}
+                    </div>
+                </div>
+
+                <!-- Section 5: Ukuran Huruf (Font Size) -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <i class="ri-font-size text-primary-600 text-sm"></i> Ukuran Huruf Teks Sistem
+                    </label>
+                    <div class="flex gap-2">
+                        ${fontHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    updatePrefField(field, value) {
+        if (field === 'layout') {
+            this.setNavLayout(value);
+        } else if (field === 'theme') {
+            if (window.THEMES && window.THEMES[value]) {
+                window.applyTheme(value);
+                try { localStorage.setItem('app_theme', value); } catch (_) {}
+                this.toast(`Tema diubah ke ${window.THEMES[value].name}`, 'success', 1500);
+            }
+        } else if (field === 'font') {
+            this.applyFontSize(value);
+            this.toast(`Ukuran huruf diubah`, 'success', 1500);
+        } else if (field === 'density') {
+            this.applyTableDensity(value, true);
+        } else if (field === 'grid_style') {
+            this.applyTableGridStyle(value);
+            this.toast(`Gaya kisi tabel diperbarui`, 'success', 1500);
+        } else if (field === 'date_format') {
+            try { localStorage.setItem('pref_date_format', value); } catch (_) {}
+            this.toast(`Format tanggal diperbarui`, 'success', 1500);
+        } else if (field === 'separator') {
+            try { localStorage.setItem('pref_num_separator', value); } catch (_) {}
+        } else if (field === 'decimals') {
+            try { localStorage.setItem('pref_num_decimals', String(value)); } catch (_) {}
+        } else if (field === 'prefix') {
+            try { localStorage.setItem('pref_num_currency_symbol', value); } catch (_) {}
+        }
+
+        this.renderPreferencesModalContent();
+    },
+
+    resetPreferences() {
+        try {
+            localStorage.removeItem('app_nav_layout');
+            localStorage.removeItem('app_theme');
+            localStorage.removeItem('pref_font_size');
+            localStorage.removeItem('koperasi_table_density');
+            localStorage.removeItem('pref_table_grid_style');
+            localStorage.removeItem('pref_date_format');
+            localStorage.removeItem('pref_num_separator');
+            localStorage.removeItem('pref_num_decimals');
+            localStorage.removeItem('pref_num_currency_symbol');
+        } catch (_) {}
+
+        this.setNavLayout('sidebar');
+        if (window.applyTheme) window.applyTheme('emerald');
+        this.applyFontSize('normal');
+        this.applyTableDensity('comfortable', false);
+        this.applyTableGridStyle('zebra');
+        this.renderPreferencesModalContent();
+        this.toast('Preferensi dikembalikan ke setelan awal', 'success', 2000);
+    },
+
+    toggleTaskbarSubmenu(btnEl, groupIdx, event) {
+        if (event) event.stopPropagation();
+        const flyout = document.getElementById('taskbar-flyout');
+        if (!flyout) return;
+
+        // Close start menu if open
+        const sm = document.getElementById('windows-start-menu');
+        if (sm) sm.classList.add('hidden');
+
+        // If same button clicked while open -> close
+        if (!flyout.classList.contains('hidden') && flyout.dataset.activeGroup === String(groupIdx)) {
+            flyout.classList.add('hidden');
+            flyout.dataset.activeGroup = '';
+            btnEl.classList.remove('taskbar-btn-open');
+            document.querySelectorAll('.taskbar-app-btn').forEach(b => b.classList.remove('taskbar-btn-open'));
+            return;
+        }
+
+        const taskbarItems = this._getTaskbarMenuItems();
+        const groupMenu = taskbarItems[groupIdx];
+        if (!groupMenu || !groupMenu.children) {
+            flyout.classList.add('hidden');
+            return;
+        }
+
+        // Build flyout content
+        const items = groupMenu.children;
+        let innerHtml = '';
+        items.forEach(item => {
+            if (item.children && item.children.length) {
+                innerHtml += `<div class="taskbar-flyout-group">
+                    <div class="taskbar-flyout-group-label">
+                        <i class="${item.icon || 'ri-folder-2-line'} text-xs"></i>
+                        <span>${item.nama}</span>
+                    </div>`;
+                item.children.forEach(child => {
+                    if (!child.url) return;
+                    const isActive = this.currentRoute === child.url || this.currentRoute.startsWith(child.url + '?');
+                    const badge = this.sidebarBadges && this.sidebarBadges[child.url] > 0
+                        ? `<span class="taskbar-flyout-badge">${this.sidebarBadges[child.url] > 99 ? '99+' : this.sidebarBadges[child.url]}</span>` : '';
+                    innerHtml += `<a href="${child.url}" class="taskbar-flyout-item${isActive ? ' active' : ''}"
+                        data-url="${child.url}" onclick="App.closeTaskbarFlyout()">
+                        <i class="${child.icon || 'ri-circle-line'} text-xs opacity-50"></i>
+                        <span>${child.nama}</span>
+                        ${badge}
+                    </a>`;
+                });
+                innerHtml += `</div>`;
+            } else if (item.url) {
+                const isActive = this.currentRoute === item.url || this.currentRoute.startsWith(item.url + '?');
+                const badge = this.sidebarBadges && this.sidebarBadges[item.url] > 0
+                    ? `<span class="taskbar-flyout-badge">${this.sidebarBadges[item.url] > 99 ? '99+' : this.sidebarBadges[item.url]}</span>` : '';
+                innerHtml += `<a href="${item.url}" class="taskbar-flyout-item${isActive ? ' active' : ''}"
+                    data-url="${item.url}" onclick="App.closeTaskbarFlyout()">
+                    <i class="${item.icon || 'ri-circle-line'} text-sm"></i>
+                    <span>${item.nama}</span>
+                    ${badge}
+                </a>`;
+            }
+        });
+
+        const flyTitle = flyout.querySelector('#taskbar-flyout-title');
+        const flyIcon = flyout.querySelector('#taskbar-flyout-icon');
+        const flyBody = flyout.querySelector('#taskbar-flyout-body');
+        if (flyTitle) flyTitle.textContent = groupMenu.displayTitle || groupMenu.nama;
+        if (flyIcon) flyIcon.className = (groupMenu.icon || 'ri-folder-line') + ' text-sm text-primary-600';
+        if (flyBody) flyBody.innerHTML = innerHtml || '<p class="text-xs text-gray-400 px-3 py-4 text-center">Tidak ada submenu.</p>';
+        flyout.dataset.activeGroup = String(groupIdx);
+
+        // Mark button as open
+        document.querySelectorAll('.taskbar-app-btn').forEach(b => b.classList.remove('taskbar-btn-open'));
+        btnEl.classList.add('taskbar-btn-open');
+
+        // Position flyout above/below button
+        flyout.classList.remove('hidden');
+        const btnRect = btnEl.getBoundingClientRect();
+        const flyW = flyout.offsetWidth || 240;
+        let left = btnRect.left;
+        if (left + flyW > window.innerWidth - 12) left = window.innerWidth - flyW - 12;
+        if (left < 8) left = 8;
+        flyout.style.left = left + 'px';
+
+        const isBottom = document.body.classList.contains('layout-bottom');
+        if (isBottom) {
+            const taskbarH = document.getElementById('windows-taskbar')?.offsetHeight || 52;
+            flyout.style.bottom = (taskbarH + 8) + 'px';
+            flyout.style.top = 'auto';
+        } else {
+            const taskbarH = document.getElementById('windows-taskbar')?.offsetHeight || 52;
+            flyout.style.top = (taskbarH + 8) + 'px';
+            flyout.style.bottom = 'auto';
+        }
+    },
+
+    closeTaskbarFlyout() {
+        const flyout = document.getElementById('taskbar-flyout');
+        if (flyout) { flyout.classList.add('hidden'); flyout.dataset.activeGroup = ''; }
+        document.querySelectorAll('.taskbar-app-btn').forEach(b => b.classList.remove('taskbar-btn-open'));
+    },
+
+    toggleStartSubmenu(subId, forceOpen = false) {
+        const sub = document.getElementById(subId);
+        if (!sub) return;
+        const willOpen = forceOpen ? true : sub.classList.contains('hidden');
+        sub.classList.toggle('hidden', !willOpen);
+        const btn = document.querySelector(`[data-start-sub="${subId}"]`);
+        if (btn) btn.classList.toggle('open', willOpen);
+    },
+
+    renderWindowsStartMenu() {
+        // Pinned tiles
+        const grid = document.getElementById('start-menu-pinned-grid');
+        if (grid) {
+            const tiles = [
+                { url: '#/dashboard', icon: 'ri-dashboard-line', name: 'Dashboard', color: '#6366f1' },
+                { url: '#/anggota', icon: 'ri-group-line', name: 'Anggota', color: '#10b981' },
+                { url: '#/simpanan', icon: 'ri-wallet-3-line', name: 'Simpanan', color: '#f59e0b' },
+                { url: '#/pinjaman', icon: 'ri-bank-card-line', name: 'Pinjaman', color: '#ef4444' },
+                { url: '#/angsuran', icon: 'ri-money-cny-circle-line', name: 'Angsuran', color: '#8b5cf6' },
+                { url: '#/jurnal', icon: 'ri-book-open-line', name: 'Jurnal', color: '#0ea5e9' },
+                { url: '#/laporan-simpanan', icon: 'ri-file-chart-line', name: 'Lap. Simpanan', color: '#059669' },
+                { url: '#/pengaturan', icon: 'ri-settings-3-line', name: 'Pengaturan', color: '#64748b' },
+            ];
+            grid.innerHTML = tiles.map(t => `
+                <a href="${t.url}" onclick="App.toggleStartMenu(false)" class="start-tile" title="${t.name}">
+                    <i class="${t.icon} text-lg" style="color:${t.color}"></i>
+                    <span class="text-[10px] font-semibold text-center leading-tight">${t.name}</span>
+                </a>`).join('');
+        }
+        // All menu items with submenus
+        this.filterStartMenu('');
+    },
+
+    filterStartMenu(q) {
+        const container = document.getElementById('start-menu-items');
+        if (!container) return;
+        q = (q || '').toLowerCase().trim();
+        if (!q) {
+            let html = '';
+            (this.menus || []).forEach(sec => {
+                if (!sec.is_header || !sec.children || !sec.children.length) return;
+                
+                let sectionItemsHtml = '';
+                sec.children.forEach(m => {
+                    const hasChildren = m.children && m.children.length > 0;
+                    if (hasChildren) {
+                        const anyActive = m.children.some(c => {
+                            if (c.url && (this.currentRoute === c.url || this.currentRoute.startsWith(c.url + '?'))) return true;
+                            if (c.children) return c.children.some(gc => gc.url && (this.currentRoute === gc.url || this.currentRoute.startsWith(gc.url + '?')));
+                            return false;
+                        });
+                        let parentPending = 0;
+                        m.children.forEach(c => {
+                            if (c.url && this.sidebarBadges && this.sidebarBadges[c.url]) parentPending += this.sidebarBadges[c.url];
+                        });
+                        const subId = 'start_sub_' + (m.id || m.nama.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+
+                        sectionItemsHtml += `
+                        <div class="start-menu-parent mb-1">
+                            <button type="button" onclick="App.toggleStartSubmenu('${subId}')"
+                                class="start-menu-item start-menu-parent-btn w-full ${anyActive ? 'open active font-semibold text-primary-700' : ''}"
+                                data-start-sub="${subId}" title="${m.nama}">
+                                <i class="${m.icon || 'ri-folder-line'} text-sm ${anyActive ? 'text-primary-600' : 'text-gray-400'}"></i>
+                                <span class="flex-1 text-left">${m.nama}</span>
+                                ${parentPending > 0 ? `<span class="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full mr-1">${parentPending > 99 ? '99+' : parentPending}</span>` : ''}
+                                <i class="ri-arrow-down-s-line start-arrow text-xs text-gray-400"></i>
+                            </button>
+                            <div id="${subId}" class="start-submenu ${anyActive ? '' : 'hidden'}">
+                                ${m.children.map(c => {
+                                    if (c.children && c.children.length) {
+                                        return `<div class="taskbar-flyout-group-label mt-1 mb-0.5">${c.nama}</div>` +
+                                            c.children.map(gc => {
+                                                const isChildActive = this.currentRoute === gc.url || this.currentRoute.startsWith(gc.url + '?');
+                                                const bCount = (this.sidebarBadges && this.sidebarBadges[gc.url]) || 0;
+                                                return `<a href="${gc.url}" onclick="App.toggleStartMenu(false)"
+                                                    class="start-menu-subitem ${isChildActive ? 'active' : ''}" data-url="${gc.url}">
+                                                    <i class="${gc.icon || 'ri-circle-line'} text-[10px] opacity-60"></i>
+                                                    <span class="flex-1">${gc.nama}</span>
+                                                    ${bCount > 0 ? `<span class="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full">${bCount > 99 ? '99+' : bCount}</span>` : ''}
+                                                </a>`;
+                                            }).join('');
+                                    }
+                                    const isChildActive = this.currentRoute === c.url || this.currentRoute.startsWith(c.url + '?');
+                                    const bCount = (this.sidebarBadges && this.sidebarBadges[c.url]) || 0;
+                                    return `<a href="${c.url}" onclick="App.toggleStartMenu(false)"
+                                        class="start-menu-subitem ${isChildActive ? 'active' : ''}" data-url="${c.url}">
+                                        <i class="${c.icon || 'ri-circle-line'} text-[10px] opacity-60"></i>
+                                        <span class="flex-1">${c.nama}</span>
+                                        ${bCount > 0 ? `<span class="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full">${bCount > 99 ? '99+' : bCount}</span>` : ''}
+                                    </a>`;
+                                }).join('')}
+                            </div>
+                        </div>`;
+                    } else if (m.url) {
+                        const isActive = this.currentRoute === m.url || this.currentRoute.startsWith(m.url + '?');
+                        const bCount = (this.sidebarBadges && this.sidebarBadges[m.url]) || 0;
+                        sectionItemsHtml += `
+                        <a href="${m.url}" onclick="App.toggleStartMenu(false)"
+                            class="start-menu-item ${isActive ? 'active' : ''}" data-url="${m.url}" title="${m.nama}">
+                            <i class="${m.icon || 'ri-circle-line'} text-sm text-gray-400 flex-shrink-0"></i>
+                            <span class="flex-1">${m.nama}</span>
+                            ${bCount > 0 ? `<span class="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full">${bCount > 99 ? '99+' : bCount}</span>` : ''}
+                        </a>`;
+                    }
+                });
+
+                if (sectionItemsHtml) {
+                    html += `<div class="mb-3">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-2 mb-1">${sec.nama}</p>
+                        ${sectionItemsHtml}
+                    </div>`;
+                }
+            });
+            container.innerHTML = html || '<p class="text-xs text-gray-400 px-3 py-2">Menu tidak tersedia.</p>';
+        } else {
+            const matches = (this._flatMenuItems || []).filter(m => m.nama.toLowerCase().includes(q));
+            container.innerHTML = matches.length ? matches.map(m => `
+                <a href="${m.url}" onclick="App.toggleStartMenu(false)" class="start-menu-item" data-url="${m.url}">
+                    <i class="${m.icon || 'ri-circle-line'} text-sm text-gray-400 flex-shrink-0"></i>
+                    <span class="flex-1">${m.nama}</span>
+                </a>`).join('') : '<p class="text-xs text-gray-400 px-3 py-2 text-center">Tidak ditemukan.</p>';
+        }
+    },
+
+
+    _taskbarClockInterval: null,
+    _startTaskbarClock() {
+        if (this._taskbarClockInterval) return;
+        const tick = () => {
+            const now = new Date();
+            const t = document.getElementById('taskbar-clock-time');
+            const d = document.getElementById('taskbar-clock-date');
+            if (t) t.textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            if (d) d.textContent = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        };
+        tick();
+        this._taskbarClockInterval = setInterval(tick, 10000);
+    },
+
     getCollapsedSections() {
         try {
             return JSON.parse(localStorage.getItem('sidebar_collapsed_sections') || '[]');
@@ -747,6 +1569,7 @@ const App = {
 
         // Apply compact dock mode preference
         this.initCompactSidebar();
+        this.initNavLayout(); // Apply nav layout preference (sidebar / bottom / top)
 
         // Fetch live status badges before rendering so initial paint has accurate counters
         await this.fetchSidebarBadges();
@@ -941,6 +1764,10 @@ const App = {
         }).join('');
 
         nav.innerHTML = favoritesHtml + sectionsHtml;
+        if (this.navLayout && this.navLayout !== 'sidebar') {
+            this.renderWindowsTaskbar();
+            this.renderWindowsStartMenu();
+        }
     },
 
     filterMenu(query) {
@@ -1036,6 +1863,45 @@ const App = {
                 this.toggleSection(secContent.id, true);
             }
         }
+        // Sync Start Menu active states and expand parent submenu if inside one
+        document.querySelectorAll('#start-menu-items .start-menu-item, #start-menu-items .start-menu-subitem').forEach(el => el.classList.remove('active'));
+        const startLink = document.querySelector(`#start-menu-items [data-url="${hash}"]`);
+        if (startLink) {
+            startLink.classList.add('active');
+            const parentSub = startLink.closest('.start-submenu');
+            if (parentSub && parentSub.id) {
+                this.toggleStartSubmenu(parentSub.id, true);
+            }
+        }
+
+        // Sync taskbar opened app tabs
+        document.querySelectorAll('#taskbar-pinned-apps .taskbar-app-tab').forEach(tab => {
+            const link = tab.querySelector('.taskbar-app-btn');
+            const isAct = link && link.getAttribute('href') === hash;
+            tab.classList.toggle('active', isAct);
+            if (link) link.classList.toggle('active', isAct);
+        });
+
+        // Sync taskbar group button active state (buttons with submenus)
+        const taskbarItems = this._getTaskbarMenuItems ? this._getTaskbarMenuItems() : [];
+        document.querySelectorAll('[data-taskbar-group]').forEach(btn => {
+            const gi = parseInt(btn.getAttribute('data-taskbar-group'));
+            const item = taskbarItems[gi];
+            let anyActive = false;
+            if (item && item.children) {
+                anyActive = item.children.some(c => {
+                    if (c.url && (hash === c.url || hash.startsWith(c.url + '?'))) return true;
+                    if (c.children) return c.children.some(gc => gc.url && (hash === gc.url || hash.startsWith(gc.url + '?')));
+                    return false;
+                });
+            }
+            btn.classList.toggle('active', anyActive);
+        });
+
+        // Update active state inside open flyout
+        document.querySelectorAll('#taskbar-flyout .taskbar-flyout-item').forEach(a => {
+            a.classList.toggle('active', a.getAttribute('data-url') === hash);
+        });
     },
 
     // ===== Router =====
@@ -1044,7 +1910,9 @@ const App = {
         const hash = location.hash || '#/dashboard';
         if (hash === this.currentRoute && !hash.includes('?')) return; // Allow re-route if query params change
         this.currentRoute = hash;
-        this.setActiveMenu(hash.split('?')[0]); // Highlight menu based on base path
+        const baseRouteHash = hash.split('?')[0];
+        this.setActiveMenu(baseRouteHash); // Highlight menu based on base path
+        this.addOpenedWindowsTab(baseRouteHash); // Track opened window/tab for taskbar
 
         const content = document.getElementById('app-content');
         content.innerHTML = '<div class="flex items-center justify-center h-64"><div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full"></div></div>';
@@ -1697,6 +2565,9 @@ const App = {
                     bellBtn.classList.add('text-gray-500');
                 }
             }
+            // Sync taskbar notification badge
+            const tb = document.getElementById('taskbar-notif-badge');
+            if (tb) tb.classList.toggle('hidden', count <= 0);
 
             const dd = document.getElementById('notif-dropdown');
             const listEl = document.getElementById('notif-dropdown-list');
@@ -1744,15 +2615,48 @@ const App = {
     },
 
     // ===== Helpers =====
-    formatRupiah(n) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0); },
+    formatRupiah(n, forceDec = null) {
+        if (n === null || n === undefined || isNaN(n)) n = 0;
+        const sep = localStorage.getItem('pref_num_separator') || 'id';
+        const dec = forceDec !== null ? forceDec : parseInt(localStorage.getItem('pref_num_decimals') || '0', 10);
+        const prefix = localStorage.getItem('pref_num_currency_symbol') !== null ? localStorage.getItem('pref_num_currency_symbol') : 'Rp ';
+        const locale = sep === 'en' ? 'en-US' : 'id-ID';
+        const formatted = new Intl.NumberFormat(locale, {
+            minimumFractionDigits: dec,
+            maximumFractionDigits: dec
+        }).format(Number(n));
+        return prefix ? `${prefix}${formatted}` : formatted;
+    },
+
+    formatNumber(n, forceDec = null) {
+        if (n === null || n === undefined || isNaN(n)) n = 0;
+        const sep = localStorage.getItem('pref_num_separator') || 'id';
+        const dec = forceDec !== null ? forceDec : parseInt(localStorage.getItem('pref_num_decimals') || '0', 10);
+        const locale = sep === 'en' ? 'en-US' : 'id-ID';
+        return new Intl.NumberFormat(locale, {
+            minimumFractionDigits: dec,
+            maximumFractionDigits: dec
+        }).format(Number(n));
+    },
 
     formatDate(d) {
         if (!d) return '-';
-        const dt = new Date(d);
+        const dt = (d instanceof Date) ? d : new Date(d);
+        if (isNaN(dt.getTime())) return String(d);
         const dd = String(dt.getDate()).padStart(2, '0');
         const mm = String(dt.getMonth() + 1).padStart(2, '0');
         const yyyy = dt.getFullYear();
-        return `${dd}-${mm}-${yyyy}`;
+        const pref = localStorage.getItem('pref_date_format') || 'dmy';
+        if (pref === 'ymd') {
+            return `${yyyy}-${mm}-${dd}`;
+        } else if (pref === 'indo') {
+            const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            return `${dt.getDate()} ${shortMonths[dt.getMonth()]} ${yyyy}`;
+        } else if (pref === 'long') {
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            return `${dt.getDate()} ${months[dt.getMonth()]} ${yyyy}`;
+        }
+        return `${dd}/${mm}/${yyyy}`;
     },
 
     formatDateIndo(d) {

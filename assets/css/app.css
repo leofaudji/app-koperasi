@@ -1854,4 +1854,476 @@ body.dark .floating-summary-bar {
 }
 
 
-
+
+
+
+/* ==========================================================================
+   NAVIGATION LAYOUT MODES (Sidebar, Windows Bottom Taskbar, Top Taskbar)
+   ========================================================================== */
+
+/* 1. Sidebar Mode (Default) */
+body.layout-sidebar #windows-taskbar,
+body.layout-sidebar #windows-start-menu {
+    display: none !important;
+}
+
+/* 2. Bottom Taskbar Mode (Windows 11 / Desktop Style) */
+body.layout-bottom #sidebar,
+body.layout-bottom #sidebar-overlay {
+    display: none !important;
+}
+body.layout-bottom #topbar-compact-btn {
+    display: none !important;
+}
+body.layout-bottom #windows-taskbar {
+    display: flex !important;
+    bottom: 0;
+    top: auto;
+    border-top: 1px solid rgba(226, 232, 240, 0.9);
+    border-bottom: none;
+}
+body.layout-bottom #windows-start-menu {
+    bottom: 58px;
+    top: auto;
+    left: 12px;
+}
+body.layout-bottom main {
+    padding-bottom: 64px !important;
+}
+
+/* 3. Top Taskbar Mode */
+body.layout-top #sidebar,
+body.layout-top #sidebar-overlay {
+    display: none !important;
+}
+body.layout-top #topbar-compact-btn {
+    display: none !important;
+}
+body.layout-top #windows-taskbar {
+    display: flex !important;
+    top: 0;
+    bottom: auto;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+    border-top: none;
+}
+body.layout-top #windows-start-menu {
+    top: 58px;
+    bottom: auto;
+    left: 12px;
+}
+body.layout-top main {
+    padding-top: 54px !important;
+}
+
+/* Windows Taskbar Glassmorphism Bar */
+#windows-taskbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    height: 52px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 4px 25px -4px rgba(0, 0, 0, 0.08), 0 -2px 15px -2px rgba(0, 0, 0, 0.05);
+    z-index: 100;
+}
+
+/* Taskbar Pinned App Buttons */
+.taskbar-app-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    height: 38px;
+    border-radius: 10px;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 600;
+    position: relative;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    text-decoration: none;
+    border: 1px solid transparent;
+}
+.taskbar-app-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #e2e8f0;
+}
+.taskbar-app-btn.active {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.25);
+    font-weight: 700;
+}
+.taskbar-app-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 20%;
+    right: 20%;
+    height: 2.5px;
+    background: #059669;
+    border-radius: 9999px;
+}
+
+/* Windows Start Menu Flyout Window */
+#windows-start-menu {
+    position: fixed;
+    width: 480px;
+    max-width: calc(100vw - 24px);
+    max-height: 82vh;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 1.25rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.03);
+    z-index: 110;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#windows-start-menu.hidden {
+    display: none !important;
+}
+
+/* Start Menu Grid Tiles */
+.start-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    color: #334155;
+}
+.start-tile:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+    color: #059669;
+}
+
+/* Start Menu Category Item Link */
+.start-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.12s ease;
+}
+.start-menu-item:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+.start-menu-item.active {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    font-weight: 700;
+}
+
+/* ==========================================================================
+   TASKBAR SUBMENU FLYOUT PANEL
+   ========================================================================== */
+
+/* Taskbar button open state (submenu visible) */
+.taskbar-app-btn.taskbar-btn-open {
+    background: rgba(16, 185, 129, 0.08);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+.taskbar-app-btn.taskbar-btn-open .taskbar-chevron {
+    transform: rotate(180deg);
+    opacity: 1;
+    color: #059669;
+}
+.taskbar-app-btn .taskbar-chevron {
+    transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+/* Flyout panel animation */
+#taskbar-flyout {
+    transition: opacity 0.15s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#taskbar-flyout.hidden {
+    display: none !important;
+}
+
+/* Flyout item (leaf menu link) */
+.taskbar-flyout-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    text-decoration: none;
+    transition: background 0.1s ease, color 0.1s ease;
+    position: relative;
+}
+.taskbar-flyout-item:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+.taskbar-flyout-item.active {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    font-weight: 700;
+}
+.taskbar-flyout-item.active::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 25%;
+    bottom: 25%;
+    width: 3px;
+    background: #059669;
+    border-radius: 9999px;
+}
+
+/* Flyout sub-group label (parent menu with children) */
+.taskbar-flyout-group {
+    margin-bottom: 4px;
+}
+.taskbar-flyout-group-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    border-bottom: 1px solid #f3f4f6;
+    margin-bottom: 2px;
+}
+
+/* Flyout badge pill */
+.taskbar-flyout-badge {
+    margin-left: auto;
+    background: #ef4444;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 9999px;
+    line-height: 1.4;
+}
+
+/* Start Menu Submenu Accordion */
+.start-menu-parent-btn {
+    width: 100%;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    text-align: left;
+}
+.start-menu-parent-btn .start-arrow {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.start-menu-parent-btn.open .start-arrow {
+    transform: rotate(180deg);
+}
+.start-submenu {
+    position: relative;
+    padding-left: 20px;
+    margin-left: 14px;
+    border-left: 2px dashed #e2e8f0;
+    margin-top: 2px;
+    margin-bottom: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.start-submenu.hidden {
+    display: none !important;
+}
+.start-menu-subitem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: #475569;
+    font-size: 11.5px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.12s ease;
+    position: relative;
+}
+.start-menu-subitem:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+.start-menu-subitem.active {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    font-weight: 700;
+}
+.start-menu-subitem.active::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 25%;
+    bottom: 25%;
+    width: 3px;
+    background: #059669;
+    border-radius: 9999px;
+}
+/* ==========================================================================
+   CUSTOM SYSTEM FONT SCALING & TASKBAR TABS
+   ========================================================================== */
+html.font-size-small { font-size: 13px; }
+html.font-size-normal { font-size: 14px; }
+html.font-size-large { font-size: 15px; }
+html.font-size-xl { font-size: 16px; }
+
+/* Windows Taskbar Opened App Tabs */
+.taskbar-app-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 10px;
+    background: transparent;
+    transition: all 0.15s ease;
+}
+.taskbar-app-tab:hover {
+    background: rgba(241, 245, 249, 0.85);
+}
+.taskbar-app-tab.active {
+    background: rgba(16, 185, 129, 0.12);
+}
+.taskbar-app-tab .taskbar-tab-close {
+    opacity: 0;
+    margin-right: 4px;
+    padding: 2px 4px;
+    border-radius: 6px;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+.taskbar-app-tab:hover .taskbar-tab-close {
+    opacity: 1;
+}
+.taskbar-app-tab .taskbar-tab-close:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+/* ===== Table Accounting Grid Styles (Zebra, Bordered Grid, Minimal) ===== */
+
+/* 1. Zebra Striping (Belang Selang-Seling Baris Akuntansi) */
+body.table-grid-zebra .data-table tbody tr:nth-child(even),
+body.table-grid-zebra table.data-table tbody tr:nth-child(even),
+body.table-grid-zebra #bb-table tbody tr:nth-child(even),
+body.table-grid-zebra #jrn-table tbody tr:nth-child(even),
+body.table-grid-zebra #bs-table tbody tr:nth-child(even),
+body.table-grid-zebra #kas-table tbody tr:nth-child(even),
+body[data-table-grid="zebra"] .data-table tbody tr:nth-child(even),
+body[data-table-grid="zebra"] table.data-table tbody tr:nth-child(even),
+.preview-table-wrap.table-grid-zebra table tbody tr:nth-child(even) {
+    background-color: #f8fafc !important;
+}
+
+body.table-grid-zebra .data-table tbody tr:nth-child(odd),
+body.table-grid-zebra table.data-table tbody tr:nth-child(odd),
+body[data-table-grid="zebra"] .data-table tbody tr:nth-child(odd),
+.preview-table-wrap.table-grid-zebra table tbody tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+body.table-grid-zebra .data-table tbody tr:hover,
+body.table-grid-zebra table.data-table tbody tr:hover,
+body[data-table-grid="zebra"] .data-table tbody tr:hover,
+.preview-table-wrap.table-grid-zebra table tbody tr:hover {
+    background-color: rgba(16, 185, 129, 0.08) !important;
+}
+
+/* 2. Full Accounting Bordered Grid (Buku Kas & Excel Spreadsheet Style) */
+body.table-grid-bordered .data-table,
+body.table-grid-bordered table.data-table,
+body.table-grid-bordered #bb-table,
+body.table-grid-bordered #jrn-table,
+body.table-grid-bordered #bs-table,
+body.table-grid-bordered #kas-table,
+body[data-table-grid="bordered"] .data-table,
+.preview-table-wrap.table-grid-bordered table {
+    border-collapse: collapse !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+body.table-grid-bordered .data-table thead th,
+body.table-grid-bordered table.data-table thead th,
+body.table-grid-bordered #bb-table thead th,
+body.table-grid-bordered #jrn-table thead th,
+body.table-grid-bordered #bs-table thead th,
+body.table-grid-bordered #kas-table thead th,
+body[data-table-grid="bordered"] .data-table thead th,
+.preview-table-wrap.table-grid-bordered table thead th {
+    border: 1px solid #cbd5e1 !important;
+    background-color: #f1f5f9 !important;
+    color: #1e293b !important;
+    font-weight: 700 !important;
+}
+
+body.table-grid-bordered .data-table tbody td,
+body.table-grid-bordered table.data-table tbody td,
+body.table-grid-bordered #bb-table tbody td,
+body.table-grid-bordered #jrn-table tbody td,
+body.table-grid-bordered #bs-table tbody td,
+body.table-grid-bordered #kas-table tbody td,
+body[data-table-grid="bordered"] .data-table tbody td,
+.preview-table-wrap.table-grid-bordered table tbody td {
+    border: 1px solid #e2e8f0 !important;
+}
+
+body.table-grid-bordered .data-table tbody tr:nth-child(even),
+body[data-table-grid="bordered"] .data-table tbody tr:nth-child(even),
+.preview-table-wrap.table-grid-bordered table tbody tr:nth-child(even) {
+    background-color: #fcfdfe;
+}
+
+body.table-grid-bordered .data-table tbody tr:hover,
+body[data-table-grid="bordered"] .data-table tbody tr:hover,
+.preview-table-wrap.table-grid-bordered table tbody tr:hover {
+    background-color: rgba(16, 185, 129, 0.08) !important;
+}
+
+/* 3. Minimal Clean Grid (Horizontal Hairline Only) */
+body.table-grid-minimal .data-table thead th,
+body[data-table-grid="minimal"] .data-table thead th,
+.preview-table-wrap.table-grid-minimal table thead th {
+    border: none !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    background-color: transparent !important;
+}
+
+body.table-grid-minimal .data-table tbody td,
+body[data-table-grid="minimal"] .data-table tbody td,
+.preview-table-wrap.table-grid-minimal table tbody td {
+    border: none !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    background-color: transparent;
+}
+
+body.table-grid-minimal .data-table tbody tr:hover,
+body[data-table-grid="minimal"] .data-table tbody tr:hover,
+.preview-table-wrap.table-grid-minimal table tbody tr:hover {
+    background-color: #f8fafc !important;
+}

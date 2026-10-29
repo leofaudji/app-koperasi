@@ -1,6 +1,21 @@
-# Riwayat Perubahan Portal Anggota
+﻿# Riwayat Perubahan Portal Anggota
 
 Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasikan di sini.
+
+---
+
+## [2.0.6] - 2026-10-29
+
+### 📲 Perbaikan Konfigurasi PWA Install & Banner Pemasangan Aplikasi
+- **Resolusi Jalur Cakupan Manifest (start_url & scope)**:
+  - Mengubah konfigurasi start_url dan scope pada manifest.json dari jalur statis /portal/ menjadi jalur relatif ./.
+  - Memastikan kompatibilitas penuh saat aplikasi dijalankan di sub-folder lokal (seperti http://localhost/app-koperasi/portal/) maupun domain produksi, sehingga browser Chromium (Chrome & Edge) dapat memicu event eforeinstallprompt dan memunculkan tombol instalasi di bilah alamat browser.
+- **Dukungan Ikon Maskable & Spesifikasi PWA Modern**:
+  - Menambahkan konfigurasi purpose: "any" dan purpose: "maskable" pada manifest untuk ikon 192x192 dan 512x512.
+- **Pembaruan Visual Banner Pasang Aplikasi**:
+  - Banner bawah (*floating install banner*) kini menampilkan logo resmi putih kehijauan yang baru menggantikan ikon dompet lama, dengan tema warna zamrud serasi.
+- **Akses Tombol Pasang Manual di Menu Profil**:
+  - Menambahkan tombol "Pasang Aplikasi (PWA)" langsung di halaman Profil Anggota (iews/profil.html) agar anggota dapat memasang aplikasi kapan saja tanpa menunggu banner otomatis, dilengkapi panduan langkah instalasi untuk Chrome/Android dan Safari/iOS.
 
 ---
 

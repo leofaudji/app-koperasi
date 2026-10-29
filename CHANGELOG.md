@@ -6,6 +6,75 @@ Dokumentasi disajikan dalam bahasa operasional yang mudah dipahami oleh seluruh 
 
 ---
 
+## [v3.2.0] - 2026-10-29
+
+### 📊 Tampilan Grid & Tabel Akuntansi Komprehensif
+- **Pilihan Gaya Garis & Sekat Kisi Tabel (Grid Styles)**:
+  - **Belang Zebra (Zebra Striping)**: Latar belakang baris selang-seling abu-abu lembut (`#f8fafc`) dengan efek sorot aksen hijau emerald saat kursor melintas, mencegah mata lelah atau salah membaca data saat menganalisis ribuan baris transaksi.
+  - **Kisi Kotak Akuntansi Penuh (Bordered / Excel Spreadsheet Style)**: Seluruh sel `th` dan `td` dilengkapi garis pembatas vertikal dan horizontal tegas (`1px solid #cbd5e1` dan `#e2e8f0`) layaknya lembar kerja Excel atau buku kas fisik, memberikan batas kolom debit/kredit/saldo yang sangat jelas bagi akuntan.
+  - **Minimalis Bersih (Clean Hairline)**: Garis horizontal ultra-tipis tanpa sekat vertikal untuk pengguna yang menyukai tampilan modern, bersih, dan lapang.
+- **Format Tanggal Transaksi & Akuntansi Dinamis**:
+  - Pilihan 4 format tanggal global: **Standar Indonesia (`DD/MM/YYYY`)**, **Standar ISO Sistem (`YYYY-MM-DD`)**, **Nama Bulan Singkat (`DD MMM YYYY`)**, dan **Formal Indonesia (`DD MMMM YYYY`)**.
+  - Fungsi global `App.formatDate()` seketika memperbarui tampilan tanggal di seluruh tabel transaksi, buku besar, jurnal, mutasi, dan kartu angsuran.
+- **Pratinjau Langsung Mini Buku Kas & Jurnal (Live Accounting Table Preview)**:
+  - Disediakan simulasi tabel pembukuan kas nyata (Tanggal, No. Bukti, Uraian, Debit, Kredit, Saldo) langsung di dalam modal preferensi yang secara *realtime* memperlihatkan perubahan gaya kisi, kerapatan, format tanggal, dan pemisah angka saat dipilih.
+
+### 🎛️ Pusat Preferensi & Kustomisasi Tampilan Lengkap
+- **Modal Preferensi Terpadu (`#preferences-modal`)**:
+  - Disediakan dialog preferensi komprehensif yang dapat diakses langsung dari tombol switcher tata letak navigasi, tray taskbar (ikon equalizer `ri-equalizer-line`), serta footer Start Menu.
+  - **Format Pemisah Angka & Mata Uang**:
+    - Pengguna dapat memilih gaya pemisah angka: **Indonesia/Eropa (`1.250.000,00` - Titik ribuan, Koma desimal)** atau **Internasional/US (`1,250,000.00` - Koma ribuan, Titik desimal)**.
+    - Format terintegrasi secara menyeluruh pada fungsi formatting global `App.formatRupiah` dan `App.formatNumber`.
+  - **Presisi Angka di Belakang Koma (Desimal)**:
+    - Opsi tanpa desimal (`0 digit`, contoh: `Rp 1.250.000`) untuk pembacaan nominal yang ringkas dan bersih.
+    - Opsi 2 desimal (`2 digit`, contoh: `Rp 1.250.000,00`) untuk keperluan pembukuan akuntansi presisi tinggi.
+  - **Prefiks Simbol Mata Uang**:
+    - Pilihan menampilkan simbol `Rp ` atau hanya angka murni sesuai preferensi pelaporan.
+  - **Kepadatan Tabel Data (Table Density)**:
+    - Mode **Padat (Compact)**: Spasi baris lebih rapat (`py-1.5 px-3`) untuk memuat lebih banyak baris data dalam satu layar bagi staf kasir & akuntan.
+    - Mode **Nyaman (Comfortable)**: Spasi baris standar yang lega dan nyaman di mata (`py-3.5 px-4`).
+  - **Skala Ukuran Huruf (Font Size Customization)**:
+    - Tersedia 4 tingkat ukuran tipografi adaptif: **Kecil (13px)**, **Standar (14px)**, **Besar (15px)**, dan **Ekstra Besar (16px)** yang langsung mengubah skala `rem` dan `root font-size` secara responsif.
+  - **Palet Tema Warna Aplikasi**:
+    - Pilihan 8 warna aksen tema modern: Hijau Emerald, Biru Indigo, Biru Laut, Cyan Tropis, Violet Elegan, Oranye Hangat, Mawar Rose, dan Abu-Abu Slate.
+  - **Kotak Pratinjau Langsung (Live Preview Box)**:
+    - Menyajikan contoh tampilan angka, lencana status, dan contoh baris tabel secara instan saat preferensi diubah sebelum disimpan.
+  - **Tombol Reset Bawaan Sistem**:
+    - Memulihkan seluruh konfigurasi tampilan dan format angka kembali ke setelan default pabrik dengan satu klik.
+
+### 🪟 Taskbar Windows yang Bersih: Tab Aplikasi yang Terbuka Saja
+- **Pembersihan Bilah Menu Meniru Windows Taskbar Asli**:
+  - Taskbar Windows (bawah & atas) kini tidak lagi menumpuk seluruh 18 tombol kategori menu di samping kolom "Cari menu...".
+  - Di samping kolom pencarian, taskbar kini **hanya menampilkan tab/halaman yang pernah dibuka atau sedang aktif** selama sesi berjalan (`openedWindowsTabs`).
+  - Setiap tab dilengkapi ikon modul, judul halaman, indikator aktif hijau emerald, dan tombol tutup silang `(x)` pada saat di-hover untuk menutup tab tersebut.
+  - Menu Beranda/Dashboard selalu hadir sebagai tab utama.
+  - Seluruh katalog menu dan submenu lengkap tetap dapat diakses dengan cepat dan rapi melalui tombol **Mulai (Start Menu)**.
+
+---
+
+## [v3.1.0] - 2026-10-29
+
+### 🪟 Preferensi Tata Letak Navigasi Multi-Mode (Sidebar, Taskbar Bawah & Bilah Atas)
+- **Tiga Pilihan Tata Letak Navigasi Fleksibel**:
+  - **Sidebar Kiri (Default)**: Tata letak klasik dengan sidebar vertikal di sebelah kiri, lengkap dengan fitur lipat ramping (*compact mode*), kategori menu yang dapat diciutkan (*collapsible sections*), dan pin menu favorit.
+  - **Taskbar Bawah (Windows 11 Desktop Style)**: Bilah navigasi horizontal mengambang dengan efek *glassmorphism backdrop blur* di bagian bawah layar. Dilengkapi tombol **Mulai (Start Menu)** berlogo koperasi, pencarian cepat (Ctrl+K), tombol modul tersemat, jam digital real-time, tray notifikasi pengajuan, dan profil pengguna.
+  - **Bilah Atas (Top Taskbar)**: Bilah navigasi horizontal yang dipasang di bagian paling atas layar bagi pengguna yang menyukai tata letak desktop klasik atau layar ultra-wide.
+- **Penyimpanan Preferensi Otomatis**:
+  - Pilihan tata letak tersimpan di localStorage per pengguna (pp_nav_layout), sehingga posisi navigasi yang dipilih tetap konsisten dan aktif saat halaman dimuat ulang atau login berikutnya.
+- **Pengalih Tata Letak Interaktif (Layout Picker)**:
+  - Tersedia tombol cepat dengan ikon kisi/grid di topbar dan tray taskbar untuk beralih tata letak kapan saja dengan konfirmasi toast informatif.
+
+### 📂 Menu Flyout Submenu Lengkap pada Mode Taskbar
+- **Akses Submenu Seluruh Modul Tanpa Pembatasan**:
+  - Pada mode taskbar Windows (bawah/atas), setiap tombol menu kelompok (seperti Anggota, Simpanan, Pinjaman, Akuntansi, Laporan, Pengaturan) kini dilengkapi indikator panah chevron (▲) yang memunculkan panel flyout submenu saat diklik.
+  - Submenu menyajikan seluruh struktur modul dan sub-kategori secara terorganisir persis seperti pada menu sidebar, termasuk pengelompokan (*group labels*) dan lencana notifikasi pending (*pending badges*).
+  - Tautan menu yang aktif ditandai dengan aksen hijau emerald dan garis penunjuk vertikal.
+- **Start Menu Pop-up dengan Pencarian Dinamis**:
+  - Start Menu bergaya Windows pop-up dilengkapi grid aplikasi tersemat (*pinned apps*) dengan palet warna khas, daftar menu berkategori dengan scroll halus, serta kolom pencarian langsung untuk menemukan modul atau transaksi dengan cepat.
+  - Panel flyout dan start menu otomatis menutup saat pengguna mengklik di luar area (*click-outside-close*) atau saat memilih modul tujuan.
+
+---
+
 ## [v3.0.0] - 2026-10-29
 
 ### 🔍 Overhaul Searchable-Select & Tampilan Akun COA Terbuka Penuh

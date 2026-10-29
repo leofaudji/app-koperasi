@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -841,25 +841,23 @@
 
             <!-- PWA Install Banner -->
             <div id="pwa-install-banner"
-                class="fixed bottom-[80px] left-4 right-4 bg-gray-900 dark:bg-obsidian-900 border border-gray-700 dark:border-obsidian-800 rounded-2xl p-4 shadow-2xl z-40 text-white max-w-[448px] mx-auto flex items-center justify-between gap-3">
+                class="fixed bottom-[80px] left-4 right-4 bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-3.5 shadow-2xl z-40 text-white max-w-[448px] mx-auto flex items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
-                    <div
-                        class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shrink-0">
-                        <i class="bi bi-wallet2 text-white text-lg"></i>
-                    </div>
+                    <img src="icons/icon-192.png" class="w-10 h-10 rounded-xl shadow-md shrink-0 border border-white/10" alt="Logo">
                     <div>
-                        <p class="font-bold text-sm leading-tight text-white">Install Portal</p>
-                        <p class="text-[10px] text-gray-400 leading-tight mt-0.5">Akses lebih cepat & hemat kuota</p>
+                        <p class="font-bold text-xs sm:text-sm leading-tight text-white">Pasang Aplikasi Portal</p>
+                        <p class="text-[10px] text-emerald-300 leading-tight mt-0.5 font-medium">Akses cepat di layar HP & hemat kuota</p>
                     </div>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex items-center gap-2">
                     <button id="pwa-install-dismiss"
-                        class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 dark:bg-obsidian-700 text-gray-400 hover:text-white transition-colors">
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:text-white transition-colors" title="Tutup">
                         <i class="bi bi-x-lg text-xs"></i>
                     </button>
                     <button id="pwa-install-btn"
-                        class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-lg shadow-blue-500/20">
-                        Install
+                        class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all active:scale-95 shadow-lg shadow-emerald-500/20 flex items-center gap-1.5">
+                        <i class="bi bi-download"></i>
+                        <span>Pasang</span>
                     </button>
                 </div>
             </div>

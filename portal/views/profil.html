@@ -1,4 +1,4 @@
-<!-- Header Section -->
+﻿<!-- Header Section -->
 <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 transition-all duration-300">
     <div class="bg-white/80 dark:bg-obsidian-950/80 backdrop-blur-xl px-6 pt-6 pb-6 border-b border-gray-100/50 dark:border-obsidian-800/50">
         <div class="flex items-center justify-between">
@@ -295,6 +295,19 @@
                 </div>
             </div>
             <i class="bi bi-chevron-right text-gray-300 dark:text-obsidian-600 text-xs"></i>
+        </button>
+        <button id="pwa-profil-install-row" onclick="Portal.triggerPwaInstall()"
+            class="px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-obsidian-800 active:bg-gray-100 dark:active:bg-obsidian-700 transition-colors border-b border-gray-100 dark:border-obsidian-800">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <i class="bi bi-download"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-700 dark:text-obsidian-200">Pasang Aplikasi (PWA)</span>
+                    <span class="text-[10px] text-gray-400 dark:text-obsidian-400">Instal ke layar utama HP / Komputer</span>
+                </div>
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">Pasang</span>
         </button>
         <button onclick="Portal.showAbout()"
             class="px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-obsidian-800 active:bg-gray-100 dark:active:bg-obsidian-700 transition-colors">
