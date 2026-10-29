@@ -1261,7 +1261,7 @@ const KasTransaksiPage = {
         }
 
         App.openModal(`
-            <div class="p-6 max-w-xl mx-auto space-y-6">
+            <div class="p-6 sm:p-7 w-full space-y-6">
                 <!-- Modal Header -->
                 <div class="flex items-center justify-between pb-4 border-b border-gray-100">
                     <div class="flex items-center gap-3">
@@ -1319,7 +1319,7 @@ const KasTransaksiPage = {
                     </div>
 
                     <!-- Row 2: Akun Kas & Akun Lawan -->
-                    <div class="space-y-3.5">
+                    <div class="space-y-4">
                         ${type === 'transfer' ? `
                             <!-- Mutasi Kas Antar Bank -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -1348,13 +1348,13 @@ const KasTransaksiPage = {
                             </div>
                         ` : `
                             <!-- Kas Masuk / Kas Keluar Normal -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">
-                                        Rekening Kas / Bank <span class="text-rose-500">*</span>
+                                        Rekening Kas / Bank (${type === 'masuk' ? 'Kas/Bank Penerima' : 'Kas/Bank Pembayar'}) <span class="text-rose-500">*</span>
                                     </label>
                                     <select id="kf-kas-id" required onchange="KasTransaksiPage._updateLiveFormPreview('${type}')"
-                                        data-icon="ri-bank-card-line" data-search-placeholder="Cari kode kas atau bank..."
+                                        data-icon="ri-bank-card-line" data-search-placeholder="Cari kode atau nama kas/bank..."
                                         class="searchable-select w-full border border-gray-200 rounded-2xl p-2.5 text-xs sm:text-sm font-semibold text-gray-800 bg-white">
                                         <option value="">Pilih Kas/Bank...</option>
                                         ${this._kasAccounts.map(a => `<option value="${a.id}">${a.kode} - ${a.nama}</option>`).join('')}
@@ -1362,9 +1362,12 @@ const KasTransaksiPage = {
                                 </div>
 
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">
-                                        ${type === 'masuk' ? 'Akun Lawan / Sumber Dana (Kredit)' : 'Akun Lawan / Kategori Biaya (Debit)'} <span class="text-rose-500">*</span>
-                                    </label>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                            ${type === 'masuk' ? 'Akun Lawan / Sumber Dana (Kredit)' : 'Akun Lawan / Kategori Biaya & Beban (Debit)'} <span class="text-rose-500">*</span>
+                                        </label>
+                                        <span class="text-[10px] text-gray-400 font-medium">Ketik kode akun atau kata kunci keterangan</span>
+                                    </div>
                                     <select id="kf-target-id" required onchange="KasTransaksiPage._updateLiveFormPreview('${type}')"
                                         data-icon="ri-exchange-funds-line" data-search-placeholder="Ketik kode (misal 5101) atau nama akun lawan..."
                                         class="searchable-select w-full border border-gray-200 rounded-2xl p-2.5 text-xs sm:text-sm font-semibold text-gray-800 bg-white">
@@ -1434,7 +1437,7 @@ const KasTransaksiPage = {
                     </div>
                 </form>
             </div>
-        `, 'max-w-xl');
+        `, 'max-w-2xl');
 
         // Form Submission Event
         const formEl = document.getElementById('form-kas-input');

@@ -48,7 +48,7 @@ const BukuBesarPage = {
                     <button onclick="BukuBesarPage.load()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors shrink-0">
                         <i class="ri-search-line mr-1"></i> Filter
                     </button>
-                    <div class="w-full sm:w-72">
+                    <div class="w-full sm:w-80 md:w-96">
                         <select id="bb-filter-akun" data-icon="ri-book-2-line" data-search-placeholder="Cari kode atau nama akun..." class="searchable-select w-full" onchange="BukuBesarPage.filterAkun(this.value)">
                             <option value="">Semua Akun Buku Besar</option>
                             ${this.data.map(a => `<option value="${a.id}">${a.kode} - ${a.nama} (${a.tipe})</option>`).join('')}

@@ -273,7 +273,7 @@ const AngsuranPage = {
                     <div class="relative" id="af-akun-kas-wrapper">
                         <input type="text" id="af-akun-kas-search" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500" placeholder="Ketik untuk mencari akun..." autocomplete="off">
                         <input type="hidden" id="af-akun-kas" value="${isEdit ? trx.akun_kas_id || '' : ''}">
-                        <div id="af-akun-kas-results" class="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl hidden"></div>
+                        <div id="af-akun-kas-results" class="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-2xl hidden"></div>
                     </div>
                 </div>
 
@@ -363,9 +363,11 @@ const AngsuranPage = {
 
             if (filtered.length) {
                 dropCoaContainer.innerHTML = filtered.map(a => `
-                    <div class="px-4 py-2.5 hover:bg-emerald-50 cursor-pointer text-sm border-b border-gray-50 last:border-0" data-id="${a.id}" data-text="${a.kode} - ${a.nama}">
-                        <span class="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded mr-2">${a.kode}</span>
-                        <span class="font-medium text-gray-800">${a.nama}</span>
+                    <div class="px-4 py-2.5 hover:bg-emerald-50 cursor-pointer text-sm border-b border-gray-50 last:border-0 flex items-start gap-2.5" data-id="${a.id}" data-text="${a.kode} - ${a.nama}" title="${App.escapeHtml(a.kode + ' - ' + a.nama)}">
+                        <span class="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-1.5 py-0.5 rounded shrink-0 mt-0.5">${a.kode}</span>
+                        <div class="min-w-0 flex-1 text-left">
+                            <div class="font-medium text-gray-800 leading-snug break-words">${a.nama}</div>
+                        </div>
                     </div>
                 `).join('');
                 dropCoaContainer.classList.remove('hidden');

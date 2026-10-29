@@ -15,7 +15,7 @@ const MutasiPage = {
                     <input type="hidden" id="ms-anggota-id" value="${anggotaId}">
                     <div id="ms-anggota-dd" class="hidden border border-gray-200 rounded-xl mt-1 max-h-40 overflow-auto bg-white shadow-lg absolute z-50 w-full"></div>
                 </div>
-                <div class="w-full sm:w-56">
+                <div class="w-full sm:w-64 md:w-72">
                     <select id="ms-jenis" data-icon="ri-wallet-3-line" data-search-placeholder="Cari jenis simpanan..." class="searchable-select w-full"><option value="">Semua Jenis Simpanan</option></select>
                 </div>
                 <input type="text" id="ms-dari" class="border border-gray-200 rounded-xl px-4 py-2.5 text-sm" placeholder="Dari">

@@ -273,7 +273,7 @@ const JurnalPage = {
                 <div class="relative w-full jurnal-akun-wrapper">
                     <input type="text" class="jurnal-akun-search w-full border-none bg-transparent focus:ring-0 text-sm font-medium" placeholder="Pilih Akun..." autocomplete="off">
                     <input type="hidden" class="row-akun">
-                    <div class="jurnal-akun-results absolute left-0 right-0 z-50 mt-1 max-h-40 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl hidden"></div>
+                    <div class="jurnal-akun-results absolute left-0 min-w-full sm:min-w-[420px] max-w-[90vw] z-50 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-2xl hidden"></div>
                 </div>
             </td>
             <td class="px-3 py-3">
@@ -302,14 +302,17 @@ const JurnalPage = {
 
             if (filtered.length) {
                 resultsDiv.innerHTML = filtered.map(a => `
-                    <div class="px-3 py-2 hover:bg-emerald-50 cursor-pointer text-xs border-b border-gray-50 last:border-0" data-id="${a.id}" data-text="${a.kode} - ${a.nama}">
-                        <span class="font-mono text-gray-500 bg-gray-100 px-1 py-0.5 rounded mr-1.5">${a.kode}</span>
-                        <span class="font-medium text-gray-800">${a.nama}</span>
+                    <div class="px-3.5 py-2.5 hover:bg-indigo-50/70 cursor-pointer text-xs border-b border-gray-100/70 last:border-0 flex items-start gap-2.5 transition-colors" data-id="${a.id}" data-text="${a.kode} - ${a.nama}" title="${App.escapeHtml(a.kode + ' - ' + a.nama)}">
+                        <span class="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-1.5 py-0.5 rounded shrink-0 mt-0.5">${a.kode}</span>
+                        <div class="min-w-0 flex-1 text-left">
+                            <div class="font-semibold text-gray-800 text-xs sm:text-sm leading-snug break-words">${a.nama}</div>
+                            ${a.tipe ? `<div class="text-[10px] text-gray-400 capitalize mt-0.5">${a.tipe}</div>` : ''}
+                        </div>
                     </div>
                 `).join('');
                 resultsDiv.classList.remove('hidden');
             } else {
-                resultsDiv.innerHTML = '<div class="px-3 py-2 text-gray-400 text-xs italic">Akun tidak ditemukan</div>';
+                resultsDiv.innerHTML = '<div class="px-4 py-3 text-gray-400 text-xs italic">Akun tidak ditemukan</div>';
                 resultsDiv.classList.remove('hidden');
             }
         };

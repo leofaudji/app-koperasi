@@ -26,21 +26,23 @@ const KodeTransaksiPage = {
         }
         const akunOpts = this._akun.map(a => `<option value="${a.id}">${a.kode} - ${a.nama} (${a.tipe})</option>`).join('');
 
-        App.openModal(`<div class="p-6"><h3 class="text-lg font-bold text-gray-800 mb-6">${id ? 'Edit' : 'Tambah'} Kode Transaksi</h3>
+        App.openModal(`<div class="p-6 sm:p-7 max-w-2xl mx-auto"><h3 class="text-lg font-bold text-gray-800 mb-6">${id ? 'Edit' : 'Tambah'} Kode Transaksi</h3>
         <form id="kt-form" class="space-y-4"><input type="hidden" id="ktf-id" value="${id || ''}">
-            <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-medium text-gray-600 mb-1">Kode *</label><input type="text" id="ktf-kode" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" maxlength="5" ${id ? 'readonly' : ''} required></div>
-            <div><label class="block text-sm font-medium text-gray-600 mb-1">Nama *</label><input type="text" id="ktf-nama" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" required></div>
-            <div><label class="block text-sm font-medium text-gray-600 mb-1">Debit/Kredit *</label><select id="ktf-dk" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="D">D - Debit (menambah saldo)</option><option value="K">K - Kredit (mengurangi saldo)</option></select></div></div>
-            <div><label class="block text-sm font-medium text-gray-600 mb-1">Deskripsi</label><input type="text" id="ktf-desc" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"></div>
-            <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-sm font-medium text-gray-600 mb-1"><i class="ri-arrow-left-down-line text-emerald-500"></i> Akun Debit</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div><label class="block text-sm font-medium text-gray-600 mb-1">Kode *</label><input type="text" id="ktf-kode" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm font-mono font-bold" maxlength="5" ${id ? 'readonly' : ''} required></div>
+                <div><label class="block text-sm font-medium text-gray-600 mb-1">Nama *</label><input type="text" id="ktf-nama" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" required></div>
+                <div><label class="block text-sm font-medium text-gray-600 mb-1">Debit/Kredit *</label><select id="ktf-dk" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="D">D - Debit (menambah saldo)</option><option value="K">K - Kredit (mengurangi saldo)</option></select></div>
+            </div>
+            <div><label class="block text-sm font-medium text-gray-600 mb-1">Deskripsi</label><input type="text" id="ktf-desc" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" placeholder="Keterangan alur pencatatan..."></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label class="block text-sm font-medium text-gray-600 mb-1"><i class="ri-arrow-left-down-line text-emerald-500 mr-1"></i>Akun Debit</label>
                 <select id="ktf-akun-debit" data-icon="ri-arrow-left-down-line" data-search-placeholder="Cari akun debit (nama / kode)..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="">-- Dari Jenis Simpanan --</option>${akunOpts}</select>
                 <p class="text-xs text-gray-400 mt-1">Akun yang di-debit saat transaksi</p></div>
-                <div><label class="block text-sm font-medium text-gray-600 mb-1"><i class="ri-arrow-right-up-line text-red-500"></i> Akun Kredit</label>
+                <div><label class="block text-sm font-medium text-gray-600 mb-1"><i class="ri-arrow-right-up-line text-red-500 mr-1"></i>Akun Kredit</label>
                 <select id="ktf-akun-kredit" data-icon="ri-arrow-right-up-line" data-search-placeholder="Cari akun kredit (nama / kode)..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="">-- Dari Jenis Simpanan --</option>${akunOpts}</select>
                 <p class="text-xs text-gray-400 mt-1">Akun yang di-kredit saat transaksi</p></div>
             </div>
-            <div class="flex justify-end gap-3 pt-4 border-t"><button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm">Batal</button><button type="submit" class="px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-medium">Simpan</button></div></form></div>`);
+            <div class="flex justify-end gap-3 pt-4 border-t mt-6"><button type="button" onclick="App.closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-xl text-sm hover:bg-gray-50 text-gray-600">Batal</button><button type="submit" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-medium shadow-md shadow-primary-500/20">Simpan</button></div></form></div>`, 'max-w-2xl');
 
         if (id) App.api('kode-transaksi/' + id).then(r => {
             if (r?.data) {

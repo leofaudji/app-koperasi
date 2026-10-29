@@ -341,12 +341,12 @@ const PinjamanPage = {
                 <input type="text" id="pf-anggota-search" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" placeholder="Ketik nama/no anggota..." autocomplete="off">
                 <input type="hidden" id="pf-anggota-id"><div id="pf-anggota-dd" class="hidden border border-gray-200 rounded-xl mt-1 max-h-40 overflow-auto bg-white shadow-lg"></div></div>
                 
-                <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div><label class="block text-sm font-medium text-gray-600 mb-1">Pekerjaan</label><input type="text" id="pf-pekerjaan" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-2.5 text-sm" readonly placeholder="-"></div>
                     <div><label class="block text-sm font-medium text-gray-600 mb-1">Penghasilan Bulanan (Rp)</label><input type="text" id="pf-penghasilan" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-2.5 text-sm" readonly placeholder="0"></div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><label class="block text-sm font-medium text-gray-600 mb-1">Jenis Pinjaman *</label><select id="pf-jenis" data-icon="ri-hand-coin-line" data-search-placeholder="Cari jenis pinjaman..." class="searchable-select w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">${(jp?.data || []).map(j => `<option value="${j.id}" data-bunga="${j.bunga_persen}" data-tenor="${j.max_tenor}" data-max="${j.max_jumlah}">${j.nama} (${j.bunga_persen}%)</option>`).join('')}</select></div>
                     <div><label class="block text-sm font-medium text-gray-600 mb-1">Tanggal</label><input type="text" id="pf-tgl" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" placeholder="Tanggal"></div>
                     <div><label class="block text-sm font-medium text-gray-600 mb-1">Jumlah (Rp) *</label><input type="number" id="pf-jumlah" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" min="1" required oninput="PinjamanPage.calcSim()"></div>
@@ -1203,7 +1203,7 @@ const PinjamanPage = {
             </tr>`;
         }).join('');
 
-        App.openModal(`<div class="p-6 mx-auto w-full max-w-lg">
+        App.openModal(`<div class="p-6 mx-auto w-full max-w-xl">
             <h3 class="text-lg font-bold text-gray-800 mb-1"><i class="ri-check-double-line text-emerald-500 mr-2"></i>Setujui & Cairkan Pinjaman</h3>
             <div class="bg-blue-50 rounded-xl px-4 py-3 mb-5 text-sm">
                 <div class="font-semibold text-gray-700">${p.anggota_nama} &nbsp;·&nbsp; <span class="font-mono text-primary-600">${p.no_pinjaman}</span></div>
@@ -1318,9 +1318,11 @@ const PinjamanPage = {
 
             if (filtered.length) {
                 dropCoaContainer.innerHTML = filtered.map(a => `
-                    <div class="px-4 py-2.5 hover:bg-emerald-50 cursor-pointer text-sm border-b border-gray-50 last:border-0" data-id="${a.id}" data-text="${a.kode} - ${a.nama}">
-                        <span class="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded mr-2">${a.kode}</span>
-                        <span class="font-medium text-gray-800">${a.nama}</span>
+                    <div class="px-4 py-2.5 hover:bg-emerald-50 cursor-pointer text-sm border-b border-gray-50 last:border-0 flex items-start gap-2.5" data-id="${a.id}" data-text="${a.kode} - ${a.nama}" title="${App.escapeHtml(a.kode + ' - ' + a.nama)}">
+                        <span class="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-1.5 py-0.5 rounded shrink-0 mt-0.5">${a.kode}</span>
+                        <div class="min-w-0 flex-1 text-left">
+                            <div class="font-medium text-gray-800 leading-snug break-words">${a.nama}</div>
+                        </div>
                     </div>
                 `).join('');
                 dropCoaContainer.classList.remove('hidden');

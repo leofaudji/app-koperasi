@@ -9,7 +9,7 @@ const App = {
     permissions: [],
     csrfToken: '',
     currentRoute: '',
-    version: '2.9.9', // Slide-Over Drawer Inspection, Human-Touch Briefing & Serrated Thermal Receipt UX
+    version: '3.0.0', // Dynamic Searchable-Select UX, Full COA Visibility & Financial Forms Standardization
     _apiCache: {}, // In-memory client cache for master data
     _inFlight: {}, // Promise pooling for deduplicating in-flight requests
     _pageModules: {}, // Cache for loaded page JS modules
@@ -1894,14 +1894,14 @@ const App = {
                 contentHtml = `<span class="text-gray-400 font-normal truncate">${App.escapeHtml(config.placeholder)}</span>`;
             } else if (cur.code) {
                 contentHtml = `
-                    <div class="flex items-center gap-2 min-w-0 flex-1 truncate">
+                    <div class="flex items-center gap-2 min-w-0 flex-1 truncate" title="${App.escapeHtml(cur.text)}">
                         <span class="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60 shrink-0">${App.escapeHtml(cur.code)}</span>
                         <span class="font-semibold text-gray-800 truncate">${App.escapeHtml(cur.title)}</span>
-                        ${cur.meta ? `<span class="text-[11px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">${App.escapeHtml(cur.meta)}</span>` : ''}
+                        ${cur.meta ? `<span class="text-[11px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0 capitalize">${App.escapeHtml(cur.meta)}</span>` : ''}
                     </div>
                 `;
             } else {
-                contentHtml = `<span class="font-semibold text-gray-800 truncate">${App.escapeHtml(cur.text)}</span>`;
+                contentHtml = `<span class="font-semibold text-gray-800 truncate" title="${App.escapeHtml(cur.text)}">${App.escapeHtml(cur.text)}</span>`;
             }
 
             trigger.innerHTML = `
@@ -1987,29 +1987,31 @@ const App = {
                     itemBody = `<span class="italic text-gray-400 font-normal">${App.escapeHtml(item.text || config.placeholder)}</span>`;
                 } else if (item.code) {
                     itemBody = `
-                        <div class="flex items-center justify-between w-full gap-2 min-w-0">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <span class="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60 shrink-0">
+                        <div class="flex items-start justify-between w-full gap-2.5 min-w-0 py-0.5 text-left">
+                            <div class="flex items-start gap-2.5 min-w-0 flex-1">
+                                <span class="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60 shrink-0 mt-0.5">
                                     ${highlightMatch(item.code, query)}
                                 </span>
-                                <span class="font-semibold text-gray-800 truncate">
-                                    ${highlightMatch(item.title, query)}
-                                </span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="font-semibold text-gray-800 text-xs sm:text-sm leading-snug break-words" title="${App.escapeHtml(item.text)}">
+                                        ${highlightMatch(item.title, query)}
+                                    </div>
+                                    ${item.meta ? `<div class="text-[11px] font-medium text-gray-400 mt-1 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-indigo-400/70 inline-block shrink-0"></span><span class="capitalize">${highlightMatch(item.meta, query)}</span></div>` : ''}
+                                </div>
                             </div>
-                            ${item.meta ? `<span class="text-[11px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">${highlightMatch(item.meta, query)}</span>` : ''}
                         </div>
                     `;
                 } else {
-                    itemBody = `<span class="truncate flex-1 font-medium text-gray-700">${highlightMatch(item.text, query)}</span>`;
+                    itemBody = `<span class="flex-1 font-medium text-gray-700 text-xs sm:text-sm leading-snug break-words text-left" title="${App.escapeHtml(item.text)}">${highlightMatch(item.text, query)}</span>`;
                 }
 
                 return `
                     <div class="smart-select-item ${isSelected ? 'is-selected' : ''} ${isActive ? 'is-active' : ''}" 
                          data-index="${idx}" data-val="${App.escapeHtml(item.value)}">
-                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <div class="flex items-start gap-2 flex-1 min-w-0">
                             ${itemBody}
                         </div>
-                        ${isSelected ? '<i class="ri-check-line text-indigo-600 font-bold shrink-0 text-base"></i>' : ''}
+                        ${isSelected ? '<i class="ri-check-line text-indigo-600 font-bold shrink-0 text-base mt-0.5"></i>' : ''}
                     </div>
                 `;
             }).join('');
@@ -2038,6 +2040,7 @@ const App = {
         };
 
         // Open Dropdown dengan pendeteksi viewport auto-flip ke atas jika mepet bawah
+        // serta penyesuaian lebar dan auto-align horizontal agar menu tidak terpotong
         const open = () => {
             document.querySelectorAll('.smart-select-wrapper.is-open').forEach(w => {
                 if (w !== wrapper && w._smartSelectClose) w._smartSelectClose();
@@ -2052,6 +2055,32 @@ const App = {
             } else {
                 dropdown.style.bottom = 'auto';
                 dropdown.style.top = 'calc(100% + 5px)';
+            }
+
+            // Hitung posisi dan lebar horizontal yang ideal agar tidak terpotong
+            const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+            const modalContent = trigger.closest('#modal-content, .modal-body, dialog, [role="dialog"]');
+            
+            let maxAvailableWidth = viewportWidth - 24;
+            let containerRight = viewportWidth - 12;
+            if (modalContent) {
+                const modalRect = modalContent.getBoundingClientRect();
+                maxAvailableWidth = Math.max(rect.width, modalRect.width - 24);
+                containerRight = modalRect.right - 8;
+            }
+
+            // Berikan lebar yang cukup untuk membaca teks nama akun secara lengkap (minimal 440px atau selebar trigger)
+            const desiredWidth = Math.min(Math.max(rect.width, 440), maxAvailableWidth);
+            dropdown.style.width = `${desiredWidth}px`;
+            dropdown.style.minWidth = `${Math.min(rect.width, desiredWidth)}px`;
+
+            // Auto-align: jika dibuka ke kanan akan melebihi kontainer/layar, buka rata kanan (align-right)
+            if (rect.left + desiredWidth > containerRight) {
+                dropdown.style.left = 'auto';
+                dropdown.style.right = '0';
+            } else {
+                dropdown.style.left = '0';
+                dropdown.style.right = 'auto';
             }
 
             wrapper.classList.add('is-open');

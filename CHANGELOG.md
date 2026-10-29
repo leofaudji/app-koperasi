@@ -6,6 +6,46 @@ Dokumentasi disajikan dalam bahasa operasional yang mudah dipahami oleh seluruh 
 
 ---
 
+## [v3.0.0] - 2026-10-29
+
+### 🔍 Overhaul Searchable-Select & Tampilan Akun COA Terbuka Penuh
+- **Pelebaran Dinamis & Penyesuaian Ruang Layar Otomatis**:
+  - Komponen global `searchable-select` kini menghitung lebar menu dropdown secara dinamis dengan batas minimal `440px` (atau mengikuti lebar trigger jika lebih besar) dan batas maksimal adaptif terhadap viewport (`calc(100vw - 32px)`).
+  - **Auto-Alignment Tepi Layar & Modal**: Dropdown otomatis menghitung jarak ke sisi kanan layar/modal saat dibuka. Jika menu berpotensi terpotong di sebelah kanan, posisi perataan seketika beralih ke rata kanan (`right: 0; left: auto;`), menjamin seluruh isi menu selalu terlihat utuh.
+- **Eliminasi Pemotongan Teks (`truncate`) & Tipografi Informatif**:
+  - Menghapus pemotongan teks kaku dengan elipsis (`...`). Seluruh nama akun COA (*Chart of Accounts*) kini ditampilkan dengan pembungkus teks multi-baris alami (`break-words whitespace-normal leading-snug`).
+  - Menampilkan badge kode akun monospaced dengan kontras tinggi, nama akun utama yang tegas, serta kategori/tipe akun di baris bawah.
+  - Menambahkan atribut `title` pada elemen trigger dan seluruh opsi dropdown untuk memunculkan tooltip nama lengkap saat kursor diarahkan ke akun.
+
+### 💵 Pelebaran Form & Tata Letak Akun Kas Masuk, Kas Keluar, & Mutasi Kas
+- **Kenyamanan Input Transaksi Kasir & Bendahara**:
+  - Memperluas ukuran modal Transaksi Kas Masuk dan Kas Keluar dari ukuran sempit menjadi `max-w-2xl` yang lapang.
+  - Menempatkan bidang pemilihan **Akun Lawan / Kategori Biaya & Beban (Debit)** atau **Sumber Penerimaan (Kredit)** pada baris penuh (*full-width*) tersendiri, sehingga nama akun akuntansi yang panjang dapat dibaca secara leluasa tanpa terpotong batas kolom.
+  - Menyempurnakan form transfer kas/bank internal pada modal Mutasi Kas dengan grid responsif yang rapi.
+
+### 📚 Standardisasi Pemilihan Akun di Seluruh Modul Keuangan
+- **Jurnal Umum**:
+  - Memperlebar dropdown pencarian akun pada tabel entri debit/kredit manual dari lebar statis sempit menjadi responsif `min-w-full sm:min-w-[420px]`, `max-h-60`, dengan bayangan lembut `shadow-2xl` dan perataan teks nama akun yang tidak terpotong.
+- **Transaksi Simpanan**:
+  - Memperluas bidang pemilihan rekening bank tujuan transfer pada modal setoran dan penarikan simpanan menjadi lebar penuh (`sm:col-span-2`), dilengkapi tampilan opsi rekening multi-baris.
+- **Pembayaran Angsuran Pinjaman**:
+  - Memperluas dropdown akun bank penerimaan transfer angsuran dengan penataan opsi multi-baris dan elevasi visual `shadow-2xl`.
+- **Pencairan & Pengajuan Pinjaman**:
+  - Memperlebar modal verifikasi & pencairan pinjaman menjadi `max-w-xl`, menyajikan opsi rekening kas/bank pencairan tanpa pemotongan teks.
+  - Memperbaiki tata letak formulir permohonan pinjaman dengan sistem grid responsif (`sm:grid-cols-2`) yang proporsional.
+- **Pengaturan Kode Transaksi**:
+  - Memperlebar modal pemetaan akun debit dan kredit transaksi akuntansi menjadi `max-w-2xl` dengan layout 2-kolom responsif (`grid-cols-1 sm:grid-cols-2`).
+- **Toolbar Filter Laporan Buku Besar & Mutasi Simpanan**:
+  - Memperlebar kontainer filter dropdown pilihan akun pada toolbar laporan dari `w-48` menjadi `sm:w-80 md:w-96` (Buku Besar) dan `sm:w-64 md:w-72` (Mutasi Simpanan), memastikan nama akun rekening yang sedang difilter dapat terbaca jelas.
+
+### 📱 Pembaruan Desain Human-Crafted Portal Anggota & Login
+- **Tampilan Autentik Buatan Manusia**:
+  - Merombak total desain portal anggota dan halaman login agar tampak alami, profesional, dan nyaman digunakan anggota, menghilangkan kesan visual template kaku.
+  - Memperbaiki ikon saldo simpanan sukarela pada kartu ringkasan dashboard portal anggota.
+  - Pembaruan versi aplikasi portal anggota ke `v2.0.4`.
+
+---
+
 ## [v2.9.9] - 2026-10-16
 
 ### 📑 Slide-Over Drawer Inspection (Panel Samping Non-Destruktif)
