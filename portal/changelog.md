@@ -4,6 +4,25 @@ Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasika
 
 ---
 
+## [2.0.5] - 2026-10-29
+
+### Redesain Ikon & Logo Resmi Portal Anggota (Human-Crafted & Anti AI-Slop)
+
+- **Ikon Aplikasi Baru Berwarna Putih Kehijauan**:
+  - Menggantikan ikon AI-slop (gambar dompet kartun 3D, koin melayang, dan teks bahasa Inggris "KSP Credit Union Growth & Savings" dengan efek neon cyan).
+  - Mengadopsi lambang resmi kelembagaan Koperasi Indonesia yang bersih, presisi, dan proporsional secara vektor murni:
+    - **Perisai Pengayoman**: Menegaskan proteksi, integritas, dan keamanan simpan pinjam anggota.
+    - **Pohon Beringin Geometris Modern**: Simbol pengayoman, kekeluargaan, dan keteguhan gerakan koperasi.
+    - **Timbangan Keadilan**: Simbol transparansi, keadilan, dan asas saling percaya.
+    - **Bintang Kejayaan**: Simbol ketuhanan, keluhuran budi, dan arah visi koperasi.
+  - Skema warna ikon: **Putih Kehijauan** (*Luminous Mint-White*) di atas latar belakang gradien hijau zamrud koperasi (*deep emerald-teal*) yang elegan dan berwibawa.
+- **Optimasi Aset & Standar Resolusi PWA**:
+  - `portal/icons/icon.svg`: Sumber vektor master resolusi tak terbatas (lossless).
+  - `portal/icons/icon-512.png` & `icon-192.png`: Format PNG teroptimasi resolusi tinggi dan tajam, menggantikan file AI sebelumnya yang berukuran 420 KB menjadi ringan (~25 KB) dan ramah memori.
+  - Sinkronisasi favicon browser dan fallback logo portal pada splash screen dan form login agar otomatis menggunakan ikon resmi baru.
+- **Service Worker Cache Update**:
+  - Cache dinaikkan ke `v101` untuk memastikan browser dan perangkat PWA langsung memuat aset visual terbaru tanpa kendala cache lama.
+
 ## [2.0.4] - 2026-10-28
 
 ### Human-Crafted Login Experience & Perbaikan Visual Saldo Sukarela

@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient: Deep Modern Cooperative Emerald-Teal -->
+    <linearGradient id="bgP" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#089788" />
+      <stop offset="45%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#044e46" />
+    </linearGradient>
+
+    <!-- Pristine Putih Kehijauan (Luminous Mint-White Gradient) -->
+    <linearGradient id="wgP" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="55%" stop-color="#F0FDF4" />
+      <stop offset="100%" stop-color="#DCFCE7" />
+    </linearGradient>
+
+    <!-- Pure White Highlight -->
+    <linearGradient id="pureWhite" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F0FDF4" />
+    </linearGradient>
+
+    <!-- Inner Shield Subtle Shading -->
+    <linearGradient id="shieldFill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02" />
+    </linearGradient>
+
+    <!-- Soft Drop Shadow for Icon Elements -->
+    <filter id="shP" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#022c22" flood-opacity="0.38" />
+    </filter>
+  </defs>
+
+  <!-- Canvas Base (PWA Squircle) -->
+  <rect width="512" height="512" rx="116" fill="url(#bgP)" />
+  <!-- Subtle Outer Inset Border -->
+  <rect x="2" y="2" width="508" height="508" rx="114" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.18" />
+
+  <!-- MAIN COOPERATIVE EMBLEM -->
+  <g filter="url(#shP)">
+    <!-- 1. Institutional Security Shield (Perisai Pengayoman Koperasi) -->
+    <path d="M 256 72 
+             L 380 124 
+             C 380 270, 330 366, 256 434 
+             C 182 366, 132 270, 132 124 
+             Z" 
+          fill="url(#shieldFill)" 
+          stroke="url(#wgP)" 
+          stroke-width="12" 
+          stroke-linejoin="round" />
+
+    <!-- 2. Star of Integrity & Pancasila (Bintang Ketuhanan / Keadilan) -->
+    <polygon points="256,96 262,111 278,112 265,122 269,137 256,128 243,137 247,122 234,112 250,111" fill="url(#pureWhite)" />
+
+    <!-- 3. Pohon Beringin (Banyan Tree of Mutual Growth & Shelter) -->
+    <!-- Lush Sculpted Banyan Foliage Canopy -->
+    <path d="M 256 150 
+             C 276 150, 292 162, 298 178 
+             C 308 175, 322 182, 324 196 
+             C 335 201, 340 214, 336 228 
+             C 332 243, 318 252, 302 252 
+             L 210 252 
+             C 194 252, 180 243, 176 228 
+             C 172 214, 177 201, 188 196 
+             C 190 182, 204 175, 214 178 
+             C 220 162, 236 150, 256 150 Z" 
+          fill="url(#wgP)" />
+
+    <!-- Solid Tree Trunk with Grounded Roots -->
+    <path d="M 244 252 
+             L 268 252 
+             L 272 322 
+             L 302 355 
+             L 284 366 
+             L 256 338 
+             L 228 366 
+             L 210 355 
+             L 240 322 Z" 
+          fill="url(#wgP)" />
+
+    <!-- 4. Timbangan Keadilan (The Balanced Scales of Mutual Trust) -->
+    <!-- Horizontal Scale Beam -->
+    <rect x="180" y="278" width="152" height="7.5" rx="3.75" fill="url(#wgP)" />
+    <!-- Pivot Pin with Dark Contrast Center -->
+    <circle cx="256" cy="281.75" r="7.5" fill="url(#pureWhite)" />
+    <circle cx="256" cy="281.75" r="4.5" fill="#044e46" />
+
+    <!-- Left Hanging Scale -->
+    <line x1="188" y1="285.5" x2="173" y2="315" stroke="url(#wgP)" stroke-width="3.5" />
+    <line x1="188" y1="285.5" x2="203" y2="315" stroke="url(#wgP)" stroke-width="3.5" />
+    <path d="M 166 315 C 166 330, 210 330, 210 315 Z" fill="url(#wgP)" />
+
+    <!-- Right Hanging Scale -->
+    <line x1="324" y1="285.5" x2="309" y2="315" stroke="url(#wgP)" stroke-width="3.5" />
+    <line x1="324" y1="285.5" x2="339" y2="315" stroke="url(#wgP)" stroke-width="3.5" />
+    <path d="M 302 315 C 302 330, 346 330, 346 315 Z" fill="url(#wgP)" />
+  </g>
+</svg>

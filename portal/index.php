@@ -11,8 +11,12 @@ $getSetting = function ($key, $default = '') use ($db) {
 
 $pwaName = $getSetting('pwa_name', 'Portal Anggota');
 $logoUrl = $getSetting('logo_url', '');
-if ($logoUrl && !str_starts_with($logoUrl, 'http')) {
-    $logoUrl = '../' . $logoUrl;
+if ($logoUrl) {
+    if (!str_starts_with($logoUrl, 'http')) {
+        $logoUrl = '../' . $logoUrl;
+    }
+} else {
+    $logoUrl = 'icons/icon-192.png';
 }
 
 ob_start();
