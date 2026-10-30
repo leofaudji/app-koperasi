@@ -1,6 +1,20 @@
-﻿# Riwayat Perubahan Portal Anggota
+# Riwayat Perubahan Portal Anggota
 
 Semua pembaruan fitur dan perbaikan pada aplikasi portal anggota didokumentasikan di sini.
+
+---
+
+## [2.0.7] - 2026-10-30
+
+### 📱 Perbaikan Kompatibilitas Android PWA: Tampilan Standalone & Kelancaran Scroll
+- **Perbaikan Mode Tampilan Manifest (`display_override`)**:
+  - Mengubah konfigurasi `display_override` pada `manifest.json` dari `["fullscreen", "standalone"]` menjadi `["standalone", "minimal-ui"]`.
+  - Pada Android Chromium, parameter `display_override` dibaca pertama kali sehingga `"fullscreen"` memaksa aplikasi menutupi seluruh layar (*immersive mode* tanpa status bar & navigation bar sistem). Dengan beralih ke `standalone`, aplikasi di Android kini memiliki status bar asli yang elegan (jam, baterai, sinyal berpadu dengan tema hijau emerald) persis seperti tampilan di iPhone / iOS.
+- **Penyelesaian Masalah Scroll Terkunci di Android (`touchmove` Gesture Fix)**:
+  - Memperbaiki script pencegah *pinch-to-zoom* di `index.html`. Sebelumnya logika `if (event.scale !== 1)` berjalan normal di iPhone Safari (yang memiliki properti WebKit `event.scale = 1`), tetapi pada Android Chrome `event.scale` bernilai `undefined` sehingga `undefined !== 1` selalu menghasilkan `true` dan memicu `event.preventDefault()` pada setiap sentuhan jari, yang berakibat **semua fungsi scroll di Android macet total**.
+  - Mengganti logika dengan evaluasi multi-touch standar W3C: `if (event.touches && event.touches.length > 1) { event.preventDefault(); }` sehingga sentuhan 1 jari untuk scroll vertikal berjalan 100% lancar di semua tipe HP Android tanpa mengorbankan pencegahan zoom liar.
+- **Dukungan Tinggi Dinamis Viewport HP (`100dvh`)**:
+  - Menambahkan `min-height: 100dvh` pada pembungkus `.mobile-container` agar tinggi halaman beradaptasi mulus dengan bilah navigasi dan keyboard virtual Android.
 
 ---
 

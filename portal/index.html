@@ -99,6 +99,7 @@
             max-width: 480px;
             margin: 0 auto;
             min-height: 100vh;
+            min-height: 100dvh;
             background: #f8fafc;
             position: relative;
             box-shadow: 0 0 40px rgba(0, 0, 0, 0.05);
@@ -651,17 +652,23 @@
         }
     </style>
 
-    <!-- Prevent Viewport Zoom on Input Focus -->
+    <!-- Prevent Unwanted Viewport Pinch Zoom while Preserving Smooth Scrolling -->
     <script>
         document.addEventListener('touchmove', function (event) {
-            if (event.scale !== 1) {
+            // Only prevent multi-touch pinch gestures (> 1 finger), never 1-finger scroll
+            if (event.touches && event.touches.length > 1) {
                 event.preventDefault();
             }
         }, { passive: false });
+
+        // iOS Safari gesturezoom support
+        document.addEventListener('gesturestart', function (e) {
+            e.preventDefault();
+        });
     </script>
 </head>
 
-<body class="overflow-hidden">
+<body>
     <!-- Initial Professional Splash Screen -->
     <div id="initial-splash">
         <div class="flex flex-col items-center branding-appear">
